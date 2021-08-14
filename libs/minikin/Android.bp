@@ -28,10 +28,13 @@ cc_library {
     host_supported: true,
     srcs: [
         "BidiUtils.cpp",
+        "BoundsCache.cpp",
         "CmapCoverage.cpp",
         "Emoji.cpp",
+        "Font.cpp",
         "FontCollection.cpp",
         "FontFamily.cpp",
+        "FontFileParser.cpp",
         "FontUtils.cpp",
         "GraphemeBreak.cpp",
         "GreedyLineBreaker.cpp",
