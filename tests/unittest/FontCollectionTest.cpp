@@ -211,7 +211,7 @@ TEST(FontCollectionTest, bufferTest) {
         BufferReader reader(buffer.data());
         auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
         EXPECT_EQ(2u, copied.size());
-        EXPECT_EQ(copied[0]->mFamilies[0], copied[1]->mFamilies[0]);
+        EXPECT_EQ(copied[0]->getFamilyAt(0), copied[1]->getFamilyAt(0));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
         EXPECT_EQ(buffer, newBuffer);
     }

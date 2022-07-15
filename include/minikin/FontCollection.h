@@ -43,10 +43,10 @@ public:
     template <Font::TypefaceReader typefaceReader>
     static std::vector<std::shared_ptr<FontCollection>> readVector(BufferReader* reader) {
         uint32_t allFontFamiliesCount = reader->read<uint32_t>();
-        std::vector<std::shared_ptr<FontFamily>> allFontFamilies;
-        allFontFamilies.reserve(allFontFamiliesCount);
+        auto allFontFamilies = std::make_shared<std::vector<std::shared_ptr<FontFamily>>>();
+        allFontFamilies->reserve(allFontFamiliesCount);
         for (uint32_t i = 0; i < allFontFamiliesCount; i++) {
-            allFontFamilies.push_back(FontFamily::readFrom<typefaceReader>(reader));
+            allFontFamilies->push_back(FontFamily::readFrom<typefaceReader>(reader));
         }
         uint32_t fontCollectionsCount = reader->read<uint32_t>();
         std::vector<std::shared_ptr<FontCollection>> fontCollections;
@@ -195,13 +195,21 @@ public:
 
     uint32_t getId() const;
 
-    const std::vector<std::shared_ptr<FontFamily>>& getFamilies() const { return mFamilies; }
+    size_t getFamilyCount() const { return mFamilyCount; }
+
+    const std::shared_ptr<FontFamily>& getFamilyAt(size_t index) const {
+        if (mFamilyIndices != nullptr) {
+            index = mFamilyIndices[index];
+        }
+        return (*mMaybeSharedFamilies)[index];
+    }
 
 private:
     FRIEND_TEST(FontCollectionTest, bufferTest);
 
-    FontCollection(BufferReader* reader,
-                   const std::vector<std::shared_ptr<FontFamily>>& allFontFamilies);
+    FontCollection(
+            BufferReader* reader,
+            const std::shared_ptr<std::vector<std::shared_ptr<FontFamily>>>& allFontFamilies);
     // Write fields of the instance, using fontFamilyToIndexMap for finding
     // indices for FontFamily.
     void writeTo(BufferWriter* writer,
@@ -215,8 +223,9 @@ private:
     static const int kLogCharsPerPage = 8;
     static const int kPageMask = (1 << kLogCharsPerPage) - 1;
 
-    // mFamilyVec holds the indices of the mFamilies and mRanges holds the range of indices of
-    // mFamilyVec. The maximum number of pages is 0x10FF (U+10FFFF >> 8). The maximum number of
+    // mFamilyVec holds the indices of the family (as in getFamilyAt()) and
+    // mRanges holds the range of indices of mFamilyVec.
+    // The maximum number of pages is 0x10FF (U+10FFFF >> 8). The maximum number of
     // the fonts is 0xFF. Thus, technically the maximum length of mFamilyVec is 0x10EE01
     // (0x10FF * 0xFF). However, in practice, 16-bit integers are enough since most fonts supports
     // only limited range of code points.
@@ -250,7 +259,18 @@ private:
 
     // This vector has pointers to the all font family instances in this collection.
     // This vector can't be empty.
-    std::vector<std::shared_ptr<FontFamily>> mFamilies;
+    // This vector may be shared with other font collections.
+    // (1) When shared, this vector is a union of all font family instances
+    //     shared by multiple font collections.
+    //     mFamilyIndices will be non-null in this case.
+    //     The i-th family in this collection will be
+    //     mMaybeSharedFamilies[mFamilyIndices[i]].
+    // (2) When not shared, mFamilyIndices will be null and
+    //     the i-th family in this collection will be mMaybeSharedFamilies[i].
+    // Use getFamilyAt(i) to access the i-th font in this family.
+    std::shared_ptr<std::vector<std::shared_ptr<FontFamily>>> mMaybeSharedFamilies;
+    uint32_t mFamilyCount;
+    const uint32_t* mFamilyIndices;
 
     // Following two vectors are pre-calculated tables for resolving coverage faster.
     // For example, to iterate over all fonts which support Unicode code point U+XXYYZZ,
