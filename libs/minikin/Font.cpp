@@ -51,25 +51,47 @@ std::shared_ptr<Font> Font::Builder::build() {
                                           std::move(font), mLocaleListId));
 }
 
+Font::~Font() {
+    ExternalRefs* externalRefs = mExternalRefsHolder.exchange(nullptr);
+    if (externalRefs) {
+        delete externalRefs;
+    }
+}
+
 const std::shared_ptr<MinikinFont>& Font::typeface() const {
-    std::lock_guard lock(mTypefaceMutex);
-    if (mTypeface) return mTypeface;
-    initTypefaceLocked();
-    return mTypeface;
+    return getExternalRefs()->mTypeface;
 }
 
 const HbFontUniquePtr& Font::baseFont() const {
-    std::lock_guard lock(mTypefaceMutex);
-    if (mBaseFont) return mBaseFont;
-    initTypefaceLocked();
-    mBaseFont = prepareFont(mTypeface);
-    return mBaseFont;
+    return getExternalRefs()->mBaseFont;
 }
 
-void Font::initTypefaceLocked() const {
-    if (mTypeface) return;
-    MINIKIN_ASSERT(mTypefaceLoader, "mTypefaceLoader should not be empty when mTypeface is null");
-    mTypeface = mTypefaceLoader(mTypefaceMetadataReader);
+const Font::ExternalRefs* Font::getExternalRefs() const {
+    // Thread safety note: getExternalRefs() is thread-safe.
+    // getExternalRefs() returns the first ExternalRefs set to mExternalRefsHolder.
+    // When multiple threads called getExternalRefs() at the same time and
+    // mExternalRefsHolder is not set, multiple ExternalRefs may be created,
+    // but only one ExternalRefs will be set to mExternalRefsHolder and
+    // others will be deleted.
+    Font::ExternalRefs* externalRefs = mExternalRefsHolder.load();
+    if (externalRefs) return externalRefs;
+    // mExternalRefsHolder is null. Try creating an ExternalRefs.
+    std::shared_ptr<MinikinFont> typeface = mTypefaceLoader(mTypefaceMetadataReader);
+    HbFontUniquePtr font = prepareFont(typeface);
+    Font::ExternalRefs* newExternalRefs =
+            new Font::ExternalRefs(std::move(typeface), std::move(font));
+    // Set the new ExternalRefs to mExternalRefsHolder if it is still null.
+    Font::ExternalRefs* expected = nullptr;
+    if (mExternalRefsHolder.compare_exchange_strong(expected, newExternalRefs)) {
+        return newExternalRefs;
+    } else {
+        // Another thread has already created and set an ExternalRefs.
+        // Delete ours and use theirs instead.
+        delete newExternalRefs;
+        // compare_exchange_strong writes the stored value into 'expected'
+        // when comparison fails.
+        return expected;
+    }
 }
 
 // static
