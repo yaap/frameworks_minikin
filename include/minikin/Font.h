@@ -17,8 +17,8 @@
 #ifndef MINIKIN_FONT_H
 #define MINIKIN_FONT_H
 
+#include <atomic>
 #include <memory>
-#include <mutex>
 #include <unordered_set>
 
 #include "minikin/Buffer.h"
@@ -133,6 +133,7 @@ public:
         typefaceWriter(writer, typeface().get());
     }
 
+    ~Font();
     // This locale list is just for API compatibility. This is not used in font selection or family
     // fallback.
     uint32_t getLocaleListId() const { return mLocaleListId; }
@@ -144,34 +145,43 @@ public:
     std::unordered_set<AxisTag> getSupportedAxes() const;
 
 private:
+    // ExternalRefs holds references to objects provided by external libraries.
+    // Because creating these external objects is costly,
+    // ExternalRefs is lazily created if Font was created by readFrom().
+    class ExternalRefs {
+    public:
+        ExternalRefs(std::shared_ptr<MinikinFont>&& typeface, HbFontUniquePtr&& baseFont)
+                : mTypeface(std::move(typeface)), mBaseFont(std::move(baseFont)) {}
+
+        std::shared_ptr<MinikinFont> mTypeface;
+        HbFontUniquePtr mBaseFont;
+    };
+
     // Use Builder instead.
     Font(std::shared_ptr<MinikinFont>&& typeface, FontStyle style, HbFontUniquePtr&& baseFont,
          uint32_t localeListId)
-            : mTypeface(std::move(typeface)),
+            : mExternalRefsHolder(new ExternalRefs(std::move(typeface), std::move(baseFont))),
               mStyle(style),
-              mBaseFont(std::move(baseFont)),
               mTypefaceLoader(nullptr),
               mTypefaceMetadataReader(nullptr),
               mLocaleListId(localeListId) {}
     Font(FontStyle style, BufferReader typefaceMetadataReader, TypefaceLoader* typefaceLoader,
          uint32_t localeListId)
-            : mStyle(style),
+            : mExternalRefsHolder(nullptr),
+              mStyle(style),
               mTypefaceLoader(typefaceLoader),
               mTypefaceMetadataReader(typefaceMetadataReader),
               mLocaleListId(localeListId) {}
 
-    void initTypefaceLocked() const EXCLUSIVE_LOCKS_REQUIRED(mTypefaceMutex);
+    const ExternalRefs* getExternalRefs() const;
 
     static HbFontUniquePtr prepareFont(const std::shared_ptr<MinikinFont>& typeface);
     static FontStyle analyzeStyle(const HbFontUniquePtr& font);
 
     // Lazy-initialized if created by readFrom().
-    mutable std::shared_ptr<MinikinFont> mTypeface GUARDED_BY(mTypefaceMutex);
+    mutable std::atomic<ExternalRefs*> mExternalRefsHolder;
     FontStyle mStyle;
-    // Lazy-initialized if created by readFrom().
-    mutable HbFontUniquePtr mBaseFont GUARDED_BY(mTypefaceMutex);
 
-    mutable std::mutex mTypefaceMutex;
     // Non-null if created by readFrom().
     TypefaceLoader* mTypefaceLoader;
     // Non-null if created by readFrom().

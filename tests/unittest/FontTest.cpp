@@ -34,7 +34,14 @@ TEST(FontTest, BufferTest) {
             Font::readFrom<readFreeTypeMinikinFontForTest>(&reader, kEmptyLocaleListId);
     EXPECT_EQ(minikinFont->GetFontPath(), font->typeface()->GetFontPath());
     EXPECT_EQ(original->style(), font->style());
-    EXPECT_NE(nullptr, font->baseFont());
+    // baseFont() should return the same non-null instance when called twice.
+    const auto& baseFont = font->baseFont();
+    EXPECT_NE(nullptr, baseFont);
+    EXPECT_EQ(baseFont, font->baseFont());
+    // typeface() should return the same non-null instance when called twice.
+    const auto& typeface = font->typeface();
+    EXPECT_NE(nullptr, typeface);
+    EXPECT_EQ(typeface, font->typeface());
     std::vector<uint8_t> newBuffer = writeToBuffer<Font, writeFreeTypeMinikinFontForTest>(*font);
     EXPECT_EQ(buffer, newBuffer);
 }
