@@ -25,13 +25,13 @@
 namespace minikin {
 
 TEST(FontTest, BufferTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath("Ascii.ttf"));
     std::shared_ptr<Font> original = Font::Builder(minikinFont).build();
-    std::vector<uint8_t> buffer = writeToBuffer<Font, writeFreeTypeMinikinFontForTest>(*original);
+    std::vector<uint8_t> buffer = writeToBuffer<Font>(*original);
 
     BufferReader reader(buffer.data());
-    std::shared_ptr<Font> font =
-            Font::readFrom<readFreeTypeMinikinFontForTest>(&reader, kEmptyLocaleListId);
+    std::shared_ptr<Font> font = Font::readFrom(&reader, kEmptyLocaleListId);
     EXPECT_EQ(minikinFont->GetFontPath(), font->typeface()->GetFontPath());
     EXPECT_EQ(original->style(), font->style());
     // baseFont() should return the same non-null instance when called twice.
@@ -42,7 +42,7 @@ TEST(FontTest, BufferTest) {
     const auto& typeface = font->typeface();
     EXPECT_NE(nullptr, typeface);
     EXPECT_EQ(typeface, font->typeface());
-    std::vector<uint8_t> newBuffer = writeToBuffer<Font, writeFreeTypeMinikinFontForTest>(*font);
+    std::vector<uint8_t> newBuffer = writeToBuffer<Font>(*font);
     EXPECT_EQ(buffer, newBuffer);
 }
 

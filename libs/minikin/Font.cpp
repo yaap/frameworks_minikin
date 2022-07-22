@@ -18,17 +18,17 @@
 
 #include "minikin/Font.h"
 
-#include <vector>
-
 #include <hb-ot.h>
 #include <hb.h>
 #include <log/log.h>
 
-#include "minikin/HbUtils.h"
-#include "minikin/MinikinFont.h"
+#include <vector>
 
 #include "FontUtils.h"
 #include "MinikinInternal.h"
+#include "minikin/HbUtils.h"
+#include "minikin/MinikinFont.h"
+#include "minikin/MinikinFontFactory.h"
 
 namespace minikin {
 
@@ -49,6 +49,19 @@ std::shared_ptr<Font> Font::Builder::build() {
     }
     return std::shared_ptr<Font>(new Font(std::move(mTypeface), FontStyle(mWeight, mSlant),
                                           std::move(font), mLocaleListId));
+}
+
+// static
+std::shared_ptr<Font> Font::readFrom(BufferReader* reader, uint32_t localeListId) {
+    FontStyle style = FontStyle(reader);
+    BufferReader typefaceMetadataReader = *reader;
+    MinikinFontFactory::getInstance().skip(reader);
+    return std::shared_ptr<Font>(new Font(style, typefaceMetadataReader, localeListId));
+}
+
+void Font::writeTo(BufferWriter* writer) const {
+    mStyle.writeTo(writer);
+    MinikinFontFactory::getInstance().write(writer, typeface().get());
 }
 
 Font::~Font() {
@@ -76,7 +89,8 @@ const Font::ExternalRefs* Font::getExternalRefs() const {
     Font::ExternalRefs* externalRefs = mExternalRefsHolder.load();
     if (externalRefs) return externalRefs;
     // mExternalRefsHolder is null. Try creating an ExternalRefs.
-    std::shared_ptr<MinikinFont> typeface = mTypefaceLoader(mTypefaceMetadataReader);
+    std::shared_ptr<MinikinFont> typeface =
+            MinikinFontFactory::getInstance().create(mTypefaceMetadataReader);
     HbFontUniquePtr font = prepareFont(typeface);
     Font::ExternalRefs* newExternalRefs =
             new Font::ExternalRefs(std::move(typeface), std::move(font));

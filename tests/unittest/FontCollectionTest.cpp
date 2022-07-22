@@ -180,19 +180,20 @@ TEST(FontCollectionTest, createWithVariations) {
 std::vector<uint8_t> writeToBuffer(
         const std::vector<std::shared_ptr<FontCollection>>& collections) {
     BufferWriter fakeWriter(nullptr);
-    FontCollection::writeVector<writeFreeTypeMinikinFontForTest>(&fakeWriter, collections);
+    FontCollection::writeVector(&fakeWriter, collections);
     std::vector<uint8_t> buffer(fakeWriter.size());
     BufferWriter writer(buffer.data());
-    FontCollection::writeVector<writeFreeTypeMinikinFontForTest>(&writer, collections);
+    FontCollection::writeVector(&writer, collections);
     return buffer;
 }
 
 TEST(FontCollectionTest, bufferTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     {
         std::vector<std::shared_ptr<FontCollection>> original({buildFontCollection(kVsTestFont)});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
         expectVSGlyphsForVsTestFont(copied[0].get());
         EXPECT_EQ(original[0]->getSupportedTags(), copied[0]->getSupportedTags());
@@ -209,7 +210,7 @@ TEST(FontCollectionTest, bufferTest) {
         std::vector<std::shared_ptr<FontCollection>> original({fc1, fc2});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(2u, copied.size());
         EXPECT_EQ(copied[0]->getFamilyAt(0), copied[1]->getFamilyAt(0));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
@@ -223,7 +224,7 @@ TEST(FontCollectionTest, bufferTest) {
                 {buildFontCollection(kMultiAxisFont)});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
-        auto copied = FontCollection::readVector<readFreeTypeMinikinFontForTest>(&reader);
+        auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
         EXPECT_EQ(1u,
                   copied[0]->getSupportedTags().count(MinikinFont::MakeTag('w', 'd', 't', 'h')));

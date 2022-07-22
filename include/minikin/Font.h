@@ -110,28 +110,8 @@ public:
         bool mIsSlantSet = false;
     };
 
-    // Type for functions to load MinikinFont lazily.
-    using TypefaceLoader = std::shared_ptr<MinikinFont>(BufferReader reader);
-    // Type for functions to read MinikinFont metadata and return
-    // TypefaceLoader.
-    using TypefaceReader = TypefaceLoader*(BufferReader* reader);
-    // Type for functions to write MinikinFont metadata.
-    using TypefaceWriter = void(BufferWriter* writer, const MinikinFont* typeface);
-
-    template <TypefaceReader typefaceReader>
-    static std::shared_ptr<Font> readFrom(BufferReader* reader, uint32_t localeListId) {
-        FontStyle style = FontStyle(reader);
-        BufferReader typefaceMetadataReader = *reader;
-        TypefaceLoader* typefaceLoader = typefaceReader(reader);
-        return std::shared_ptr<Font>(
-                new Font(style, typefaceMetadataReader, typefaceLoader, localeListId));
-    }
-
-    template <TypefaceWriter typefaceWriter>
-    void writeTo(BufferWriter* writer) const {
-        mStyle.writeTo(writer);
-        typefaceWriter(writer, typeface().get());
-    }
+    static std::shared_ptr<Font> readFrom(BufferReader* reader, uint32_t localeListId);
+    void writeTo(BufferWriter* writer) const;
 
     ~Font();
     // This locale list is just for API compatibility. This is not used in font selection or family
@@ -162,16 +142,13 @@ private:
          uint32_t localeListId)
             : mExternalRefsHolder(new ExternalRefs(std::move(typeface), std::move(baseFont))),
               mStyle(style),
-              mTypefaceLoader(nullptr),
-              mTypefaceMetadataReader(nullptr),
-              mLocaleListId(localeListId) {}
-    Font(FontStyle style, BufferReader typefaceMetadataReader, TypefaceLoader* typefaceLoader,
-         uint32_t localeListId)
+              mLocaleListId(localeListId),
+              mTypefaceMetadataReader(nullptr) {}
+    Font(FontStyle style, BufferReader typefaceMetadataReader, uint32_t localeListId)
             : mExternalRefsHolder(nullptr),
               mStyle(style),
-              mTypefaceLoader(typefaceLoader),
-              mTypefaceMetadataReader(typefaceMetadataReader),
-              mLocaleListId(localeListId) {}
+              mLocaleListId(localeListId),
+              mTypefaceMetadataReader(typefaceMetadataReader) {}
 
     const ExternalRefs* getExternalRefs() const;
 
@@ -181,13 +158,10 @@ private:
     // Lazy-initialized if created by readFrom().
     mutable std::atomic<ExternalRefs*> mExternalRefsHolder;
     FontStyle mStyle;
+    uint32_t mLocaleListId;
 
-    // Non-null if created by readFrom().
-    TypefaceLoader* mTypefaceLoader;
     // Non-null if created by readFrom().
     BufferReader mTypefaceMetadataReader;
-
-    uint32_t mLocaleListId;
 
     // Stop copying and moving
     Font(Font&& o) = delete;

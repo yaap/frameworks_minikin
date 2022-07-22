@@ -29,7 +29,7 @@ namespace minikin {
 // Thus the memory buffer should outlive objects created using this class.
 class BufferReader {
 public:
-    BufferReader(const void* buffer) : BufferReader(buffer, 0) {}
+    explicit BufferReader(const void* buffer) : BufferReader(buffer, 0) {}
     BufferReader(const void* buffer, uint32_t pos)
             : mData(reinterpret_cast<const uint8_t*>(buffer)), mPos(pos) {}
 
@@ -98,7 +98,7 @@ class BufferWriter {
 public:
     // Create a buffer writer. Passing nullptr creates a fake writer,
     // which can be used to measure the buffer size needed.
-    BufferWriter(void* buffer) : mData(reinterpret_cast<uint8_t*>(buffer)), mPos(0) {}
+    explicit BufferWriter(void* buffer) : mData(reinterpret_cast<uint8_t*>(buffer)), mPos(0) {}
 
     BufferWriter(BufferWriter&&) = default;
     BufferWriter& operator=(BufferWriter&&) = default;

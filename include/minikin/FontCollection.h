@@ -40,40 +40,9 @@ public:
     explicit FontCollection(const std::vector<std::shared_ptr<FontFamily>>& typefaces);
     explicit FontCollection(std::shared_ptr<FontFamily>&& typeface);
 
-    template <Font::TypefaceReader typefaceReader>
-    static std::vector<std::shared_ptr<FontCollection>> readVector(BufferReader* reader) {
-        uint32_t allFontFamiliesCount = reader->read<uint32_t>();
-        auto allFontFamilies = std::make_shared<std::vector<std::shared_ptr<FontFamily>>>();
-        allFontFamilies->reserve(allFontFamiliesCount);
-        for (uint32_t i = 0; i < allFontFamiliesCount; i++) {
-            allFontFamilies->push_back(FontFamily::readFrom<typefaceReader>(reader));
-        }
-        uint32_t fontCollectionsCount = reader->read<uint32_t>();
-        std::vector<std::shared_ptr<FontCollection>> fontCollections;
-        fontCollections.reserve(fontCollectionsCount);
-        for (uint32_t i = 0; i < fontCollectionsCount; i++) {
-            fontCollections.emplace_back(new FontCollection(reader, allFontFamilies));
-        }
-        return fontCollections;
-    }
-
-    template <Font::TypefaceWriter typefaceWriter>
+    static std::vector<std::shared_ptr<FontCollection>> readVector(BufferReader* reader);
     static void writeVector(BufferWriter* writer,
-                            const std::vector<std::shared_ptr<FontCollection>>& fontCollections) {
-        std::vector<std::shared_ptr<FontFamily>> allFontFamilies;
-        // Note: operator== for shared_ptr compares raw pointer values.
-        std::unordered_map<std::shared_ptr<FontFamily>, uint32_t> fontFamilyToIndexMap;
-        collectAllFontFamilies(fontCollections, &allFontFamilies, &fontFamilyToIndexMap);
-
-        writer->write<uint32_t>(allFontFamilies.size());
-        for (const auto& fontFamily : allFontFamilies) {
-            fontFamily->writeTo<typefaceWriter>(writer);
-        }
-        writer->write<uint32_t>(fontCollections.size());
-        for (const auto& fontCollection : fontCollections) {
-            fontCollection->writeTo(writer, fontFamilyToIndexMap);
-        }
-    }
+                            const std::vector<std::shared_ptr<FontCollection>>& fontCollections);
 
     // Helper class for representing font family match result in packed bits.
     struct FamilyMatchResult {
