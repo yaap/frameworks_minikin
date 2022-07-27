@@ -45,11 +45,17 @@ public:
 
     template <typename T>
     const T& read() {
+        const T* data = map<T>(sizeof(T));
+        return *data;
+    }
+
+    template <typename T>
+    const T* map(uint32_t size) {
         static_assert(std::is_pod<T>::value, "T must be a POD");
         mPos = BufferReader::align<T>(mPos);
         const T* data = reinterpret_cast<const T*>(mData + mPos);
-        mPos += sizeof(T);
-        return *data;
+        mPos += size;
+        return data;
     }
 
     template <typename T>
@@ -109,12 +115,21 @@ public:
     // TODO: use std::type_identity_t when C++20 is available.
     template <typename T>
     void write(const std::common_type_t<T>& data) {
+        T* buf = reserve<T>(sizeof(T));
+        if (buf != nullptr) {
+            memcpy(buf, &data, sizeof(T));
+        }
+    }
+
+    // Reserve a region and return a pointer to the reserved region.
+    // The reserved region is not initialized.
+    template <typename T>
+    T* reserve(uint32_t size) {
         static_assert(std::is_pod<T>::value, "T must be a POD");
         mPos = BufferReader::align<T>(mPos);
-        if (mData != nullptr) {
-            memcpy(mData + mPos, &data, sizeof(T));
-        }
-        mPos += sizeof(T);
+        uint32_t pos = mPos;
+        mPos += size;
+        return mData == nullptr ? nullptr : reinterpret_cast<T*>(mData + pos);
     }
 
     // Write an array of type T.
