@@ -150,8 +150,9 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
         mMaxChar = max(mMaxChar, coverage.length());
         lastChar.push_back(coverage.nextSetBit(0));
 
-        const std::unordered_set<AxisTag>& supportedAxes = family->supportedAxes();
-        mSupportedAxes.insert(supportedAxes.begin(), supportedAxes.end());
+        for (size_t i = 0; i < family->getSupportedAxesCount(); i++) {
+            mSupportedAxes.insert(family->getSupportedAxisAt(i));
+        }
     }
     // mMaybeSharedFamilies is not shared.
     mMaybeSharedFamilies = families;

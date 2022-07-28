@@ -47,12 +47,13 @@ public:
     FamilyVariant variant() const { return mVariant; }
 
     // API's for enumerating the fonts in a family. These don't guarantee any particular order
-    size_t getNumFonts() const { return mFonts.size(); }
+    size_t getNumFonts() const { return mFontsCount; }
     const Font* getFont(size_t index) const { return mFonts[index].get(); }
     const std::shared_ptr<Font>& getFontRef(size_t index) const { return mFonts[index]; }
     FontStyle getStyle(size_t index) const { return mFonts[index]->style(); }
     bool isColorEmojiFamily() const { return mIsColorEmoji; }
-    const std::unordered_set<AxisTag>& supportedAxes() const { return mSupportedAxes; }
+    size_t getSupportedAxesCount() const { return mSupportedAxesCount; }
+    AxisTag getSupportedAxisAt(size_t index) const { return mSupportedAxes[index]; }
     bool isCustomFallback() const { return mIsCustomFallback; }
 
     // Get Unicode coverage.
@@ -63,7 +64,7 @@ public:
     bool hasGlyph(uint32_t codepoint, uint32_t variationSelector) const;
 
     // Returns true if this font family has a variaion sequence table (cmap format 14 subtable).
-    bool hasVSTable() const { return !mCmapFmt14Coverage.empty(); }
+    bool hasVSTable() const { return mCmapFmt14CoverageCount != 0; }
 
     // Creates new FontFamily based on this family while applying font variations. Returns nullptr
     // if none of variations apply to this family.
@@ -72,22 +73,30 @@ public:
 
 private:
     FontFamily(uint32_t localeListId, FamilyVariant variant,
-               std::vector<std::shared_ptr<Font>>&& fonts,
-               std::unordered_set<AxisTag>&& supportedAxes, bool isColorEmoji,
-               bool isCustomFallback, SparseBitSet&& coverage,
-               std::vector<std::unique_ptr<SparseBitSet>>&& cmapFmt14Coverage);
+               std::unique_ptr<std::shared_ptr<Font>[]>&& fonts, uint32_t fontsCount,
+               std::unique_ptr<AxisTag[]>&& supportedAxes, uint32_t supportedAxesCount,
+               bool isColorEmoji, bool isCustomFallback, SparseBitSet&& coverage,
+               std::unique_ptr<std::unique_ptr<SparseBitSet>[]>&& cmapFmt14Coverage,
+               uint16_t cmapFmt14CoverageCount);
 
     void computeCoverage();
 
-    uint32_t mLocaleListId;
-    FamilyVariant mVariant;
-    std::vector<std::shared_ptr<Font>> mFonts;
-    std::unordered_set<AxisTag> mSupportedAxes;
-    bool mIsColorEmoji;
-    bool mIsCustomFallback;
-
+public:
+    // Note: to minimize padding, small member fields are grouped at the end.
+    std::unique_ptr<std::shared_ptr<Font>[]> mFonts;
+    // mSupportedAxes is sorted.
+    std::unique_ptr<AxisTag[]> mSupportedAxes;
     SparseBitSet mCoverage;
-    std::vector<std::unique_ptr<SparseBitSet>> mCmapFmt14Coverage;
+    std::unique_ptr<std::unique_ptr<SparseBitSet>[]> mCmapFmt14Coverage;
+    uint32_t mLocaleListId;  // 4 bytes
+    uint32_t mFontsCount;    // 4 bytes
+    // OpenType supports up to 2^16-1 (uint16) axes.
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/fvar
+    uint16_t mSupportedAxesCount;      // 2 bytes
+    uint16_t mCmapFmt14CoverageCount;  // 2 bytes
+    FamilyVariant mVariant;            // 1 byte
+    bool mIsColorEmoji;                // 1 byte
+    bool mIsCustomFallback;            // 1 byte
 
     MINIKIN_PREVENT_COPY_AND_ASSIGN(FontFamily);
 };

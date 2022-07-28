@@ -832,7 +832,10 @@ TEST_F(FontFamilyTest, bufferTest) {
         ASSERT_EQ(original->localeListId(), copied->localeListId());
         ASSERT_EQ(original->variant(), copied->variant());
         ASSERT_EQ(original->getNumFonts(), copied->getNumFonts());
-        ASSERT_EQ(original->supportedAxes(), copied->supportedAxes());
+        ASSERT_EQ(original->getSupportedAxesCount(), copied->getSupportedAxesCount());
+        for (size_t i = 0; i < original->getSupportedAxesCount(); i++) {
+            ASSERT_EQ(original->getSupportedAxisAt(i), copied->getSupportedAxisAt(i));
+        }
         ASSERT_EQ(original->isColorEmojiFamily(), copied->isColorEmojiFamily());
         ASSERT_EQ(original->isCustomFallback(), copied->isCustomFallback());
         ASSERT_EQ(original->hasVSTable(), copied->hasVSTable());
@@ -847,7 +850,10 @@ TEST_F(FontFamilyTest, bufferTest) {
         std::vector<uint8_t> buffer = writeToBuffer<FontFamily>(*original);
         BufferReader reader(buffer.data());
         std::shared_ptr<FontFamily> copied = FontFamily::readFrom(&reader);
-        ASSERT_EQ(original->supportedAxes(), copied->supportedAxes());
+        ASSERT_EQ(original->getSupportedAxesCount(), copied->getSupportedAxesCount());
+        for (size_t i = 0; i < original->getSupportedAxesCount(); i++) {
+            ASSERT_EQ(original->getSupportedAxisAt(i), copied->getSupportedAxisAt(i));
+        }
         std::vector<uint8_t> newBuffer = writeToBuffer<FontFamily>(*copied);
         ASSERT_EQ(buffer, newBuffer);
     }
