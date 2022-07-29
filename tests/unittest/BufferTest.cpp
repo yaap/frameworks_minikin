@@ -53,23 +53,22 @@ TEST(BufferTest, testMeasureWriteRead) {
     ASSERT_EQ(writer.size(), buffer.size());
 
     BufferReader reader(buffer.data());
-    ASSERT_EQ(reader.data(), buffer.data());
-    ASSERT_EQ(reader.pos(), 0u);
+    ASSERT_EQ(reader.current(), buffer.data());
     ASSERT_EQ(reader.read<uint8_t>(), 0xABu);
-    ASSERT_EQ(reader.pos(), 1u);
+    ASSERT_EQ(reader.current(), buffer.data() + 1u);
     ASSERT_EQ(reader.read<uint16_t>(), 0xCDEFu);
-    ASSERT_EQ(reader.pos(), 4u);
+    ASSERT_EQ(reader.current(), buffer.data() + 4u);
     ASSERT_EQ(reader.read<uint8_t>(), 0x01u);
-    ASSERT_EQ(reader.pos(), 5u);
+    ASSERT_EQ(reader.current(), buffer.data() + 5u);
     auto [uint32Array, size] = reader.readArray<uint32_t>();
     ASSERT_EQ(size, 2u);
     ASSERT_EQ(uint32Array[0], 0x98765432u);
     ASSERT_EQ(uint32Array[1], 0x98765433u);
-    ASSERT_EQ(reader.pos(), 20u);
+    ASSERT_EQ(reader.current(), buffer.data() + 20u);
     const uint16_t* uint16Array = reader.map<uint16_t>(4);
     ASSERT_EQ(uint16Array[0], 0x1234u);
     ASSERT_EQ(uint16Array[1], 0x5678u);
-    ASSERT_EQ(reader.pos(), 24u);
+    ASSERT_EQ(reader.current(), buffer.data() + 24u);
 }
 
 TEST(BufferTest, testSkip) {
@@ -84,19 +83,18 @@ TEST(BufferTest, testSkip) {
     ASSERT_EQ(writer.size(), buffer.size());
 
     BufferReader reader(buffer.data());
-    ASSERT_EQ(reader.data(), buffer.data());
-    ASSERT_EQ(reader.pos(), 0u);
+    ASSERT_EQ(reader.current(), buffer.data());
     reader.skip<uint8_t>();
-    ASSERT_EQ(reader.pos(), 1u);
+    ASSERT_EQ(reader.current(), buffer.data() + 1u);
     reader.read<uint16_t>();
-    ASSERT_EQ(reader.pos(), 4u);
+    ASSERT_EQ(reader.current(), buffer.data() + 4u);
     reader.skip<uint8_t>();
-    ASSERT_EQ(reader.pos(), 5u);
+    ASSERT_EQ(reader.current(), buffer.data() + 5u);
     reader.skipArray<uint32_t>();
-    ASSERT_EQ(reader.pos(), 20u);
+    ASSERT_EQ(reader.current(), buffer.data() + 20u);
     // No skip function for mapped data.
     reader.map<uint16_t>(4);
-    ASSERT_EQ(reader.pos(), 24u);
+    ASSERT_EQ(reader.current(), buffer.data() + 24u);
 }
 
 }  // namespace minikin

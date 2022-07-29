@@ -107,7 +107,7 @@ void SparseBitSet::initFromRanges(const uint32_t* ranges, size_t nRanges) {
 void SparseBitSet::initFromBuffer(BufferReader* reader) {
     uint32_t size = reader->read<uint32_t>();
     if (size == 0) return;
-    mData.reset(reader->map<MappableData>(size));
+    mData.reset(reader->map<MappableData, alignof(MappableData)>(size));
 }
 
 void SparseBitSet::writeTo(BufferWriter* writer) const {
@@ -118,7 +118,8 @@ void SparseBitSet::writeTo(BufferWriter* writer) const {
     }
     size_t size = mData->size();
     writer->write<uint32_t>(size);
-    MappableData* out = writer->reserve<MappableData>(size);
+    static_assert(alignof(MappableData) == 4);
+    MappableData* out = writer->reserve<MappableData, alignof(MappableData)>(size);
     if (out != nullptr) {
         memcpy(out, mData.get(), size);
         out->mIsMapped = 1;
