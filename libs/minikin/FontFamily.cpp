@@ -97,8 +97,11 @@ std::shared_ptr<FontFamily> FontFamily::readFrom(BufferReader* reader) {
     // AxisTag is uint32_t
     static_assert(sizeof(AxisTag) == 4);
     const auto& [axesPtr, axesCount] = reader->readArray<AxisTag>();
-    auto supportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
-    std::copy(axesPtr, axesPtr + axesCount, supportedAxes.get());
+    std::unique_ptr<AxisTag[]> supportedAxes = nullptr;
+    if (axesCount > 0) {
+        supportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
+        std::copy(axesPtr, axesPtr + axesCount, supportedAxes.get());
+    }
     bool isColorEmoji = static_cast<bool>(reader->read<uint8_t>());
     bool isCustomFallback = static_cast<bool>(reader->read<uint8_t>());
     SparseBitSet coverage(reader);
