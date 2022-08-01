@@ -37,9 +37,15 @@ public:
     FontFamily(FamilyVariant variant, std::vector<std::shared_ptr<Font>>&& fonts);
     FontFamily(uint32_t localeListId, FamilyVariant variant,
                std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback);
+    // public for vector::emplace_back
+    explicit FontFamily(BufferReader* reader);
 
-    static std::shared_ptr<FontFamily> readFrom(BufferReader* reader);
-    void writeTo(BufferWriter* writer) const;
+    FontFamily(FontFamily&&) = default;
+    FontFamily& operator=(FontFamily&&) = default;
+
+    static std::vector<std::shared_ptr<FontFamily>> readVector(BufferReader* reader);
+    static void writeVector(BufferWriter* writer,
+                            const std::vector<std::shared_ptr<FontFamily>>& families);
 
     FakedFont getClosestMatch(FontStyle style) const;
 
@@ -72,12 +78,7 @@ public:
             const std::vector<FontVariation>& variations) const;
 
 private:
-    FontFamily(uint32_t localeListId, FamilyVariant variant,
-               std::unique_ptr<std::shared_ptr<Font>[]>&& fonts, uint32_t fontsCount,
-               std::unique_ptr<AxisTag[]>&& supportedAxes, uint32_t supportedAxesCount,
-               bool isColorEmoji, bool isCustomFallback, SparseBitSet&& coverage,
-               std::unique_ptr<SparseBitSet[]>&& cmapFmt14Coverage,
-               uint16_t cmapFmt14CoverageCount);
+    void writeTo(BufferWriter* writer) const;
 
     void computeCoverage();
 

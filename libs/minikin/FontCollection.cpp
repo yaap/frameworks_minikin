@@ -235,16 +235,12 @@ void FontCollection::writeTo(BufferWriter* writer,
 
 // static
 std::vector<std::shared_ptr<FontCollection>> FontCollection::readVector(BufferReader* reader) {
-    uint32_t allFontFamiliesCount = reader->read<uint32_t>();
-    auto allFontFamilies = std::make_shared<std::vector<std::shared_ptr<FontFamily>>>();
-    allFontFamilies->reserve(allFontFamiliesCount);
-    for (uint32_t i = 0; i < allFontFamiliesCount; i++) {
-        allFontFamilies->push_back(FontFamily::readFrom(reader));
-    }
-    uint32_t fontCollectionsCount = reader->read<uint32_t>();
+    auto allFontFamilies = std::make_shared<std::vector<std::shared_ptr<FontFamily>>>(
+            FontFamily::readVector(reader));
+    uint32_t count = reader->read<uint32_t>();
     std::vector<std::shared_ptr<FontCollection>> fontCollections;
-    fontCollections.reserve(fontCollectionsCount);
-    for (uint32_t i = 0; i < fontCollectionsCount; i++) {
+    fontCollections.reserve(count);
+    for (uint32_t i = 0; i < count; i++) {
         fontCollections.emplace_back(new FontCollection(reader, allFontFamilies));
     }
     return fontCollections;
@@ -258,10 +254,7 @@ void FontCollection::writeVector(
     std::unordered_map<std::shared_ptr<FontFamily>, uint32_t> fontFamilyToIndexMap;
     collectAllFontFamilies(fontCollections, &allFontFamilies, &fontFamilyToIndexMap);
 
-    writer->write<uint32_t>(allFontFamilies.size());
-    for (const auto& fontFamily : allFontFamilies) {
-        fontFamily->writeTo(writer);
-    }
+    FontFamily::writeVector(writer, allFontFamilies);
     writer->write<uint32_t>(fontCollections.size());
     for (const auto& fontCollection : fontCollections) {
         fontCollection->writeTo(writer, fontFamilyToIndexMap);

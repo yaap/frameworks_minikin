@@ -65,62 +65,39 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
     computeCoverage();
 }
 
-FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
-                       std::unique_ptr<std::shared_ptr<Font>[]>&& fonts, uint32_t fontsCount,
-                       std::unique_ptr<AxisTag[]>&& supportedAxes, uint32_t supportedAxesCount,
-                       bool isColorEmoji, bool isCustomFallback, SparseBitSet&& coverage,
-                       std::unique_ptr<SparseBitSet[]>&& cmapFmt14Coverage,
-                       uint16_t cmapFmt14CoverageCount)
-        : mFonts(std::move(fonts)),
-          mSupportedAxes(std::move(supportedAxes)),
-          mCoverage(std::move(coverage)),
-          mCmapFmt14Coverage(std::move(cmapFmt14Coverage)),
-          mLocaleListId(localeListId),
-          mFontsCount(fontsCount),
-          mSupportedAxesCount(supportedAxesCount),
-          mCmapFmt14CoverageCount(cmapFmt14CoverageCount),
-          mVariant(variant),
-          mIsColorEmoji(isColorEmoji),
-          mIsCustomFallback(isCustomFallback) {}
-
-// static
-std::shared_ptr<FontFamily> FontFamily::readFrom(BufferReader* reader) {
-    uint32_t localeListId = LocaleListCache::readFrom(reader);
-    uint32_t fontsCount = reader->read<uint32_t>();
-    auto fonts = std::make_unique<std::shared_ptr<Font>[]>(fontsCount);
-    for (size_t i = 0; i < fontsCount; i++) {
-        fonts[i] = Font::readFrom(reader, localeListId);
+FontFamily::FontFamily(BufferReader* reader)
+        : mSupportedAxes(nullptr), mCmapFmt14Coverage(nullptr) {
+    mLocaleListId = LocaleListCache::readFrom(reader);
+    mFontsCount = reader->read<uint32_t>();
+    mFonts = std::make_unique<std::shared_ptr<Font>[]>(mFontsCount);
+    for (size_t i = 0; i < mFontsCount; i++) {
+        mFonts[i] = Font::readFrom(reader, mLocaleListId);
     }
     // FamilyVariant is uint8_t
     static_assert(sizeof(FamilyVariant) == 1);
-    FamilyVariant variant = reader->read<FamilyVariant>();
+    mVariant = reader->read<FamilyVariant>();
     // AxisTag is uint32_t
     static_assert(sizeof(AxisTag) == 4);
     const auto& [axesPtr, axesCount] = reader->readArray<AxisTag>();
-    std::unique_ptr<AxisTag[]> supportedAxes = nullptr;
+    mSupportedAxesCount = axesCount;
     if (axesCount > 0) {
-        supportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
-        std::copy(axesPtr, axesPtr + axesCount, supportedAxes.get());
+        mSupportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
+        std::copy(axesPtr, axesPtr + axesCount, mSupportedAxes.get());
     }
-    bool isColorEmoji = static_cast<bool>(reader->read<uint8_t>());
-    bool isCustomFallback = static_cast<bool>(reader->read<uint8_t>());
-    SparseBitSet coverage(reader);
-    std::unique_ptr<SparseBitSet[]> cmapFmt14Coverage = nullptr;
+    mIsColorEmoji = static_cast<bool>(reader->read<uint8_t>());
+    mIsCustomFallback = static_cast<bool>(reader->read<uint8_t>());
+    mCoverage = SparseBitSet(reader);
     // Read mCmapFmt14Coverage. As it can have null entries, it is stored in the buffer as a sparse
     // array (size, non-null entry count, array of (index, entry)).
-    uint32_t cmapFmt14CoverageSize = reader->read<uint32_t>();
-    if (cmapFmt14CoverageSize > 0) {
-        cmapFmt14Coverage = std::make_unique<SparseBitSet[]>(cmapFmt14CoverageSize);
+    mCmapFmt14CoverageCount = reader->read<uint32_t>();
+    if (mCmapFmt14CoverageCount > 0) {
+        mCmapFmt14Coverage = std::make_unique<SparseBitSet[]>(mCmapFmt14CoverageCount);
         uint32_t cmapFmt14CoverageEntryCount = reader->read<uint32_t>();
         for (uint32_t i = 0; i < cmapFmt14CoverageEntryCount; i++) {
             uint32_t index = reader->read<uint32_t>();
-            cmapFmt14Coverage[index] = SparseBitSet(reader);
+            mCmapFmt14Coverage[index] = SparseBitSet(reader);
         }
     }
-    return std::shared_ptr<FontFamily>(new FontFamily(
-            localeListId, variant, std::move(fonts), fontsCount, std::move(supportedAxes),
-            axesCount, isColorEmoji, isCustomFallback, std::move(coverage),
-            std::move(cmapFmt14Coverage), cmapFmt14CoverageSize));
 }
 
 void FontFamily::writeTo(BufferWriter* writer) const {
@@ -150,6 +127,34 @@ void FontFamily::writeTo(BufferWriter* writer) const {
                 mCmapFmt14Coverage[i].writeTo(writer);
             }
         }
+    }
+}
+
+// static
+std::vector<std::shared_ptr<FontFamily>> FontFamily::readVector(BufferReader* reader) {
+    uint32_t count = reader->read<uint32_t>();
+    std::shared_ptr<std::vector<FontFamily>> families = std::make_shared<std::vector<FontFamily>>();
+    families->reserve(count);
+    std::vector<std::shared_ptr<FontFamily>> pointers;
+    pointers.reserve(count);
+    for (uint32_t i = 0; i < count; i++) {
+        families->emplace_back(reader);
+        // Use shared_ptr's aliasing constructor to create a shared pointer to
+        // an element in the 'families' vector.
+        // The 'families' vector will be deleted once all the aliases are gone.
+        // We do this in order to save memory. We know that all FontFamily
+        // instances based on the same BufferReader share the same life span.
+        pointers.emplace_back(families, &families->back());
+    }
+    return pointers;
+}
+
+// static
+void FontFamily::writeVector(BufferWriter* writer,
+                             const std::vector<std::shared_ptr<FontFamily>>& families) {
+    writer->write<uint32_t>(families.size());
+    for (const auto& fontFamily : families) {
+        fontFamily->writeTo(writer);
     }
 }
 
