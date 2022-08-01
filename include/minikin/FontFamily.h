@@ -76,18 +76,17 @@ private:
                std::unique_ptr<std::shared_ptr<Font>[]>&& fonts, uint32_t fontsCount,
                std::unique_ptr<AxisTag[]>&& supportedAxes, uint32_t supportedAxesCount,
                bool isColorEmoji, bool isCustomFallback, SparseBitSet&& coverage,
-               std::unique_ptr<std::unique_ptr<SparseBitSet>[]>&& cmapFmt14Coverage,
+               std::unique_ptr<SparseBitSet[]>&& cmapFmt14Coverage,
                uint16_t cmapFmt14CoverageCount);
 
     void computeCoverage();
 
-public:
     // Note: to minimize padding, small member fields are grouped at the end.
     std::unique_ptr<std::shared_ptr<Font>[]> mFonts;
     // mSupportedAxes is sorted.
     std::unique_ptr<AxisTag[]> mSupportedAxes;
     SparseBitSet mCoverage;
-    std::unique_ptr<std::unique_ptr<SparseBitSet>[]> mCmapFmt14Coverage;
+    std::unique_ptr<SparseBitSet[]> mCmapFmt14Coverage;
     uint32_t mLocaleListId;  // 4 bytes
     uint32_t mFontsCount;    // 4 bytes
     // OpenType supports up to 2^16-1 (uint16) axes.

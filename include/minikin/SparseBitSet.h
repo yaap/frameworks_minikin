@@ -62,6 +62,8 @@ public:
     // One more than the maximum value in the set, or zero if empty
     uint32_t length() const { return mData != nullptr ? mData->mMaxVal : 0; }
 
+    bool empty() const { return mData == nullptr || mData->mMaxVal == 0; }
+
     // The next set bit starting at fromIndex, inclusive, or kNotFound
     // if none exists.
     uint32_t nextSetBit(uint32_t fromIndex) const;
