@@ -38,7 +38,7 @@ public:
     FontFamily(uint32_t localeListId, FamilyVariant variant,
                std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback);
     // public for vector::emplace_back
-    explicit FontFamily(BufferReader* reader);
+    explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
 
     FontFamily(FontFamily&&) = default;
     FontFamily& operator=(FontFamily&&) = default;
@@ -78,7 +78,7 @@ public:
             const std::vector<FontVariation>& variations) const;
 
 private:
-    void writeTo(BufferWriter* writer) const;
+    void writeTo(BufferWriter* writer, uint32_t* fontIndex) const;
 
     void computeCoverage();
 

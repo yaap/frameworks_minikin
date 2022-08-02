@@ -65,13 +65,16 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
     computeCoverage();
 }
 
-FontFamily::FontFamily(BufferReader* reader)
+FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& allFonts)
         : mSupportedAxes(nullptr), mCmapFmt14Coverage(nullptr) {
     mLocaleListId = LocaleListCache::readFrom(reader);
     mFontsCount = reader->read<uint32_t>();
     mFonts = std::make_unique<std::shared_ptr<Font>[]>(mFontsCount);
     for (size_t i = 0; i < mFontsCount; i++) {
-        mFonts[i] = Font::readFrom(reader, mLocaleListId);
+        uint32_t fontIndex = reader->read<uint32_t>();
+        // Use aliasing constructor to save memory.
+        // See the comments on FontFamily::readVector for details.
+        mFonts[i] = std::shared_ptr<Font>(allFonts, &(*allFonts)[fontIndex]);
     }
     // FamilyVariant is uint8_t
     static_assert(sizeof(FamilyVariant) == 1);
@@ -100,11 +103,12 @@ FontFamily::FontFamily(BufferReader* reader)
     }
 }
 
-void FontFamily::writeTo(BufferWriter* writer) const {
+void FontFamily::writeTo(BufferWriter* writer, uint32_t* fontIndex) const {
     LocaleListCache::writeTo(writer, mLocaleListId);
     writer->write<uint32_t>(mFontsCount);
     for (size_t i = 0; i < mFontsCount; i++) {
-        mFonts[i]->writeTo(writer);
+        writer->write<uint32_t>(*fontIndex);
+        (*fontIndex)++;
     }
     writer->write<FamilyVariant>(mVariant);
     writer->writeArray<AxisTag>(mSupportedAxes.get(), mSupportedAxesCount);
@@ -132,18 +136,27 @@ void FontFamily::writeTo(BufferWriter* writer) const {
 
 // static
 std::vector<std::shared_ptr<FontFamily>> FontFamily::readVector(BufferReader* reader) {
+    // To save memory used for reference counting objects, we store
+    // Font / FontFamily in shared_ptr<vector<Font / FontFamily>>, and use
+    // shared_ptr's aliasing constructor to create shared_ptr<Font / FontFamily>
+    // that share the reference counting objects with
+    // the shared_ptr<vector<Font / FontFamily>>.
+    // We can do this because we know that all Font and FontFamily
+    // instances based on the same BufferReader share the same life span.
+    uint32_t fontsCount = reader->read<uint32_t>();
+    std::shared_ptr<std::vector<Font>> fonts = std::make_shared<std::vector<Font>>();
+    fonts->reserve(fontsCount);
+    for (uint32_t i = 0; i < fontsCount; i++) {
+        fonts->emplace_back(reader);
+    }
     uint32_t count = reader->read<uint32_t>();
     std::shared_ptr<std::vector<FontFamily>> families = std::make_shared<std::vector<FontFamily>>();
     families->reserve(count);
     std::vector<std::shared_ptr<FontFamily>> pointers;
     pointers.reserve(count);
     for (uint32_t i = 0; i < count; i++) {
-        families->emplace_back(reader);
-        // Use shared_ptr's aliasing constructor to create a shared pointer to
-        // an element in the 'families' vector.
-        // The 'families' vector will be deleted once all the aliases are gone.
-        // We do this in order to save memory. We know that all FontFamily
-        // instances based on the same BufferReader share the same life span.
+        families->emplace_back(reader, fonts);
+        // Use aliasing constructor.
         pointers.emplace_back(families, &families->back());
     }
     return pointers;
@@ -152,9 +165,20 @@ std::vector<std::shared_ptr<FontFamily>> FontFamily::readVector(BufferReader* re
 // static
 void FontFamily::writeVector(BufferWriter* writer,
                              const std::vector<std::shared_ptr<FontFamily>>& families) {
+    std::vector<std::shared_ptr<Font>> fonts;
+    for (const auto& fontFamily : families) {
+        for (uint32_t i = 0; i < fontFamily->getNumFonts(); i++) {
+            fonts.emplace_back(fontFamily->getFontRef(i));
+        }
+    }
+    writer->write<uint32_t>(fonts.size());
+    for (const auto& font : fonts) {
+        font->writeTo(writer);
+    }
+    uint32_t fontIndex = 0;
     writer->write<uint32_t>(families.size());
     for (const auto& fontFamily : families) {
-        fontFamily->writeTo(writer);
+        fontFamily->writeTo(writer, &fontIndex);
     }
 }
 

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "FontUtils.h"
+#include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"
@@ -51,23 +52,42 @@ std::shared_ptr<Font> Font::Builder::build() {
                                           std::move(font), mLocaleListId));
 }
 
-// static
-std::shared_ptr<Font> Font::readFrom(BufferReader* reader, uint32_t localeListId) {
-    FontStyle style = FontStyle(reader);
-    BufferReader typefaceMetadataReader = *reader;
+Font::Font(BufferReader* reader) : mExternalRefsHolder(nullptr), mTypefaceMetadataReader(nullptr) {
+    mStyle = FontStyle(reader);
+    mLocaleListId = LocaleListCache::readFrom(reader);
+    mTypefaceMetadataReader = *reader;
     MinikinFontFactory::getInstance().skip(reader);
-    return std::shared_ptr<Font>(new Font(style, typefaceMetadataReader, localeListId));
 }
 
 void Font::writeTo(BufferWriter* writer) const {
     mStyle.writeTo(writer);
+    LocaleListCache::writeTo(writer, mLocaleListId);
     MinikinFontFactory::getInstance().write(writer, typeface().get());
 }
 
+Font::Font(Font&& o)
+        : mStyle(o.mStyle),
+          mLocaleListId(o.mLocaleListId),
+          mTypefaceMetadataReader(o.mTypefaceMetadataReader) {
+    mExternalRefsHolder.store(o.mExternalRefsHolder.exchange(nullptr));
+}
+
+Font& Font::operator=(Font&& o) {
+    resetExternalRefs(o.mExternalRefsHolder.exchange(nullptr));
+    mStyle = o.mStyle;
+    mLocaleListId = o.mLocaleListId;
+    mTypefaceMetadataReader = o.mTypefaceMetadataReader;
+    return *this;
+}
+
 Font::~Font() {
-    ExternalRefs* externalRefs = mExternalRefsHolder.exchange(nullptr);
-    if (externalRefs) {
-        delete externalRefs;
+    resetExternalRefs(nullptr);
+}
+
+void Font::resetExternalRefs(ExternalRefs* refs) {
+    ExternalRefs* oldRefs = mExternalRefsHolder.exchange(refs);
+    if (oldRefs != nullptr) {
+        delete oldRefs;
     }
 }
 

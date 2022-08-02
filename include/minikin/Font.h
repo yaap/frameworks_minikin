@@ -17,6 +17,8 @@
 #ifndef MINIKIN_FONT_H
 #define MINIKIN_FONT_H
 
+#include <gtest/gtest_prod.h>
+
 #include <atomic>
 #include <memory>
 #include <unordered_set>
@@ -110,9 +112,11 @@ public:
         bool mIsSlantSet = false;
     };
 
-    static std::shared_ptr<Font> readFrom(BufferReader* reader, uint32_t localeListId);
+    explicit Font(BufferReader* reader);
     void writeTo(BufferWriter* writer) const;
 
+    Font(Font&& o);
+    Font& operator=(Font&& o);
     ~Font();
     // This locale list is just for API compatibility. This is not used in font selection or family
     // fallback.
@@ -144,11 +148,8 @@ private:
               mStyle(style),
               mLocaleListId(localeListId),
               mTypefaceMetadataReader(nullptr) {}
-    Font(FontStyle style, BufferReader typefaceMetadataReader, uint32_t localeListId)
-            : mExternalRefsHolder(nullptr),
-              mStyle(style),
-              mLocaleListId(localeListId),
-              mTypefaceMetadataReader(typefaceMetadataReader) {}
+
+    void resetExternalRefs(ExternalRefs* refs);
 
     const ExternalRefs* getExternalRefs() const;
 
@@ -163,11 +164,12 @@ private:
     // Non-null if created by readFrom().
     BufferReader mTypefaceMetadataReader;
 
-    // Stop copying and moving
-    Font(Font&& o) = delete;
-    Font& operator=(Font&& o) = delete;
+    // Stop copying.
     Font(const Font& o) = delete;
     Font& operator=(const Font& o) = delete;
+
+    FRIEND_TEST(FontTest, MoveConstructorTest);
+    FRIEND_TEST(FontTest, MoveAssignmentTest);
 };
 
 }  // namespace minikin
