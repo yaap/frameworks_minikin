@@ -65,14 +65,14 @@ void Font::writeTo(BufferWriter* writer) const {
     MinikinFontFactory::getInstance().write(writer, typeface().get());
 }
 
-Font::Font(Font&& o)
+Font::Font(Font&& o) noexcept
         : mStyle(o.mStyle),
           mLocaleListId(o.mLocaleListId),
           mTypefaceMetadataReader(o.mTypefaceMetadataReader) {
     mExternalRefsHolder.store(o.mExternalRefsHolder.exchange(nullptr));
 }
 
-Font& Font::operator=(Font&& o) {
+Font& Font::operator=(Font&& o) noexcept {
     resetExternalRefs(o.mExternalRefsHolder.exchange(nullptr));
     mStyle = o.mStyle;
     mLocaleListId = o.mLocaleListId;

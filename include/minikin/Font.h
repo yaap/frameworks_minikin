@@ -115,8 +115,8 @@ public:
     explicit Font(BufferReader* reader);
     void writeTo(BufferWriter* writer) const;
 
-    Font(Font&& o);
-    Font& operator=(Font&& o);
+    Font(Font&& o) noexcept;
+    Font& operator=(Font&& o) noexcept;
     ~Font();
     // This locale list is just for API compatibility. This is not used in font selection or family
     // fallback.
