@@ -17,12 +17,11 @@
 #ifndef MINIKIN_FONT_COLLECTION_H
 #define MINIKIN_FONT_COLLECTION_H
 
+#include <gtest/gtest_prod.h>
+
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
-
-#include <gtest/gtest_prod.h>
 
 #include "minikin/Buffer.h"
 #include "minikin/Font.h"
@@ -160,7 +159,8 @@ public:
     std::shared_ptr<FontCollection> createCollectionWithVariation(
             const std::vector<FontVariation>& variations);
 
-    const std::unordered_set<AxisTag>& getSupportedTags() const { return mSupportedAxes; }
+    size_t getSupportedAxesCount() const { return mSupportedAxesCount; }
+    AxisTag getSupportedAxisAt(size_t index) const { return mSupportedAxes[index]; }
 
     uint32_t getId() const;
 
@@ -256,7 +256,9 @@ private:
     std::vector<std::shared_ptr<FontFamily>> mVSFamilyVec;
 
     // Set of supported axes in this collection.
-    std::unordered_set<AxisTag> mSupportedAxes;
+    uint32_t mSupportedAxesCount;
+    // mSupportedAxes is sorted.
+    std::unique_ptr<AxisTag[]> mSupportedAxes;
 
     // Owns allocated memory if this class is created from font families, otherwise these are
     // nullptr.

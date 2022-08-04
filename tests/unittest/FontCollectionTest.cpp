@@ -196,7 +196,10 @@ TEST(FontCollectionTest, bufferTest) {
         auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
         expectVSGlyphsForVsTestFont(copied[0].get());
-        EXPECT_EQ(original[0]->getSupportedTags(), copied[0]->getSupportedTags());
+        ASSERT_EQ(original[0]->getSupportedAxesCount(), copied[0]->getSupportedAxesCount());
+        for (size_t i = 0; i < original[0]->getSupportedAxesCount(); i++) {
+            EXPECT_EQ(original[0]->getSupportedAxisAt(i), copied[0]->getSupportedAxisAt(i));
+        }
         // Id will be different.
         EXPECT_NE(original[0]->getId(), copied[0]->getId());
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
@@ -226,10 +229,10 @@ TEST(FontCollectionTest, bufferTest) {
         BufferReader reader(buffer.data());
         auto copied = FontCollection::readVector(&reader);
         EXPECT_EQ(1u, copied.size());
-        EXPECT_EQ(1u,
-                  copied[0]->getSupportedTags().count(MinikinFont::MakeTag('w', 'd', 't', 'h')));
-        EXPECT_EQ(1u,
-                  copied[0]->getSupportedTags().count(MinikinFont::MakeTag('w', 'g', 'h', 't')));
+        ASSERT_EQ(2u, copied[0]->getSupportedAxesCount());
+        // mSupportedAxes must be sorted.
+        EXPECT_EQ(MinikinFont::MakeTag('w', 'd', 't', 'h'), copied[0]->getSupportedAxisAt(0));
+        EXPECT_EQ(MinikinFont::MakeTag('w', 'g', 'h', 't'), copied[0]->getSupportedAxisAt(1));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
         EXPECT_EQ(buffer, newBuffer);
     }

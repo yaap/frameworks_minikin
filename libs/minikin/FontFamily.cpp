@@ -18,20 +18,20 @@
 
 #include "minikin/FontFamily.h"
 
-#include <algorithm>
-#include <vector>
-
 #include <log/log.h>
 
-#include "minikin/CmapCoverage.h"
-#include "minikin/FamilyVariant.h"
-#include "minikin/HbUtils.h"
-#include "minikin/MinikinFont.h"
+#include <algorithm>
+#include <unordered_set>
+#include <vector>
 
 #include "FontUtils.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "minikin/CmapCoverage.h"
+#include "minikin/FamilyVariant.h"
+#include "minikin/HbUtils.h"
+#include "minikin/MinikinFont.h"
 
 namespace minikin {
 
@@ -250,9 +250,7 @@ void FontFamily::computeCoverage() {
                    "Number of supported axes must be less than 2^16.");
     mSupportedAxesCount = static_cast<uint16_t>(supportedAxesSet.size());
     if (mSupportedAxesCount > 0) {
-        mSupportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[mSupportedAxesCount]);
-        std::copy(supportedAxesSet.begin(), supportedAxesSet.end(), mSupportedAxes.get());
-        std::sort(mSupportedAxes.get(), mSupportedAxes.get() + mSupportedAxesCount);
+        mSupportedAxes = sortedArrayFromSet(supportedAxesSet);
     }
 }
 

@@ -22,6 +22,7 @@
 #include <unicode/unorm2.h>
 
 #include <algorithm>
+#include <unordered_set>
 
 #include "Locale.h"
 #include "LocaleListCache.h"
@@ -121,13 +122,15 @@ uint32_t getGlyphScore(U16StringPiece text, uint32_t start, uint32_t end,
 
 }  // namespace
 
-FontCollection::FontCollection(std::shared_ptr<FontFamily>&& typeface) : mMaxChar(0) {
+FontCollection::FontCollection(std::shared_ptr<FontFamily>&& typeface)
+        : mMaxChar(0), mSupportedAxes(nullptr) {
     std::vector<std::shared_ptr<FontFamily>> typefaces;
     typefaces.push_back(typeface);
     init(typefaces);
 }
 
-FontCollection::FontCollection(const vector<std::shared_ptr<FontFamily>>& typefaces) : mMaxChar(0) {
+FontCollection::FontCollection(const vector<std::shared_ptr<FontFamily>>& typefaces)
+        : mMaxChar(0), mSupportedAxes(nullptr) {
     init(typefaces);
 }
 
@@ -137,6 +140,7 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
     size_t nTypefaces = typefaces.size();
     const FontStyle defaultStyle;
     auto families = std::make_shared<vector<std::shared_ptr<FontFamily>>>();
+    std::unordered_set<AxisTag> supportedAxesSet;
     for (size_t i = 0; i < nTypefaces; i++) {
         const std::shared_ptr<FontFamily>& family = typefaces[i];
         if (family->getClosestMatch(defaultStyle).font == nullptr) {
@@ -151,7 +155,7 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
         lastChar.push_back(coverage.nextSetBit(0));
 
         for (size_t i = 0; i < family->getSupportedAxesCount(); i++) {
-            mSupportedAxes.insert(family->getSupportedAxisAt(i));
+            supportedAxesSet.insert(family->getSupportedAxisAt(i));
         }
     }
     // mMaybeSharedFamilies is not shared.
@@ -161,6 +165,12 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
     MINIKIN_ASSERT(mFamilyCount > 0, "Font collection must have at least one valid typeface");
     MINIKIN_ASSERT(mFamilyCount <= MAX_FAMILY_COUNT,
                    "Font collection may only have up to %d font families.", MAX_FAMILY_COUNT);
+    // Although OpenType supports up to 2^16-1 axes per font,
+    // mSupportedAxesCount may exceed 2^16-1 as we have multiple fonts.
+    mSupportedAxesCount = static_cast<uint32_t>(supportedAxesSet.size());
+    if (mSupportedAxesCount > 0) {
+        mSupportedAxes = sortedArrayFromSet(supportedAxesSet);
+    }
     size_t nPages = (mMaxChar + kPageMask) >> kLogCharsPerPage;
     // TODO: Use variation selector map for mRanges construction.
     // A font can have a glyph for a base code point and variation selector pair but no glyph for
@@ -191,7 +201,8 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
 
 FontCollection::FontCollection(
         BufferReader* reader,
-        const std::shared_ptr<std::vector<std::shared_ptr<FontFamily>>>& families) {
+        const std::shared_ptr<std::vector<std::shared_ptr<FontFamily>>>& families)
+        : mSupportedAxes(nullptr) {
     mId = gNextCollectionId++;
     mMaxChar = reader->read<uint32_t>();
     mMaybeSharedFamilies = families;
@@ -205,7 +216,11 @@ FontCollection::FontCollection(
     std::tie(mRanges, mRangesCount) = reader->readArray<Range>();
     std::tie(mFamilyVec, mFamilyVecCount) = reader->readArray<uint8_t>();
     const auto& [axesPtr, axesCount] = reader->readArray<AxisTag>();
-    mSupportedAxes.insert(axesPtr, axesPtr + axesCount);
+    mSupportedAxesCount = axesCount;
+    if (axesCount > 0) {
+        mSupportedAxes = std::unique_ptr<AxisTag[]>(new AxisTag[axesCount]);
+        std::copy(axesPtr, axesPtr + axesCount, mSupportedAxes.get());
+    }
 }
 
 void FontCollection::writeTo(BufferWriter* writer,
@@ -227,10 +242,7 @@ void FontCollection::writeTo(BufferWriter* writer,
     writer->writeArray<Range>(mRanges, mRangesCount);
     writer->writeArray<uint8_t>(mFamilyVec, mFamilyVecCount);
     // No need to serialize mVSFamilyVec as it can be reconstructed easily from mFamilies.
-    std::vector<AxisTag> axes(mSupportedAxes.begin(), mSupportedAxes.end());
-    // Sort axes to be deterministic.
-    std::sort(axes.begin(), axes.end());
-    writer->writeArray<AxisTag>(axes.data(), axes.size());
+    writer->writeArray<AxisTag>(mSupportedAxes.get(), mSupportedAxesCount);
 }
 
 // static
@@ -752,13 +764,14 @@ FakedFont FontCollection::baseFontFaked(FontStyle style) {
 
 std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
         const std::vector<FontVariation>& variations) {
-    if (variations.empty() || mSupportedAxes.empty()) {
+    if (variations.empty() || mSupportedAxesCount == 0) {
         return nullptr;
     }
 
     bool hasSupportedAxis = false;
     for (const FontVariation& variation : variations) {
-        if (mSupportedAxes.find(variation.axisTag) != mSupportedAxes.end()) {
+        if (std::binary_search(mSupportedAxes.get(), mSupportedAxes.get() + mSupportedAxesCount,
+                               variation.axisTag)) {
             hasSupportedAxis = true;
             break;
         }
