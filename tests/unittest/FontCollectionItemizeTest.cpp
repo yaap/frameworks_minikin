@@ -1779,4 +1779,67 @@ TEST(FontCollectionItemizeTest, emojiFlagFallback) {
     EXPECT_EQ("OverrideEmojiFont", itemizeEmojiAndFontPostScriptName("U+1F1E6 U+1F1E7"));
 }
 
+TEST(FontCollectionItemizeTest, itemize_MappedFontCollection) {
+    FreeTypeMinikinFontForTestFactory::init();
+    std::vector<uint8_t> buffer = writeToBuffer({buildFontCollectionFromXml(kItemizeFontXml)});
+    BufferReader reader(buffer.data());
+    auto collection = FontCollection::readVector(&reader)[0];
+
+    auto runs = itemize(collection, "'a' U+4F60 'b' U+4F60 'c'", "en-US");
+    ASSERT_EQ(5U, runs.size());
+    EXPECT_EQ(0, runs[0].start);
+    EXPECT_EQ(1, runs[0].end);
+    EXPECT_EQ(kLatinFont, getFontName(runs[0]));
+    EXPECT_FALSE(runs[0].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[0].fakedFont.fakery.isFakeItalic());
+
+    EXPECT_EQ(1, runs[1].start);
+    EXPECT_EQ(2, runs[1].end);
+    EXPECT_EQ(kZH_HansFont, getFontName(runs[1]));
+    EXPECT_FALSE(runs[1].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[1].fakedFont.fakery.isFakeItalic());
+
+    EXPECT_EQ(2, runs[2].start);
+    EXPECT_EQ(3, runs[2].end);
+    EXPECT_EQ(kLatinFont, getFontName(runs[2]));
+    EXPECT_FALSE(runs[2].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[2].fakedFont.fakery.isFakeItalic());
+
+    EXPECT_EQ(3, runs[3].start);
+    EXPECT_EQ(4, runs[3].end);
+    EXPECT_EQ(kZH_HansFont, getFontName(runs[3]));
+    EXPECT_FALSE(runs[3].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[3].fakedFont.fakery.isFakeItalic());
+
+    EXPECT_EQ(4, runs[4].start);
+    EXPECT_EQ(5, runs[4].end);
+    EXPECT_EQ(kLatinFont, getFontName(runs[4]));
+    EXPECT_FALSE(runs[4].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[4].fakedFont.fakery.isFakeItalic());
+
+    // Emoji.
+    runs = itemize(collection, "U+1F469 U+1F467");
+    ASSERT_EQ(1U, runs.size());
+    EXPECT_EQ(0, runs[0].start);
+    EXPECT_EQ(4, runs[0].end);
+    EXPECT_EQ(kEmojiFont, getFontName(runs[0]));
+    EXPECT_FALSE(runs[0].fakedFont.fakery.isFakeBold());
+    EXPECT_FALSE(runs[0].fakedFont.fakery.isFakeItalic());
+
+    // Variation selector.
+    // U+4FAE is available in both zh_Hans and ja font, but U+4FAE,U+FE00 is
+    // only available in ja font.
+    runs = itemize(collection, "U+4FAE", "zh-Hans");
+    ASSERT_EQ(1U, runs.size());
+    EXPECT_EQ(0, runs[0].start);
+    EXPECT_EQ(1, runs[0].end);
+    EXPECT_EQ(kZH_HansFont, getFontName(runs[0]));
+
+    runs = itemize(collection, "U+4FAE U+FE00", "zh-Hans");
+    ASSERT_EQ(1U, runs.size());
+    EXPECT_EQ(0, runs[0].start);
+    EXPECT_EQ(2, runs[0].end);
+    EXPECT_EQ(kJAFont, getFontName(runs[0]));
+}
+
 }  // namespace minikin

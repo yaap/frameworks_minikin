@@ -177,16 +177,6 @@ TEST(FontCollectionTest, createWithVariations) {
     }
 }
 
-std::vector<uint8_t> writeToBuffer(
-        const std::vector<std::shared_ptr<FontCollection>>& collections) {
-    BufferWriter fakeWriter(nullptr);
-    FontCollection::writeVector(&fakeWriter, collections);
-    std::vector<uint8_t> buffer(fakeWriter.size());
-    BufferWriter writer(buffer.data());
-    FontCollection::writeVector(&writer, collections);
-    return buffer;
-}
-
 TEST(FontCollectionTest, bufferTest) {
     FreeTypeMinikinFontForTestFactory::init();
     {
