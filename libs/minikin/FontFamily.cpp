@@ -35,11 +35,25 @@
 
 namespace minikin {
 
-FontFamily::FontFamily(std::vector<std::shared_ptr<Font>>&& fonts)
-        : FontFamily(FamilyVariant::DEFAULT, std::move(fonts)) {}
+// static
+std::shared_ptr<FontFamily> FontFamily::create(std::vector<std::shared_ptr<Font>>&& fonts) {
+    return create(FamilyVariant::DEFAULT, std::move(fonts));
+}
 
-FontFamily::FontFamily(FamilyVariant variant, std::vector<std::shared_ptr<Font>>&& fonts)
-        : FontFamily(kEmptyLocaleListId, variant, std::move(fonts), false /* isCustomFallback */) {}
+// static
+std::shared_ptr<FontFamily> FontFamily::create(FamilyVariant variant,
+                                               std::vector<std::shared_ptr<Font>>&& fonts) {
+    return create(kEmptyLocaleListId, variant, std::move(fonts), false /* isCustomFallback */);
+}
+
+// static
+std::shared_ptr<FontFamily> FontFamily::create(uint32_t localeListId, FamilyVariant variant,
+                                               std::vector<std::shared_ptr<Font>>&& fonts,
+                                               bool isCustomFallback) {
+    // TODO(b/174672300): Revert back to make_shared.
+    return std::shared_ptr<FontFamily>(
+            new FontFamily(localeListId, variant, std::move(fonts), isCustomFallback));
+}
 
 FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                        std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback)
@@ -155,7 +169,8 @@ std::vector<std::shared_ptr<FontFamily>> FontFamily::readVector(BufferReader* re
     std::vector<std::shared_ptr<FontFamily>> pointers;
     pointers.reserve(count);
     for (uint32_t i = 0; i < count; i++) {
-        families->emplace_back(reader, fonts);
+        // TODO(b/174672300): Revert back to emplace_back.
+        families->push_back(FontFamily(reader, fonts));
         // Use aliasing constructor.
         pointers.emplace_back(families, &families->back());
     }
@@ -322,8 +337,7 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
         }
     }
 
-    return std::shared_ptr<FontFamily>(
-            new FontFamily(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback));
+    return create(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback);
 }
 
 }  // namespace minikin

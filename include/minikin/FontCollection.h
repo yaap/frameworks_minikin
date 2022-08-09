@@ -36,8 +36,9 @@ constexpr uint32_t MAX_FAMILY_COUNT = 254;
 
 class FontCollection {
 public:
-    explicit FontCollection(const std::vector<std::shared_ptr<FontFamily>>& typefaces);
-    explicit FontCollection(std::shared_ptr<FontFamily>&& typeface);
+    static std::shared_ptr<FontCollection> create(
+            const std::vector<std::shared_ptr<FontFamily>>& typefaces);
+    static std::shared_ptr<FontCollection> create(std::shared_ptr<FontFamily>&& typeface);
 
     static std::vector<std::shared_ptr<FontCollection>> readVector(BufferReader* reader);
     static void writeVector(BufferWriter* writer,
@@ -176,6 +177,7 @@ public:
 private:
     FRIEND_TEST(FontCollectionTest, bufferTest);
 
+    explicit FontCollection(const std::vector<std::shared_ptr<FontFamily>>& typefaces);
     FontCollection(
             BufferReader* reader,
             const std::shared_ptr<std::vector<std::shared_ptr<FontFamily>>>& allFontFamilies);

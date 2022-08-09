@@ -122,11 +122,18 @@ uint32_t getGlyphScore(U16StringPiece text, uint32_t start, uint32_t end,
 
 }  // namespace
 
-FontCollection::FontCollection(std::shared_ptr<FontFamily>&& typeface)
-        : mMaxChar(0), mSupportedAxes(nullptr) {
+// static
+std::shared_ptr<FontCollection> FontCollection::create(std::shared_ptr<FontFamily>&& typeface) {
     std::vector<std::shared_ptr<FontFamily>> typefaces;
     typefaces.push_back(typeface);
-    init(typefaces);
+    return create(typefaces);
+}
+
+// static
+std::shared_ptr<FontCollection> FontCollection::create(
+        const vector<std::shared_ptr<FontFamily>>& typefaces) {
+    // TODO(b/174672300): Revert back to make_shared.
+    return std::shared_ptr<FontCollection>(new FontCollection(typefaces));
 }
 
 FontCollection::FontCollection(const vector<std::shared_ptr<FontFamily>>& typefaces)

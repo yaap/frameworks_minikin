@@ -32,12 +32,12 @@ namespace minikin {
 
 class FontFamily {
 public:
-    explicit FontFamily(std::vector<std::shared_ptr<Font>>&& fonts);
-    FontFamily(FamilyVariant variant, std::vector<std::shared_ptr<Font>>&& fonts);
-    FontFamily(uint32_t localeListId, FamilyVariant variant,
-               std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback);
-    // public for vector::emplace_back
-    explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
+    static std::shared_ptr<FontFamily> create(std::vector<std::shared_ptr<Font>>&& fonts);
+    static std::shared_ptr<FontFamily> create(FamilyVariant variant,
+                                              std::vector<std::shared_ptr<Font>>&& fonts);
+    static std::shared_ptr<FontFamily> create(uint32_t localeListId, FamilyVariant variant,
+                                              std::vector<std::shared_ptr<Font>>&& fonts,
+                                              bool isCustomFallback);
 
     FontFamily(FontFamily&&) = default;
     FontFamily& operator=(FontFamily&&) = default;
@@ -77,6 +77,10 @@ public:
             const std::vector<FontVariation>& variations) const;
 
 private:
+    FontFamily(uint32_t localeListId, FamilyVariant variant,
+               std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback);
+    explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
+
     void writeTo(BufferWriter* writer, uint32_t* fontIndex) const;
 
     void computeCoverage();

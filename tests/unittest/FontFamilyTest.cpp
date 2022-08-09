@@ -800,8 +800,8 @@ TEST_F(FontFamilyTest, closestMatch) {
             fonts.push_back(Font::Builder(dummyFont).setStyle(familyStyle).build());
         }
 
-        FontFamily family(std::move(fonts));
-        FakedFont closest = family.getClosestMatch(testCase.wantedStyle);
+        std::shared_ptr<FontFamily> family = FontFamily::create(std::move(fonts));
+        FakedFont closest = family->getClosestMatch(testCase.wantedStyle);
 
         size_t idx = dummyFonts.size();
         for (size_t i = 0; i < dummyFonts.size(); i++) {

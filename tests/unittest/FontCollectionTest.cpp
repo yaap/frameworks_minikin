@@ -208,8 +208,8 @@ TEST(FontCollectionTest, bufferTest) {
     {
         // Test that FontFamily instances are shared.
         std::vector<std::shared_ptr<FontFamily>> families = {buildFontFamily(kVsTestFont)};
-        auto fc1 = std::make_shared<FontCollection>(families);
-        auto fc2 = std::make_shared<FontCollection>(families);
+        auto fc1 = FontCollection::create(families);
+        auto fc2 = FontCollection::create(families);
         std::vector<std::shared_ptr<FontCollection>> original({fc1, fc2});
         std::vector<uint8_t> buffer = writeToBuffer(original);
         BufferReader reader(buffer.data());
