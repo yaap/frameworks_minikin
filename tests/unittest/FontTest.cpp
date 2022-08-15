@@ -57,6 +57,7 @@ TEST(FontTest, BufferTest) {
 }
 
 TEST(FontTest, MoveConstructorTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     // Note: by definition, only BufferReader-based Font can be moved.
     auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath("Ascii.ttf"));
     std::shared_ptr<Font> original = Font::Builder(minikinFont).build();
@@ -83,6 +84,7 @@ TEST(FontTest, MoveConstructorTest) {
 }
 
 TEST(FontTest, MoveAssignmentTest) {
+    FreeTypeMinikinFontForTestFactory::init();
     // Note: by definition, only BufferReader-based Font can be moved.
     auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath("Ascii.ttf"));
     std::shared_ptr<Font> original = Font::Builder(minikinFont).build();
