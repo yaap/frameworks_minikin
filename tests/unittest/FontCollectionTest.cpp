@@ -177,6 +177,17 @@ TEST(FontCollectionTest, createWithVariations) {
     }
 }
 
+TEST(FontCollectionTest, createCollectionWithFamilies) {
+    auto fallback = buildFontCollectionFromXml(kEmojiXmlFile);
+    std::shared_ptr<FontFamily> family = buildFontFamily(kVsTestFont);
+    std::shared_ptr<FontCollection> created = fallback->createCollectionWithFamilies({family});
+    ASSERT_EQ(fallback->getFamilyCount() + 1, created->getFamilyCount());
+    EXPECT_EQ(family, created->getFamilyAt(0));
+    for (size_t i = 0; i < fallback->getFamilyCount(); i++) {
+        EXPECT_EQ(fallback->getFamilyAt(i), created->getFamilyAt(i + 1));
+    }
+}
+
 TEST(FontCollectionTest, bufferTest) {
     FreeTypeMinikinFontForTestFactory::init();
     {

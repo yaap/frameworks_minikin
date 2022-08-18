@@ -161,6 +161,10 @@ public:
     // nullptr if none of variations apply to this collection.
     std::shared_ptr<FontCollection> createCollectionWithVariation(
             const std::vector<FontVariation>& variations);
+    // Creates new FontCollection that uses the specified families as top families and
+    // families from this FontCollection as fallback.
+    std::shared_ptr<FontCollection> createCollectionWithFamilies(
+            std::vector<std::shared_ptr<FontFamily>>&& families) const;
 
     virtual size_t getSupportedAxesCount() const = 0;
     virtual AxisTag getSupportedAxisAt(size_t index) const = 0;

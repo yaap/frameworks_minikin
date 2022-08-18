@@ -950,6 +950,15 @@ std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
     return std::make_shared<AllocatedFontCollection>(families);
 }
 
+std::shared_ptr<FontCollection> FontCollection::createCollectionWithFamilies(
+        std::vector<std::shared_ptr<FontFamily>>&& families) const {
+    families.reserve(families.size() + getFamilyCount());
+    for (size_t i = 0; i < getFamilyCount(); i++) {
+        families.push_back(getFamilyAt(i));
+    }
+    return FontCollection::create(families);
+}
+
 uint32_t FontCollection::getId() const {
     return mId;
 }
