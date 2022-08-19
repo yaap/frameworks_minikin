@@ -24,6 +24,13 @@
 #include "minikin/BoundsCache.h"
 #include "minikin/GraphemeBreak.h"
 
+namespace {
+bool isAsciiControlCharacter(uint16_t c) {
+    return 0x0000 <= c && c <= 0x001F;
+}
+
+}  // namespace
+
 namespace minikin {
 
 // These could be considered helper methods of layout, but need only be loosely coupled, so
@@ -42,7 +49,8 @@ static float getRunAdvance(const float* advances, const uint16_t* buf, size_t la
             clusterWidth = charAdvance;
         }
     }
-    if (offset < start + count && advances[offset - layoutStart] == 0.0f) {
+    if (offset < start + count && !isAsciiControlCharacter(buf[offset - start]) &&
+        advances[offset - layoutStart] == 0.0f) {
         // In the middle of a cluster, distribute width of cluster so that each grapheme cluster
         // gets an equal share.
         // TODO: get caret information out of font when that's available
