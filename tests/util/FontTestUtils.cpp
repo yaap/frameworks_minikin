@@ -138,14 +138,4 @@ std::shared_ptr<FontFamily> buildFontFamily(const std::string& filePath, const s
                               std::move(fonts), isCustomFallback);
 }
 
-std::vector<uint8_t> writeToBuffer(
-        const std::vector<std::shared_ptr<FontCollection>>& collections) {
-    BufferWriter fakeWriter(nullptr);
-    FontCollection::writeVector(&fakeWriter, collections);
-    std::vector<uint8_t> buffer(fakeWriter.size());
-    BufferWriter writer(buffer.data());
-    FontCollection::writeVector(&writer, collections);
-    return buffer;
-}
-
 }  // namespace minikin
