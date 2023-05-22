@@ -29,6 +29,7 @@
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/CmapCoverage.h"
+#include "minikin/Constants.h"
 #include "minikin/FamilyVariant.h"
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"
@@ -240,7 +241,7 @@ FakedFont FontFamily::getClosestMatch(FontStyle style) const {
 
 void FontFamily::computeCoverage() {
     const std::shared_ptr<Font>& font = getClosestMatch(FontStyle()).font;
-    HbBlob cmapTable(font->baseFont(), MinikinFont::MakeTag('c', 'm', 'a', 'p'));
+    HbBlob cmapTable(font->baseFont(), MakeTag('c', 'm', 'a', 'p'));
     if (cmapTable.get() == nullptr) {
         ALOGE("Could not get cmap table size!\n");
         return;

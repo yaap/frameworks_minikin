@@ -32,6 +32,7 @@ filegroup {
         "data/UnicodeBMPOnly2.ttf",
         "data/UnicodeUCS4.ttf",
         "data/VariationSelectorTest-Regular.ttf",
+        "data/WeightEqualsEmVariableFont.ttf",
         "data/ZhHans.ttf",
         "data/ZhHant.ttf",
         "data/emoji.xml",

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "minikin/Font.h"
-
 #include <gtest/gtest.h>
+#include <minikin/Constants.h>
 
 #include "BufferUtils.h"
 #include "FontTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
+#include "minikin/Font.h"
 
 namespace minikin {
 
@@ -139,6 +139,160 @@ TEST(FontTest, MoveAssignmentTest) {
         EXPECT_EQ(typeface, moveTo.typeface());
     }
     EXPECT_EQ(baseHeapSize, getHeapSize());
+}
+
+TEST(FontTest, getAdjustedFontTest) {
+    FreeTypeMinikinFontForTestFactory::init();
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    {
+        auto hbFont = font->getAdjustedFont(-1, -1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), font->baseFont().get());
+    }
+    {
+        // Set correct wight axis value.
+        auto hbFont = font->getAdjustedFont(400, -1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), font->baseFont().get());
+        EXPECT_NE(hbFont.get(), font->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);  // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(400, coords[0]);
+        EXPECT_EQ(0, coords[1]);
+    }
+    {
+        // Override existing wght axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(700, -1)).build();
+        auto hbFont = newFont->getAdjustedFont(500, -1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), newFont->baseFont().get());
+        EXPECT_NE(hbFont.get(), newFont->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);  // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(500, coords[0]);
+        EXPECT_EQ(0, coords[1]);
+    }
+    {
+        // Set correct wight axis value.
+        auto hbFont = font->getAdjustedFont(-1, 1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), font->baseFont().get());
+        EXPECT_NE(hbFont.get(), font->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);      // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(400, coords[0]);  // 400 is a default value of `wght` axis
+        EXPECT_EQ(1, coords[1]);
+    }
+    {
+        // Override existing wght axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(-1, 0)).build();
+        auto hbFont = newFont->getAdjustedFont(-1, 1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), newFont->baseFont().get());
+        EXPECT_NE(hbFont.get(), newFont->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);      // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(400, coords[0]);  // 400 is a default value of `wght` axis
+        EXPECT_EQ(1, coords[1]);
+    }
+    {
+        // Set correct wight axis value.
+        auto hbFont = font->getAdjustedFont(500, 1);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), font->baseFont().get());
+        EXPECT_NE(hbFont.get(), font->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);  // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(500, coords[0]);
+        EXPECT_EQ(1, coords[1]);
+    }
+    {
+        // Override existing wght axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(500, 1)).build();
+        auto hbFont = newFont->getAdjustedFont(700, 0);
+        EXPECT_EQ(hb_font_get_parent(hbFont.get()), newFont->baseFont().get());
+        EXPECT_NE(hbFont.get(), newFont->baseFont().get());
+        unsigned int length;
+        const float* coords = hb_font_get_var_coords_design(hbFont.get(), &length);
+        ASSERT_EQ(2u, length);  // The test font has 'wght', 'ital' axes in this order
+        EXPECT_EQ(700, coords[0]);
+        EXPECT_EQ(0, coords[1]);
+    }
+}
+
+TEST(FontTest, getAdjustedTypefaceTest) {
+    FreeTypeMinikinFontForTestFactory::init();
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    {
+        auto minikinFontBase = font->getAdjustedTypeface(-1, -1);
+        EXPECT_EQ(minikinFontBase.get(), font->typeface().get());
+    }
+    {
+        // Set correct wght axis value.
+        auto minikinFontBase = font->getAdjustedTypeface(400, -1);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(1u, axes.size());
+        EXPECT_EQ(TAG_wght, axes[0].axisTag);
+        EXPECT_EQ(400, axes[0].value);
+    }
+    {
+        // Override existing wght axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(700, -1)).build();
+        auto minikinFontBase = newFont->getAdjustedTypeface(500, -1);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(1u, axes.size());
+        EXPECT_EQ(TAG_wght, axes[0].axisTag);
+        EXPECT_EQ(500, axes[0].value);
+    }
+    {
+        // Set correct wght axis value.
+        auto minikinFontBase = font->getAdjustedTypeface(-1, 1);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(1u, axes.size());
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(1, axes[0].value);
+    }
+    {
+        // Override existing wght axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(-1, 1)).build();
+        auto minikinFontBase = newFont->getAdjustedTypeface(-1, 0);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(1u, axes.size());
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(0, axes[0].value);
+    }
+    {
+        // Set correct ital axis value.
+        auto minikinFontBase = font->getAdjustedTypeface(400, 1);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(2u, axes.size());
+        EXPECT_EQ(TAG_wght, axes[0].axisTag);
+        EXPECT_EQ(TAG_ital, axes[1].axisTag);
+        EXPECT_EQ(400, axes[0].value);
+        EXPECT_EQ(1, axes[1].value);
+    }
+    {
+        // Override existing ital axis.
+        std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(500, 0)).build();
+        auto minikinFontBase = newFont->getAdjustedTypeface(700, 1);
+        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        auto axes = minikinFontBase->GetAxes();
+        ASSERT_EQ(2u, axes.size());
+        EXPECT_EQ(TAG_wght, axes[0].axisTag);
+        EXPECT_EQ(TAG_ital, axes[1].axisTag);
+        EXPECT_EQ(700, axes[0].value);
+        EXPECT_EQ(1, axes[1].value);
+    }
 }
 
 }  // namespace minikin

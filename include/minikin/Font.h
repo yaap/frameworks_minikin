@@ -20,7 +20,9 @@
 #include <gtest/gtest_prod.h>
 
 #include <atomic>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <unordered_set>
 
 #include "minikin/Buffer.h"
@@ -121,9 +123,16 @@ public:
     // This locale list is just for API compatibility. This is not used in font selection or family
     // fallback.
     uint32_t getLocaleListId() const { return mLocaleListId; }
-    const std::shared_ptr<MinikinFont>& typeface() const;
     inline FontStyle style() const { return mStyle; }
+
     const HbFontUniquePtr& baseFont() const;
+    const std::shared_ptr<MinikinFont>& typeface() const;
+
+    // Returns an adjusted hb_font_t instance and MinikinFont instance.
+    // Passing -1 each means do not override the current variation settings.
+    HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
+    const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+
     BufferReader typefaceMetadataReader() const { return mTypefaceMetadataReader; }
 
     std::unordered_set<AxisTag> getSupportedAxes() const;
@@ -139,6 +148,11 @@ private:
 
         std::shared_ptr<MinikinFont> mTypeface;
         HbFontUniquePtr mBaseFont;
+
+        const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+        mutable std::mutex mMutex;
+        mutable std::map<uint16_t, std::shared_ptr<MinikinFont>> mVarTypefaceCache
+                GUARDED_BY(mMutex);
     };
 
     // Use Builder instead.
@@ -152,6 +166,7 @@ private:
     void resetExternalRefs(ExternalRefs* refs);
 
     const ExternalRefs* getExternalRefs() const;
+    std::vector<FontVariation> getAdjustedVariations(int wght, int ital) const;
 
     static HbFontUniquePtr prepareFont(const std::shared_ptr<MinikinFont>& typeface);
     static FontStyle analyzeStyle(const HbFontUniquePtr& font);
