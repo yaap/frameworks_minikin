@@ -349,7 +349,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     double size = paint.size;
     double scaleX = paint.scaleX;
 
-    std::unordered_map<const Font*, uint32_t> fontMap;
+    std::unordered_map<const MinikinFont*, uint32_t> fontMap;
 
     float x = 0;
     float y = 0;
@@ -358,16 +358,17 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
          isRtl ? --run_ix : ++run_ix) {
         FontCollection::Run& run = items[run_ix];
         FakedFont fakedFont = paint.font->getBestFont(substr, run, paint.fontStyle);
-        auto it = fontMap.find(fakedFont.font.get());
+        const std::shared_ptr<MinikinFont>& typeface = fakedFont.typeface();
+        auto it = fontMap.find(typeface.get());
         uint8_t font_ix;
         if (it == fontMap.end()) {
             // First time to see this font.
             font_ix = mFonts.size();
             mFonts.push_back(fakedFont);
-            fontMap.insert(std::make_pair(fakedFont.font.get(), font_ix));
+            fontMap.insert(std::make_pair(typeface.get(), font_ix));
 
             // We override some functions which are not thread safe.
-            HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.font->baseFont().get()));
+            HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.hbFont().get()));
             hb_font_set_funcs(
                     font.get(), isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
                     new SkiaArguments({fakedFont.typeface().get(), &paint, fakedFont.fakery}),
@@ -387,7 +388,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
         }
         if (needExtent) {
             MinikinExtent verticalExtent;
-            fakedFont.typeface()->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
+            typeface->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
             mExtent.extendBy(verticalExtent);
         }
 

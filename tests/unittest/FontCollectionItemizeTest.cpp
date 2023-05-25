@@ -937,9 +937,10 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
                 std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath(kNoGlyphFont));
         std::vector<std::shared_ptr<Font>> fonts;
         fonts.push_back(Font::Builder(firstFamilyMinikinFont).build());
-        auto firstFamily = FontFamily::create(registerLocaleList("und"), FamilyVariant::DEFAULT,
-                                              std::move(fonts), false /* isCustomFallback */,
-                                              false /* isDefaultFallback */);
+        auto firstFamily =
+                FontFamily::create(registerLocaleList("und"), FamilyVariant::DEFAULT,
+                                   std::move(fonts), false /* isCustomFallback */,
+                                   false /* isDefaultFallback */, VariationFamilyType::None);
         families.push_back(firstFamily);
 
         // Prepare font families
@@ -954,7 +955,8 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
             fonts.push_back(Font::Builder(minikinFont).build());
             auto family = FontFamily::create(
                     registerLocaleList(testCase.fontLocales[i]), FamilyVariant::DEFAULT,
-                    std::move(fonts), false /* isCustomFallback */, false /* isDefaultFallback */);
+                    std::move(fonts), false /* isCustomFallback */, false /* isDefaultFallback */,
+                    VariationFamilyType::None);
             families.push_back(family);
             fontLocaleIdxMap.insert(std::make_pair(minikinFont.get(), i));
         }
@@ -1647,7 +1649,7 @@ std::vector<ItemizeResult> itemizeEmojiAndFontPostScriptNames(const std::string&
 
     std::vector<ItemizeResult> out;
     for (const auto& run : runs) {
-        auto psName = FontFileParser(run.fakedFont.font->baseFont()).getPostScriptName().value();
+        auto psName = FontFileParser(run.fakedFont.hbFont()).getPostScriptName().value();
         out.push_back({run.start, run.end, psName});
     }
     return out;

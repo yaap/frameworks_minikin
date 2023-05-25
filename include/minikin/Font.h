@@ -40,19 +40,65 @@ class Font;
 // attributes representing transforms (fake bold, fake italic) to match styles
 class FontFakery {
 public:
-    FontFakery() : mFakeBold(false), mFakeItalic(false) {}
-    FontFakery(bool fakeBold, bool fakeItalic) : mFakeBold(fakeBold), mFakeItalic(fakeItalic) {}
+    FontFakery() : FontFakery(false, false, -1, -1) {}
+    FontFakery(bool fakeBold, bool fakeItalic) : FontFakery(fakeBold, fakeItalic, -1, -1) {}
+    FontFakery(bool fakeBold, bool fakeItalic, int16_t wghtAdjustment, int8_t italAdjustment)
+            : mBits(pack(fakeBold, fakeItalic, wghtAdjustment, italAdjustment)) {}
+
     // TODO: want to support graded fake bolding
-    bool isFakeBold() { return mFakeBold; }
-    bool isFakeItalic() { return mFakeItalic; }
-    inline bool operator==(const FontFakery& o) const {
-        return mFakeBold == o.mFakeBold && mFakeItalic == o.mFakeItalic;
+    bool isFakeBold() { return (mBits & MASK_FAKE_BOLD) != 0; }
+    bool isFakeItalic() { return (mBits & MASK_FAKE_ITALIC) != 0; }
+    bool hasAdjustment() const { return hasWghtAdjustment() || hasItalAdjustment(); }
+    bool hasWghtAdjustment() const { return (mBits & MASK_HAS_WGHT_ADJUSTMENT) != 0; }
+    bool hasItalAdjustment() const { return (mBits & MASK_HAS_ITAL_ADJUSTMENT) != 0; }
+    int16_t wghtAdjustment() const {
+        if (hasWghtAdjustment()) {
+            return (mBits & MASK_WGHT_ADJUSTMENT) >> WGHT_ADJUSTMENT_SHIFT;
+        } else {
+            return -1;
+        }
     }
+
+    int8_t italAdjustment() const {
+        if (hasItalAdjustment()) {
+            return (mBits & MASK_ITAL_ADJUSTMENT) != 0 ? 1 : 0;
+        } else {
+            return -1;
+        }
+    }
+
+    uint16_t bits() const { return mBits; }
+
+    inline bool operator==(const FontFakery& o) const { return mBits == o.mBits; }
     inline bool operator!=(const FontFakery& o) const { return !(*this == o); }
 
 private:
-    bool mFakeBold;
-    bool mFakeItalic;
+    static constexpr uint16_t MASK_FAKE_BOLD = 1u;
+    static constexpr uint16_t MASK_FAKE_ITALIC = 1u << 1;
+    static constexpr uint16_t MASK_HAS_WGHT_ADJUSTMENT = 1u << 2;
+    static constexpr uint16_t MASK_HAS_ITAL_ADJUSTMENT = 1u << 3;
+    static constexpr uint16_t MASK_ITAL_ADJUSTMENT = 1u << 4;
+    static constexpr uint16_t MASK_WGHT_ADJUSTMENT = 0b1111111111u << 5;
+    static constexpr uint16_t WGHT_ADJUSTMENT_SHIFT = 5;
+
+    uint16_t pack(bool isFakeBold, bool isFakeItalic, int16_t wghtAdjustment,
+                  int8_t italAdjustment) {
+        uint16_t bits = 0u;
+        bits |= isFakeBold ? MASK_FAKE_BOLD : 0;
+        bits |= isFakeItalic ? MASK_FAKE_ITALIC : 0;
+        if (wghtAdjustment != -1) {
+            bits |= MASK_HAS_WGHT_ADJUSTMENT;
+            bits |= (static_cast<uint16_t>(wghtAdjustment) << WGHT_ADJUSTMENT_SHIFT) &
+                    MASK_WGHT_ADJUSTMENT;
+        }
+        if (italAdjustment != -1) {
+            bits |= MASK_HAS_ITAL_ADJUSTMENT;
+            bits |= (italAdjustment == 1) ? MASK_ITAL_ADJUSTMENT : 0;
+        }
+        return bits;
+    }
+
+    const uint16_t mBits;
 };
 
 // Represents a single font file.
@@ -179,9 +225,12 @@ struct FakedFont {
     }
     inline bool operator!=(const FakedFont& o) const { return !(*this == o); }
 
+    HbFontUniquePtr hbFont() const {
+        return font->getAdjustedFont(fakery.wghtAdjustment(), fakery.italAdjustment());
+    }
+
     const std::shared_ptr<MinikinFont>& typeface() const {
-        // TODO: Use Font#getAdjustedTypeface once FakedFont support wght/ital overrides
-        return font->baseTypeface();
+        return font->getAdjustedTypeface(fakery.wghtAdjustment(), fakery.italAdjustment());
     }
 
     // ownership is the enclosing FontCollection
