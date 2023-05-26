@@ -32,7 +32,7 @@ MinikinRect BoundsCache::getBounds(const LayoutPiece& layoutPiece, const Minikin
         const FakedFont& font = layoutPiece.fontAt(i);
         const Point& point = layoutPiece.pointAt(i);
 
-        MinikinFont* minikinFont = font.font->typeface().get();
+        MinikinFont* minikinFont = font.typeface().get();
         minikinFont->GetBounds(&tmpRect, layoutPiece.glyphIdAt(i), paint, font.fakery);
         tmpRect.offset(point.x, point.y);
         pieceBounds.join(tmpRect);

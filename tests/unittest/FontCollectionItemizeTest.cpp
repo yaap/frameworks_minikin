@@ -113,7 +113,7 @@ std::vector<Run> itemize(const std::shared_ptr<FontCollection>& collection, cons
 // Utility function to obtain font path associated with run.
 std::string getFontName(const Run& run) {
     EXPECT_NE(nullptr, run.fakedFont.font.get());
-    return getBasename(run.fakedFont.font.get()->typeface()->GetFontPath());
+    return getBasename(run.fakedFont.typeface()->GetFontPath());
 }
 
 // Utility function to obtain LocaleList from string.
@@ -966,11 +966,10 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
 
         // First family doesn't support U+9AA8 and others support it, so the first font should not
         // be selected.
-        EXPECT_NE(firstFamilyMinikinFont.get(), runs[0].fakedFont.font.get()->typeface().get());
+        EXPECT_NE(firstFamilyMinikinFont.get(), runs[0].fakedFont.typeface().get());
 
         // Lookup used font family by MinikinFont*.
-        const int usedLocaleIndex =
-                fontLocaleIdxMap[runs[0].fakedFont.font.get()->typeface().get()];
+        const int usedLocaleIndex = fontLocaleIdxMap[runs[0].fakedFont.typeface().get()];
         EXPECT_EQ(testCase.selectedFontIndex, usedLocaleIndex);
     }
 }

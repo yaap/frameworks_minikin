@@ -806,7 +806,7 @@ TEST_F(FontFamilyTest, closestMatch) {
 
         size_t idx = dummyFonts.size();
         for (size_t i = 0; i < dummyFonts.size(); i++) {
-            if (dummyFonts[i].get() == closest.font->typeface().get()) {
+            if (dummyFonts[i].get() == closest.font->baseTypeface().get()) {
                 idx = i;
                 break;
             }

@@ -55,20 +55,6 @@ private:
     bool mFakeItalic;
 };
 
-struct FakedFont {
-    inline bool operator==(const FakedFont& o) const {
-        return font == o.font && fakery == o.fakery;
-    }
-    inline bool operator!=(const FakedFont& o) const { return !(*this == o); }
-
-    // ownership is the enclosing FontCollection
-    // FakedFont will be stored in the LayoutCache. It is not a good idea too keep font instance
-    // even if the enclosing FontCollection, i.e. Typeface is GC-ed. The layout cache is only
-    // purged when it is overflown, thus intentionally keep only reference.
-    const std::shared_ptr<Font>& font;
-    FontFakery fakery;
-};
-
 // Represents a single font file.
 class Font {
 public:
@@ -126,7 +112,7 @@ public:
     inline FontStyle style() const { return mStyle; }
 
     const HbFontUniquePtr& baseFont() const;
-    const std::shared_ptr<MinikinFont>& typeface() const;
+    const std::shared_ptr<MinikinFont>& baseTypeface() const;
 
     // Returns an adjusted hb_font_t instance and MinikinFont instance.
     // Passing -1 each means do not override the current variation settings.
@@ -185,6 +171,25 @@ private:
 
     FRIEND_TEST(FontTest, MoveConstructorTest);
     FRIEND_TEST(FontTest, MoveAssignmentTest);
+};
+
+struct FakedFont {
+    inline bool operator==(const FakedFont& o) const {
+        return font == o.font && fakery == o.fakery;
+    }
+    inline bool operator!=(const FakedFont& o) const { return !(*this == o); }
+
+    const std::shared_ptr<MinikinFont>& typeface() const {
+        // TODO: Use Font#getAdjustedTypeface once FakedFont support wght/ital overrides
+        return font->baseTypeface();
+    }
+
+    // ownership is the enclosing FontCollection
+    // FakedFont will be stored in the LayoutCache. It is not a good idea too keep font instance
+    // even if the enclosing FontCollection, i.e. Typeface is GC-ed. The layout cache is only
+    // purged when it is overflown, thus intentionally keep only reference.
+    const std::shared_ptr<Font>& font;
+    FontFakery fakery;
 };
 
 }  // namespace minikin

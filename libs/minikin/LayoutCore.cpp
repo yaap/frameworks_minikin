@@ -370,7 +370,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
             HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.font->baseFont().get()));
             hb_font_set_funcs(
                     font.get(), isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
-                    new SkiaArguments({fakedFont.font->typeface().get(), &paint, fakedFont.fakery}),
+                    new SkiaArguments({fakedFont.typeface().get(), &paint, fakedFont.fakery}),
                     [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
             hbFonts.push_back(std::move(font));
         } else {
@@ -387,7 +387,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
         }
         if (needExtent) {
             MinikinExtent verticalExtent;
-            fakedFont.font->typeface()->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
+            fakedFont.typeface()->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
             mExtent.extendBy(verticalExtent);
         }
 

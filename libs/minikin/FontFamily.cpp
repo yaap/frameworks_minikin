@@ -334,7 +334,7 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
         }
         std::shared_ptr<MinikinFont> minikinFont;
         if (supportedVariations) {
-            minikinFont = font->typeface()->createFontWithVariation(variations);
+            minikinFont = font->baseTypeface()->createFontWithVariation(variations);
         }
         if (minikinFont == nullptr) {
             fonts.push_back(font);

@@ -85,7 +85,7 @@ Font::Font(BufferReader* reader) : mExternalRefsHolder(nullptr), mTypefaceMetada
 void Font::writeTo(BufferWriter* writer) const {
     mStyle.writeTo(writer);
     LocaleListCache::writeTo(writer, mLocaleListId);
-    MinikinFontFactory::getInstance().write(writer, typeface().get());
+    MinikinFontFactory::getInstance().write(writer, baseTypeface().get());
 }
 
 Font::Font(Font&& o) noexcept
@@ -114,7 +114,7 @@ void Font::resetExternalRefs(ExternalRefs* refs) {
     }
 }
 
-const std::shared_ptr<MinikinFont>& Font::typeface() const {
+const std::shared_ptr<MinikinFont>& Font::baseTypeface() const {
     return getExternalRefs()->mTypeface;
 }
 
@@ -208,8 +208,8 @@ HbFontUniquePtr Font::getAdjustedFont(int wght, int ital) const {
     }
 
     std::vector<hb_variation_t> variations;
-    variations.reserve(typeface()->GetAxes().size());
-    for (const FontVariation& variation : typeface()->GetAxes()) {
+    variations.reserve(baseTypeface()->GetAxes().size());
+    for (const FontVariation& variation : baseTypeface()->GetAxes()) {
         if (wght != -1 && variation.axisTag == TAG_wght) {
             continue;  // Add wght axis later
         } else if (ital != -1 && variation.axisTag == TAG_ital) {

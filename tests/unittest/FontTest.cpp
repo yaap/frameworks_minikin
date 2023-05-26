@@ -41,17 +41,17 @@ TEST(FontTest, BufferTest) {
 
     BufferReader reader(buffer.data());
     Font font(&reader);
-    EXPECT_EQ(minikinFont->GetFontPath(), font.typeface()->GetFontPath());
+    EXPECT_EQ(minikinFont->GetFontPath(), font.baseTypeface()->GetFontPath());
     EXPECT_EQ(original->style(), font.style());
     EXPECT_EQ(original->getLocaleListId(), font.getLocaleListId());
     // baseFont() should return the same non-null instance when called twice.
     const auto& baseFont = font.baseFont();
     EXPECT_NE(nullptr, baseFont);
     EXPECT_EQ(baseFont, font.baseFont());
-    // typeface() should return the same non-null instance when called twice.
-    const auto& typeface = font.typeface();
+    // baseTypeface() should return the same non-null instance when called twice.
+    const auto& typeface = font.baseTypeface();
     EXPECT_NE(nullptr, typeface);
-    EXPECT_EQ(typeface, font.typeface());
+    EXPECT_EQ(typeface, font.baseTypeface());
     std::vector<uint8_t> newBuffer = writeToBuffer<Font>(font);
     EXPECT_EQ(buffer, newBuffer);
 }
@@ -75,10 +75,10 @@ TEST(FontTest, MoveConstructorTest) {
     {
         BufferReader reader(buffer.data());
         Font moveFrom(&reader);
-        std::shared_ptr<MinikinFont> typeface = moveFrom.typeface();
+        std::shared_ptr<MinikinFont> typeface = moveFrom.baseTypeface();
         Font moveTo(std::move(moveFrom));
         EXPECT_EQ(nullptr, moveFrom.mExternalRefsHolder.load());
-        EXPECT_EQ(typeface, moveTo.typeface());
+        EXPECT_EQ(typeface, moveTo.baseTypeface());
     }
     EXPECT_EQ(baseHeapSize, getHeapSize());
 }
@@ -106,12 +106,12 @@ TEST(FontTest, MoveAssignmentTest) {
         // mExternalRefsHolder: non-null -> null
         BufferReader reader(buffer.data());
         Font moveFrom(&reader);
-        std::shared_ptr<MinikinFont> typeface = moveFrom.typeface();
+        std::shared_ptr<MinikinFont> typeface = moveFrom.baseTypeface();
         BufferReader reader2(buffer.data());
         Font moveTo(&reader2);
         moveTo = std::move(moveFrom);
         EXPECT_EQ(nullptr, moveFrom.mExternalRefsHolder.load());
-        EXPECT_EQ(typeface, moveTo.typeface());
+        EXPECT_EQ(typeface, moveTo.baseTypeface());
     }
     EXPECT_EQ(baseHeapSize, getHeapSize());
     {
@@ -120,7 +120,7 @@ TEST(FontTest, MoveAssignmentTest) {
         Font moveFrom(&reader);
         BufferReader reader2(buffer.data());
         Font moveTo(&reader2);
-        moveTo.typeface();
+        moveTo.baseTypeface();
         moveTo = std::move(moveFrom);
         EXPECT_EQ(nullptr, moveFrom.mExternalRefsHolder.load());
         EXPECT_EQ(nullptr, moveTo.mExternalRefsHolder.load());
@@ -130,13 +130,13 @@ TEST(FontTest, MoveAssignmentTest) {
         // mExternalRefsHolder: non-null -> non-null
         BufferReader reader(buffer.data());
         Font moveFrom(&reader);
-        std::shared_ptr<MinikinFont> typeface = moveFrom.typeface();
+        std::shared_ptr<MinikinFont> typeface = moveFrom.baseTypeface();
         BufferReader reader2(buffer.data());
         Font moveTo(&reader2);
-        moveTo.typeface();
+        moveTo.baseTypeface();
         moveTo = std::move(moveFrom);
         EXPECT_EQ(nullptr, moveFrom.mExternalRefsHolder.load());
-        EXPECT_EQ(typeface, moveTo.typeface());
+        EXPECT_EQ(typeface, moveTo.baseTypeface());
     }
     EXPECT_EQ(baseHeapSize, getHeapSize());
 }
@@ -230,12 +230,12 @@ TEST(FontTest, getAdjustedTypefaceTest) {
 
     {
         auto minikinFontBase = font->getAdjustedTypeface(-1, -1);
-        EXPECT_EQ(minikinFontBase.get(), font->typeface().get());
+        EXPECT_EQ(minikinFontBase.get(), font->baseTypeface().get());
     }
     {
         // Set correct wght axis value.
         auto minikinFontBase = font->getAdjustedTypeface(400, -1);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(1u, axes.size());
         EXPECT_EQ(TAG_wght, axes[0].axisTag);
@@ -245,7 +245,7 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         // Override existing wght axis.
         std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(700, -1)).build();
         auto minikinFontBase = newFont->getAdjustedTypeface(500, -1);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(1u, axes.size());
         EXPECT_EQ(TAG_wght, axes[0].axisTag);
@@ -254,7 +254,7 @@ TEST(FontTest, getAdjustedTypefaceTest) {
     {
         // Set correct wght axis value.
         auto minikinFontBase = font->getAdjustedTypeface(-1, 1);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(1u, axes.size());
         EXPECT_EQ(TAG_ital, axes[0].axisTag);
@@ -264,7 +264,7 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         // Override existing wght axis.
         std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(-1, 1)).build();
         auto minikinFontBase = newFont->getAdjustedTypeface(-1, 0);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(1u, axes.size());
         EXPECT_EQ(TAG_ital, axes[0].axisTag);
@@ -273,7 +273,7 @@ TEST(FontTest, getAdjustedTypefaceTest) {
     {
         // Set correct ital axis value.
         auto minikinFontBase = font->getAdjustedTypeface(400, 1);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
         EXPECT_EQ(TAG_wght, axes[0].axisTag);
@@ -285,7 +285,7 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         // Override existing ital axis.
         std::shared_ptr<Font> newFont = Font::Builder(font->getAdjustedTypeface(500, 0)).build();
         auto minikinFontBase = newFont->getAdjustedTypeface(700, 1);
-        EXPECT_NE(minikinFontBase.get(), font->typeface().get());
+        EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
         EXPECT_EQ(TAG_wght, axes[0].axisTag);
