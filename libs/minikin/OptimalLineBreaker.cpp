@@ -41,6 +41,7 @@ namespace {
 constexpr float SCORE_INFTY = std::numeric_limits<float>::max();
 constexpr float SCORE_OVERFULL = 1e12f;
 constexpr float SCORE_DESPERATE = 1e10f;
+constexpr float SCORE_FALLBACK = 1e6f;
 
 // Multiplier for hyphen penalty on last line.
 constexpr float LAST_LINE_PENALTY_MULTIPLIER = 4.0f;
@@ -97,11 +98,10 @@ struct OptimizeContext {
     float spaceWidth = 0.0f;
 
     // Append desperate break point to the candidates.
-    inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, uint32_t spaceCount,
-                              bool isRtl) {
-        candidates.emplace_back(offset, sumOfCharWidths, sumOfCharWidths, SCORE_DESPERATE,
-                                spaceCount, spaceCount,
-                                HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl);
+    inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
+                              uint32_t spaceCount, bool isRtl) {
+        candidates.emplace_back(offset, sumOfCharWidths, sumOfCharWidths, score, spaceCount,
+                                spaceCount, HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl);
     }
 
     // Append hyphenation break point to the candidates.
@@ -156,23 +156,51 @@ struct DesperateBreak {
     // The sum of the character width from the beginning of the word.
     ParaWidth sumOfChars;
 
-    DesperateBreak(uint32_t offset, ParaWidth sumOfChars)
-            : offset(offset), sumOfChars(sumOfChars){};
+    float score;
+
+    DesperateBreak(uint32_t offset, ParaWidth sumOfChars, float score)
+            : offset(offset), sumOfChars(sumOfChars), score(score){};
 };
 
 // Retrieves desperate break points from a word.
-std::vector<DesperateBreak> populateDesperatePoints(const MeasuredText& measured,
-                                                    const Range& range) {
+std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBuf,
+                                                    const MeasuredText& measured,
+                                                    const Range& range, const Run& run) {
     std::vector<DesperateBreak> out;
+
+    bool calculateFallback = true;
+    if (run.lineBreakWordStyle() == LineBreakWordStyle::None) {
+        calculateFallback = false;
+    }
+
+    WordBreaker wb;
+    wb.setText(textBuf.data(), textBuf.length());
+    ssize_t next =
+            wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()), run.lineBreakStyle(),
+                                   LineBreakWordStyle::None, range.getStart());
+
+    if (!range.contains(next)) {
+        calculateFallback = false;
+    }
+
     ParaWidth width = measured.widths[range.getStart()];
     for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
         const float w = measured.widths[i];
         if (w == 0) {
             continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
         }
-        out.emplace_back(i, width);
+        if (calculateFallback && i == (uint32_t)next) {
+            out.emplace_back(i, width, SCORE_FALLBACK);
+            next = wb.next();
+            if (!range.contains(next)) {
+                break;
+            }
+        } else {
+            out.emplace_back(i, width, SCORE_DESPERATE);
+        }
         width += w;
     }
+
     return out;
 }
 
@@ -192,7 +220,7 @@ void appendWithMerging(std::vector<HyphenBreak>::const_iterator hyIter,
         // breaks first.
         if (d != desperates.end() && (hyIter == endHyIter || d->offset <= hyIter->offset)) {
             out->pushDesperate(d->offset, proc.sumOfCharWidthsAtPrevWordBreak + d->sumOfChars,
-                               proc.effectiveSpaceCount, isRtl);
+                               d->score, proc.effectiveSpaceCount, isRtl);
             d++;
         } else {
             out->pushHyphenation(hyIter->offset, proc.sumOfCharWidths - hyIter->second,
@@ -252,7 +280,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
                 hyIter++;
             }
             if (proc.widthFromLastWordBreak() > minLineWidth) {
-                desperateBreaks = populateDesperatePoints(measured, contextRange);
+                desperateBreaks = populateDesperatePoints(textBuf, measured, contextRange, *run);
             }
             appendWithMerging(beginHyIter, doHyphenation ? hyIter : beginHyIter, desperateBreaks,
                               proc, hyphenPenalty, isRtl, &result);

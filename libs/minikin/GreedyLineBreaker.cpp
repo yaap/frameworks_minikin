@@ -99,6 +99,7 @@ private:
     // This method return true if there is no characters to be processed.
     bool doLineBreakWithGraphemeBounds(const Range& range);
 
+    bool doLineBreakWithFallback(const Range& range);
     // Info about the line currently processing.
     uint32_t mLineNum = 0;
     double mLineWidth = 0;
@@ -282,6 +283,69 @@ bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
     return true;
 }
 
+bool GreedyLineBreaker::doLineBreakWithFallback(const Range& range) {
+    Run* targetRun = nullptr;
+    for (const auto& run : mMeasuredText.runs) {
+        if (run->getRange().contains(range)) {
+            targetRun = run.get();
+        }
+    }
+
+    if (targetRun == nullptr) {
+        return false;  // The target range may lay on multiple run. Unable to fallback.
+    }
+
+    if (targetRun->lineBreakWordStyle() == LineBreakWordStyle::None) {
+        return false;  // If the line break word style is already none, nothing can be falled back.
+    }
+
+    WordBreaker wb;
+    wb.setText(mTextBuf.data(), mTextBuf.length());
+    ssize_t next = wb.followingWithLocale(getEffectiveLocale(targetRun->getLocaleListId()),
+                                          targetRun->lineBreakStyle(), LineBreakWordStyle::None,
+                                          range.getStart());
+
+    if (!range.contains(next)) {
+        return false;  // No fallback break points.
+    }
+
+    int32_t prevBreak = -1;
+    float wordWidth = 0;
+    float preBreakWidth = 0;
+    for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
+        const float w = mMeasuredText.widths[i];
+        if (w == 0) {
+            continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+        }
+        if (i == (uint32_t)next) {
+            if (preBreakWidth + wordWidth > mLineWidthLimit) {
+                if (prevBreak == -1) {
+                    return false;  // No candidate before this point. Give up.
+                }
+                breakLineAt(prevBreak, preBreakWidth, mLineWidth - preBreakWidth,
+                            mSumOfCharWidths - preBreakWidth, EndHyphenEdit::NO_EDIT,
+                            StartHyphenEdit::NO_EDIT);
+                return true;
+            }
+            prevBreak = i;
+            next = wb.next();
+            preBreakWidth += wordWidth;
+            wordWidth = w;
+        } else {
+            wordWidth += w;
+        }
+    }
+
+    if (preBreakWidth <= mLineWidthLimit) {
+        breakLineAt(prevBreak, preBreakWidth, mLineWidth - preBreakWidth,
+                    mSumOfCharWidths - preBreakWidth, EndHyphenEdit::NO_EDIT,
+                    StartHyphenEdit::NO_EDIT);
+        return true;
+    }
+
+    return false;
+}
+
 void GreedyLineBreaker::updateLineWidth(uint16_t c, float width) {
     if (c == CHAR_TAB) {
         mSumOfCharWidths = mTabStops.nextTab(mSumOfCharWidths);
@@ -302,6 +366,8 @@ void GreedyLineBreaker::processLineBreak(uint32_t offset, WordBreaker* breaker,
             continue;  // The word in the new line may still be too long for the line limit.
         } else if (doHyphenation && tryLineBreakWithHyphenation(lineRange, breaker)) {
             continue;  // TODO: we may be able to return here.
+        } else if (doLineBreakWithFallback(lineRange)) {
+            continue;
         } else {
             if (doLineBreakWithGraphemeBounds(lineRange)) {
                 return;
