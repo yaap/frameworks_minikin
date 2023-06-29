@@ -80,7 +80,7 @@ protected:
         paint.size = 10.0f;  // Make 1em=10px
         paint.localeListId = LocaleListCache::getId(lang);
         builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                            (int)LineBreakWordStyle::None, false);
+                            (int)LineBreakWordStyle::None, true, false);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuffer, false /* compute hyphenation */, false /* compute full layout */,
                 false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
@@ -88,6 +88,45 @@ protected:
         TabStops tabStops(nullptr, 0, 10);
         return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
                                doHyphenation, false);
+    }
+
+    LineBreakResult doLineBreakWithNoHyphenSpan(const U16StringPiece& textBuffer,
+                                                const Range& noHyphenRange, float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family1 = buildFontFamily("Ascii.ttf");
+        auto family2 = buildFontFamily("CustomExtent.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
+        auto fc = FontCollection::create(families);
+        if (noHyphenRange.getStart() != 0) {
+            MinikinPaint paint(fc);
+            paint.size = 10.0f;  // Make 1em=10px
+            paint.localeListId = LocaleListCache::getId("en-US");
+            builder.addStyleRun(0, noHyphenRange.getStart(), std::move(paint),
+                                (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                                true /* hyphenation */, false);
+        }
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId("en-US");
+        builder.addStyleRun(noHyphenRange.getStart(), noHyphenRange.getEnd(), std::move(paint),
+                            (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                            false /* hyphenation */, false);
+        if (noHyphenRange.getEnd() != textBuffer.size()) {
+            MinikinPaint paint(fc);
+            paint.size = 10.0f;  // Make 1em=10px
+            paint.localeListId = LocaleListCache::getId("en-US");
+            builder.addStyleRun(noHyphenRange.getEnd(), textBuffer.size(), std::move(paint),
+                                (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                                true /* hyphenation */, false);
+        }
+
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
+                               true /* doHyphenation */, false);
     }
 
     LineBreakResult doLineBreakForBounds(const U16StringPiece& textBuffer, bool doHyphenation,
@@ -101,7 +140,7 @@ protected:
         paint.size = 10.0f;  // Make 1em=10px
         paint.localeListId = LocaleListCache::getId("en-US");
         builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                            (int)LineBreakWordStyle::None, false);
+                            (int)LineBreakWordStyle::None, true, false);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuffer, false /* compute hyphenation */, false /* compute full layout */,
                 true /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
@@ -132,7 +171,7 @@ TEST_F(GreedyLineBreakerTest, roundingError) {
                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr, nullptr);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                        (int)LineBreakWordStyle::None, false);
+                        (int)LineBreakWordStyle::None, true, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
             textBuffer, false /* compute hyphenation */, false /* compute full layout */,
             false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
@@ -1753,6 +1792,53 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
         EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
         EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
+    }
+}
+
+TEST_F(GreedyLineBreakerTest, testBreakWithHyphenation_NoHyphenationSpan) {
+    // "hyphenation" is hyphnated to "hy-phen-a-tion".
+    const std::vector<uint16_t> textBuf = utf8ToUtf16("This is Android. Here is hyphenation.");
+    const Range noHyphenRange(25, 37);  // the range of the word "hyphenation".
+
+    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
+    constexpr EndHyphenEdit END_HYPHEN = EndHyphenEdit::INSERT_HYPHEN;
+    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                { "This is "  , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Android. " , 80, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Here is "  , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "hyphena-"  , 80, NO_START_HYPHEN,    END_HYPHEN, ASCENT, DESCENT },
+                { "tion."    , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+        };
+        // clang-format on
+
+        const auto actual = doLineBreak(textBuf, true /* do hyphenation */, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                { "This is "   , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Android. "  , 80, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Here is "   , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                // Prevent hyphenation of "hyphenation". Fallback to desperate break.
+                { "hyphenatio" ,100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "n."         , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakWithNoHyphenSpan(textBuf, noHyphenRange, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
     }
 }
 }  // namespace

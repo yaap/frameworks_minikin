@@ -63,6 +63,9 @@ public:
     // Returns true if this run can be broken into multiple pieces for line breaking.
     virtual bool canBreak() const = 0;
 
+    // Returns true if this run can be hyphenated.
+    virtual bool canHyphenate() const = 0;
+
     // Return the line break style(lb) for this run.
     virtual LineBreakStyle lineBreakStyle() const = 0;
 
@@ -118,11 +121,12 @@ protected:
 class StyleRun : public Run {
 public:
     StyleRun(const Range& range, MinikinPaint&& paint, int lineBreakStyle, int lineBreakWordStyle,
-             bool isRtl)
+             bool hyphenation, bool isRtl)
             : Run(range),
               mPaint(std::move(paint)),
               mLineBreakStyle(lineBreakStyle),
               mLineBreakWordStyle(lineBreakWordStyle),
+              mHyphenation(hyphenation),
               mIsRtl(isRtl) {}
 
     bool canBreak() const override { return true; }
@@ -132,6 +136,7 @@ public:
     LineBreakWordStyle lineBreakWordStyle() const override {
         return static_cast<LineBreakWordStyle>(mLineBreakWordStyle);
     }
+    bool canHyphenate() const override { return mHyphenation; }
     uint32_t getLocaleListId() const override { return mPaint.localeListId; }
     bool isRtl() const override { return mIsRtl; }
 
@@ -164,6 +169,7 @@ private:
     MinikinPaint mPaint;
     int mLineBreakStyle;
     int mLineBreakWordStyle;
+    const bool mHyphenation;
     const bool mIsRtl;
 };
 
@@ -174,6 +180,7 @@ public:
 
     bool isRtl() const { return false; }
     bool canBreak() const { return false; }
+    bool canHyphenate() const { return false; }
     LineBreakStyle lineBreakStyle() const override { return LineBreakStyle::None; }
     LineBreakWordStyle lineBreakWordStyle() const override { return LineBreakWordStyle::None; }
     uint32_t getLocaleListId() const { return mLocaleListId; }
@@ -321,9 +328,10 @@ public:
     MeasuredTextBuilder() {}
 
     void addStyleRun(int32_t start, int32_t end, MinikinPaint&& paint, int lineBreakStyle,
-                     int lineBreakWordStyle, bool isRtl) {
+                     int lineBreakWordStyle, bool hyphenation, bool isRtl) {
         mRuns.emplace_back(std::make_unique<StyleRun>(Range(start, end), std::move(paint),
-                                                      lineBreakStyle, lineBreakWordStyle, isRtl));
+                                                      lineBreakStyle, lineBreakWordStyle,
+                                                      hyphenation, isRtl));
     }
 
     void addReplacementRun(int32_t start, int32_t end, float width, uint32_t localeListId) {

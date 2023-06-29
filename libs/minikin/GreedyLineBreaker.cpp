@@ -186,6 +186,10 @@ bool GreedyLineBreaker::tryLineBreakWithHyphenation(const Range& range, WordBrea
         return false;
     }
 
+    if (!targetRun->canHyphenate()) {
+        return false;
+    }
+
     const std::vector<HyphenationType> hyphenResult =
             hyphenate(mTextBuf.substr(targetRange), *mHyphenator);
     Range contextRange = range;
