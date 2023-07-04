@@ -250,5 +250,86 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
     }
 }
 
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
+    // See doLayoutTest for the details of OvershootTest.ttf
+    // The OvershootTest.ttf has following coverage, extent, width and bbox.
+    // U+0061: 1em, (   0, 0) - (1,   1)
+    // U+0062: 1em, (   0, 0) - (1.5, 1)
+    // U+0063: 1em, (   0, 0) - (2,   1)
+    // U+0064: 1em, (   0, 0) - (2.5, 1)
+    // U+0065: 1em, (-0.5, 0) - (1,   1)
+    // U+0066: 1em, (-1.0, 0) - (1,   1)
+    // U+0067: 1em, (-1.5, 0) - (1,   1)
+    auto fc = makeFontCollection({"OvershootTest.ttf"});
+    {
+        auto layout = buildLayout("a", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_FALSE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("b", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 15, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("c", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 20, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("d", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 25, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("e", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-5, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("f", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-10, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("g", fc);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
+    }
+    {
+        auto layout = buildLayout("ag", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_FALSE(layout.flags()[0]);
+        EXPECT_TRUE(layout.flags()[1]);
+    }
+    {
+        auto layout = buildLayout("ga", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(10, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_TRUE(layout.flags()[0]);
+        EXPECT_FALSE(layout.flags()[1]);
+    }
+    {
+        auto layout = buildLayout("dg", fc);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(MinikinRect(0, 10, 25, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_TRUE(layout.flags()[0]);
+        EXPECT_TRUE(layout.flags()[1]);
+    }
+}
+#endif  // FEATURE_HORIZONTAL_CLIPPING
+
 }  // namespace
 }  // namespace minikin

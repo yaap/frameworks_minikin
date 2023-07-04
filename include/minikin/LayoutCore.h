@@ -47,6 +47,8 @@ public:
     LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                 const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen);
 
+    ~LayoutPiece();
+
     // Low level accessors.
     const std::vector<uint8_t>& fontIndices() const { return mFontIndices; }
     const std::vector<uint32_t>& glyphIds() const { return mGlyphIds; }
@@ -55,6 +57,8 @@ public:
     float advance() const { return mAdvance; }
     const MinikinExtent& extent() const { return mExtent; }
     const std::vector<FakedFont>& fonts() const { return mFonts; }
+    const std::vector<MinikinRect>& glyphBounds() const { return mGlyphBounds; }
+    const std::vector<uint8_t>& flags() const { return mFlags; }
 
     // Helper accessors
     uint32_t glyphCount() const { return mGlyphIds.size(); }
@@ -71,11 +75,13 @@ public:
 private:
     FRIEND_TEST(LayoutTest, doLayoutWithPrecomputedPiecesTest);
 
-    std::vector<uint8_t> mFontIndices;  // per glyph
-    std::vector<uint32_t> mGlyphIds;    // per glyph
-    std::vector<Point> mPoints;         // per glyph
+    std::vector<uint8_t> mFontIndices;      // per glyph
+    std::vector<uint32_t> mGlyphIds;        // per glyph
+    std::vector<Point> mPoints;             // per glyph
+    std::vector<MinikinRect> mGlyphBounds;  // per glyph
 
     std::vector<float> mAdvances;  // per code units
+    std::vector<uint8_t> mFlags;   // per code units
 
     float mAdvance;
     MinikinExtent mExtent;
