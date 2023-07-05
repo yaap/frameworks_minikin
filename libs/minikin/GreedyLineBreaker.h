@@ -27,7 +27,7 @@ namespace minikin {
 
 LineBreakResult breakLineGreedy(const U16StringPiece& textBuf, const MeasuredText& measured,
                                 const LineWidth& lineWidthLimits, const TabStops& tabStops,
-                                bool enableHyphenation);
+                                bool enableHyphenation, bool useBoundsForWidth);
 
 }  // namespace minikin
 

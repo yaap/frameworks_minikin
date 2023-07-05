@@ -99,6 +99,7 @@ public:
     std::vector<float> ascents;
     std::vector<float> descents;
     std::vector<int> flags;
+    std::vector<MinikinRect> bounds;
 
     LineBreakResult(LineBreakResult&&) = default;
     LineBreakResult& operator=(LineBreakResult&&) = default;
@@ -109,6 +110,7 @@ public:
         std::reverse(ascents.begin(), ascents.end());
         std::reverse(descents.begin(), descents.end());
         std::reverse(flags.begin(), flags.end());
+        std::reverse(bounds.begin(), bounds.end());
     }
 
 private:
@@ -118,7 +120,7 @@ private:
 LineBreakResult breakIntoLines(const U16StringPiece& textBuffer, BreakStrategy strategy,
                                HyphenationFrequency frequency, bool justified,
                                const MeasuredText& measuredText, const LineWidth& lineWidth,
-                               const TabStops& tabStops);
+                               const TabStops& tabStops, bool useBoundsForWidth);
 
 }  // namespace minikin
 
