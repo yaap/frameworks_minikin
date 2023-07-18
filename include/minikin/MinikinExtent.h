@@ -25,24 +25,29 @@ namespace minikin {
 struct MinikinExtent {
     MinikinExtent() : ascent(0), descent(0) {}
     MinikinExtent(float ascent, float descent) : ascent(ascent), descent(descent) {}
-    bool operator==(const MinikinExtent& o) const {
-        return ascent == o.ascent && descent == o.descent;
-    }
-    float ascent;   // negative
-    float descent;  // positive
-
-    void reset() { ascent = descent = 0.0; }
 
     void extendBy(const MinikinExtent& e) {
         ascent = std::min(ascent, e.ascent);
         descent = std::max(descent, e.descent);
     }
+
+    float ascent;   // negative
+    float descent;  // positive
 };
 
 // For gtest output
 inline std::ostream& operator<<(std::ostream& os, const MinikinExtent& e) {
-    return os << e.ascent << ", " << e.descent;
+    return os << "(ascent = " << e.ascent << ", descent = " << e.descent << ")";
 }
+
+inline bool operator==(const MinikinExtent& l, const MinikinExtent& r) {
+    return l.ascent == r.ascent && l.descent == r.descent;
+}
+
+inline bool operator!=(const MinikinExtent& l, const MinikinExtent& r) {
+    return !(l == r);
+}
+
 }  // namespace minikin
 
 #endif  // MINIKIN_MINIKIN_EXTENT_H

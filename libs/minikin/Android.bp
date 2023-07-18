@@ -68,7 +68,10 @@ cc_library {
     product_variables: {
         debuggable: {
             // Enable assertion on eng and userdebug build.
-            cppflags: ["-DENABLE_ASSERTION"],
+            srcs: [
+                "Debug.cpp",
+            ],
+            cppflags: [ "-DENABLE_ASSERTION" ],
         },
     },
     shared_libs: [
