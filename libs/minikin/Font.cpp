@@ -202,11 +202,11 @@ std::unordered_set<AxisTag> Font::getSupportedAxes() const {
 }
 
 HbFontUniquePtr Font::getAdjustedFont(int wght, int ital) const {
-    HbFontUniquePtr font(hb_font_create_sub_font(baseFont().get()));
     if (wght == -1 && ital == -1) {
-        return font;
+        return HbFontUniquePtr(hb_font_reference(baseFont().get()));
     }
 
+    HbFontUniquePtr font(hb_font_create_sub_font(baseFont().get()));
     std::vector<hb_variation_t> variations;
     variations.reserve(baseTypeface()->GetAxes().size());
     for (const FontVariation& variation : baseTypeface()->GetAxes()) {

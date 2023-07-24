@@ -149,7 +149,7 @@ TEST(FontTest, getAdjustedFontTest) {
 
     {
         auto hbFont = font->getAdjustedFont(-1, -1);
-        EXPECT_EQ(hb_font_get_parent(hbFont.get()), font->baseFont().get());
+        EXPECT_EQ(hbFont.get(), font->baseFont().get());
     }
     {
         // Set correct wight axis value.
