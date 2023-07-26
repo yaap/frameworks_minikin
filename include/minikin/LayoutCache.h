@@ -124,7 +124,28 @@ private:
     }
 };
 
-class LayoutCache : private android::OnEntryRemoved<LayoutCacheKey, LayoutPiece*> {
+// A class holds a layout information and bounding box of it. The bounding box can be invalid if not
+// calculated.
+class LayoutSlot {
+public:
+    LayoutSlot(LayoutPiece&& layout)
+            : mLayout(std::move(layout)), mBounds(MinikinRect::makeInvalid()) {}
+    LayoutSlot(LayoutPiece&& layout, MinikinRect&& bounds)
+            : mLayout(std::move(layout)), mBounds(std::move(bounds)) {}
+    LayoutSlot(const LayoutPiece& layout, const MinikinRect& bounds)
+            : mLayout(layout), mBounds(bounds) {}
+
+    const LayoutPiece mLayout;
+    const MinikinRect mBounds;
+
+private:
+    LayoutSlot(const LayoutSlot&) = delete;
+    LayoutSlot& operator=(const LayoutSlot&) = delete;
+    LayoutSlot(LayoutSlot&&) = delete;
+    LayoutSlot& operator=(LayoutSlot&&) = delete;
+};
+
+class LayoutCache : private android::OnEntryRemoved<LayoutCacheKey, LayoutSlot*> {
 public:
     void clear() {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -134,29 +155,62 @@ public:
     // Do not use LayoutCache inside the callback function, otherwise dead-lock may happen.
     template <typename F>
     void getOrCreate(const U16StringPiece& text, const Range& range, const MinikinPaint& paint,
-                     bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, F& f) {
+                     bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
+                     bool boundsCalculation, F& f) {
         LayoutCacheKey key(text, range, paint, dir, startHyphen, endHyphen);
         if (paint.skipCache() || range.getLength() >= LENGTH_LIMIT_CACHE) {
-            f(LayoutPiece(text, range, dir, paint, startHyphen, endHyphen), paint);
+            LayoutPiece piece(text, range, dir, paint, startHyphen, endHyphen);
+            if (boundsCalculation) {
+                f(piece, paint, LayoutPiece::calculateBounds(piece, paint));
+            } else {
+                f(piece, paint, MinikinRect::makeInvalid());
+            }
             return;
         }
+
+        LayoutSlot* cachedSlot;
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            LayoutPiece* layout = mCache.get(key);
-            if (layout != nullptr) {
-                f(*layout, paint);
-                return;
+            cachedSlot = mCache.get(key);
+        }
+
+        if (cachedSlot != nullptr) {
+            if (boundsCalculation && !cachedSlot->mBounds.isValid()) {
+                MinikinRect bounds = LayoutPiece::calculateBounds(cachedSlot->mLayout, paint);
+                LayoutPiece lp = cachedSlot->mLayout;
+                f(lp, paint, bounds);
+
+                // Add layout with bounding box into cache as a new entry.
+                {
+                    std::lock_guard<std::mutex> lock(mMutex);
+                    mCache.remove(key);
+                    key.copyText();
+                    mCache.put(key, new LayoutSlot(std::move(lp), bounds));
+                }
+            } else {
+                f(cachedSlot->mLayout, paint, cachedSlot->mBounds);
             }
+            return;
         }
         // Doing text layout takes long time, so releases the mutex during doing layout.
         // Don't care even if we do the same layout in other thred.
         key.copyText();
-        std::unique_ptr<LayoutPiece> layout =
-                std::make_unique<LayoutPiece>(text, range, dir, paint, startHyphen, endHyphen);
-        f(*layout, paint);
+
+        std::unique_ptr<LayoutSlot> slot;
+        if (boundsCalculation) {
+            LayoutPiece lp = LayoutPiece(text, range, dir, paint, startHyphen, endHyphen);
+            MinikinRect rect = LayoutPiece::calculateBounds(lp, paint);
+
+            slot = std::make_unique<LayoutSlot>(std::move(lp), std::move(rect));
+        } else {
+            slot = std::make_unique<LayoutSlot>(
+                    LayoutPiece(text, range, dir, paint, startHyphen, endHyphen));
+        }
+
+        f(slot->mLayout, paint, slot->mBounds);
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            mCache.put(key, layout.release());
+            mCache.put(key, slot.release());
         }
     }
 
@@ -177,12 +231,12 @@ protected:
 
 private:
     // callback for OnEntryRemoved
-    void operator()(LayoutCacheKey& key, LayoutPiece*& value) {
+    void operator()(LayoutCacheKey& key, LayoutSlot*& value) {
         key.freeText();
         delete value;
     }
 
-    android::LruCache<LayoutCacheKey, LayoutPiece*> mCache GUARDED_BY(mMutex);
+    android::LruCache<LayoutCacheKey, LayoutSlot*> mCache GUARDED_BY(mMutex);
 
     // static const size_t kMaxEntries = LruCache<LayoutCacheKey, Layout*>::kUnlimitedCapacity;
 

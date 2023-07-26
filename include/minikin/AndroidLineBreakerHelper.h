@@ -74,11 +74,17 @@ private:
 class StaticLayoutNative {
 public:
     StaticLayoutNative(BreakStrategy strategy, HyphenationFrequency frequency, bool isJustified,
-                       std::vector<float>&& indents)
+                       std::vector<float>&& indents, bool useBoundsForWidth)
             : mStrategy(strategy),
               mFrequency(frequency),
               mIsJustified(isJustified),
-              mIndents(std::move(indents)) {}
+              mIndents(std::move(indents)),
+              mUseBoundsForWidth(useBoundsForWidth) {}
+
+    StaticLayoutNative(BreakStrategy strategy, HyphenationFrequency frequency, bool isJustified,
+                       std::vector<float>&& indents)
+            : StaticLayoutNative(strategy, frequency, isJustified, std::move(indents),
+                                 false /* useBoundsForWidth */) {}
 
     LineBreakResult computeBreaks(const U16StringPiece& textBuf, const MeasuredText& measuredText,
                                   // Line width arguments
@@ -90,7 +96,8 @@ public:
         AndroidLineWidth lineWidth(firstWidth, firstWidthLineCount, restWidth, mIndents,
                                    indentsOffset);
         return breakIntoLines(textBuf, mStrategy, mFrequency, mIsJustified, measuredText, lineWidth,
-                              TabStops(tabStops, tabStopSize, defaultTabStopWidth));
+                              TabStops(tabStops, tabStopSize, defaultTabStopWidth),
+                              mUseBoundsForWidth);
     }
 
     inline BreakStrategy getStrategy() const { return mStrategy; }
@@ -104,6 +111,7 @@ private:
     const std::vector<float> mIndents;
     const std::vector<float> mLeftPaddings;
     const std::vector<float> mRightPaddings;
+    const bool mUseBoundsForWidth;
 };
 
 }  // namespace android

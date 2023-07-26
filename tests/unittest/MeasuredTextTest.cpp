@@ -47,9 +47,9 @@ TEST(MeasuredTextTest, RunTests) {
 
     std::vector<uint16_t> text(CHAR_COUNT, 'a');
 
-    std::unique_ptr<MeasuredText> measuredText =
-            builder.build(text, true /* compute hyphenation */, false /* compute full layout */,
-                          false /* ignore kerning */, nullptr /* no hint */);
+    std::unique_ptr<MeasuredText> measuredText = builder.build(
+            text, true /* compute hyphenation */, false /* compute full layout */,
+            false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
 
     ASSERT_TRUE(measuredText);
 
@@ -71,7 +71,8 @@ TEST(MeasuredTextTest, getBoundsTest) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinRect(0.0f, 0.0f, 0.0f, 0.0f), mt->getBounds(text, Range(0, 0)));
     EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
@@ -91,7 +92,8 @@ TEST(MeasuredTextTest, getBoundsTest_LTR) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
 }
@@ -107,7 +109,8 @@ TEST(MeasuredTextTest, getBoundsTest_RTL) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, true /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinRect(0.0f, 30.0f, 30.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
 }
@@ -128,7 +131,8 @@ TEST(MeasuredTextTest, getBoundsTest_multiStyle) {
     builder.addStyleRun(helloLength, text.size(), std::move(paint2), lbStyle, lbWordStyle,
                         false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinRect(0.0f, 0.0f, 0.0f, 0.0f), mt->getBounds(text, Range(0, 0)));
     EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
@@ -151,7 +155,8 @@ TEST(MeasuredTextTest, getExtentTest) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kernign */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kernign */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinExtent(0.0f, 0.0f), mt->getExtent(text, Range(0, 0)));
     EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), mt->getExtent(text, Range(0, 1)));
@@ -176,7 +181,8 @@ TEST(MeasuredTextTest, getExtentTest_multiStyle) {
     builder.addStyleRun(helloLength, text.size(), std::move(paint2), 0 /* no line break */,
                         0 /* no line break word style */, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     EXPECT_EQ(MinikinExtent(0.0f, 0.0f), mt->getExtent(text, Range(0, 0)));
     EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), mt->getExtent(text, Range(0, 1)));
@@ -200,7 +206,8 @@ TEST(MeasuredTextTest, buildLayoutTest) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     MinikinRect rect;
     MinikinPaint samePaint(font);
@@ -286,7 +293,8 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
     builder.addStyleRun(helloLength, text.size(), std::move(paint2), lbStyle, lbWordStyle,
                         false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     MinikinRect rect;
     MinikinPaint samePaint(font);
@@ -370,7 +378,8 @@ TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
     paint.size = 10.0f;
     builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     MinikinRect rect;
     MinikinPaint differentPaint(font);
@@ -456,7 +465,8 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     builder.addStyleRun(helloLength, text.size(), std::move(paint2), lbStyle, lbWordStyle,
                         false /* is RTL */);
     auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
-                            false /* ignore kerning */, nullptr /* no hint */);
+                            false /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
 
     MinikinRect rect;
     MinikinPaint differentPaint(font);
@@ -568,7 +578,8 @@ TEST(MeasuredTextTest, testLineBreakStyle_from_builder) {
     MinikinPaint paint(font);
     looseStyleBuilder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false);
     auto mt = looseStyleBuilder.build(text, true /* hyphenation */, true /* full layout */,
-                                      false /* ignore kerning */, nullptr /* no hint */);
+                                      false /* computeBounds */, false /* ignore kerning */,
+                                      nullptr /* no hint */);
 
     EXPECT_EQ((size_t)1, mt->runs.size());
     EXPECT_EQ(LineBreakStyle::Loose, mt->runs[0]->lineBreakStyle());
@@ -580,7 +591,8 @@ TEST(MeasuredTextTest, testLineBreakStyle_from_builder) {
     normalStyleBuilder.addStyleRun(0, text.size(), std::move(normalStylePaint), lbStyle,
                                    lbWordStyle, false);
     mt = normalStyleBuilder.build(text, true /* hyphenation */, true /* full layout */,
-                                  false /* ignore kerning */, nullptr /* no hint */);
+                                  false /* computeBounds */, false /* ignore kerning */,
+                                  nullptr /* no hint */);
 
     EXPECT_EQ((size_t)1, mt->runs.size());
     EXPECT_EQ(LineBreakStyle::Normal, mt->runs[0]->lineBreakStyle());
@@ -593,7 +605,8 @@ TEST(MeasuredTextTest, testLineBreakStyle_from_builder) {
     strictStyleBuilder.addStyleRun(0, text.size(), std::move(strictStylePaint), lbStyle,
                                    lbWordStyle, false);
     mt = strictStyleBuilder.build(text, true /* hyphenation */, true /* full layout */,
-                                  false /* ignore kerning */, nullptr /* no hint */);
+                                  false /* computeBounds */, false /* ignore kerning */,
+                                  nullptr /* no hint */);
 
     EXPECT_EQ((size_t)1, mt->runs.size());
     EXPECT_EQ(LineBreakStyle::Strict, mt->runs[0]->lineBreakStyle());
@@ -615,6 +628,38 @@ TEST(MeasuredTextTest, testLineBreakStyle_from_run) {
     ReplacementRun replacementRun(range, 10.0f /* width */, 0 /* locale list id */);
     EXPECT_EQ(LineBreakStyle::None, replacementRun.lineBreakStyle());
     EXPECT_EQ(LineBreakWordStyle::None, replacementRun.lineBreakWordStyle());
+}
+
+TEST(MeasuredTextTest, hasOverhang_false) {
+    auto text = utf8ToUtf16("Hello, World!");
+    auto font = buildFontCollection("Ascii.ttf");
+    int lbStyle = (int)LineBreakStyle::None;
+    int lbWordStyle = (int)LineBreakWordStyle::None;
+
+    MeasuredTextBuilder builder;
+    MinikinPaint paint(font);
+    paint.size = 10.0f;
+    builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
+    auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
+                            true /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
+    EXPECT_FALSE(mt->hasOverhang(Range(0, text.size())));
+}
+
+TEST(MeasuredTextTest, hasOverhang_true) {
+    auto text = utf8ToUtf16("b");
+    auto font = buildFontCollection("OvershootTest.ttf");
+    int lbStyle = (int)LineBreakStyle::None;
+    int lbWordStyle = (int)LineBreakWordStyle::None;
+
+    MeasuredTextBuilder builder;
+    MinikinPaint paint(font);
+    paint.size = 10.0f;
+    builder.addStyleRun(0, text.size(), std::move(paint), lbStyle, lbWordStyle, false /* is RTL */);
+    auto mt = builder.build(text, true /* hyphenation */, true /* full layout */,
+                            true /* computeBounds */, false /* ignore kerning */,
+                            nullptr /* no hint */);
+    EXPECT_TRUE(mt->hasOverhang(Range(0, text.size())));
 }
 
 }  // namespace minikin

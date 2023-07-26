@@ -449,7 +449,7 @@ TEST_F(LayoutTest, measuredTextTest) {
         std::vector<float> advances(text.size());
         Range range(0, text.size());
         EXPECT_EQ(1.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data()));
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(1u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
     }
@@ -459,7 +459,7 @@ TEST_F(LayoutTest, measuredTextTest) {
         std::vector<float> advances(text.size());
         Range range(0, text.size());
         EXPECT_EQ(6.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data()));
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(2u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);
@@ -471,7 +471,7 @@ TEST_F(LayoutTest, measuredTextTest) {
         Range range(0, text.size());
         EXPECT_EQ(16.0f,
                   Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                      EndHyphenEdit::NO_EDIT, advances.data()));
+                                      EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(3u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);

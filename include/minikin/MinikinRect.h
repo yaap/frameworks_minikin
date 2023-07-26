@@ -29,6 +29,10 @@ struct MinikinRect {
             : mLeft(left), mTop(top), mRight(right), mBottom(bottom) {}
 
     bool isEmpty() const { return mLeft == mRight || mTop == mBottom; }
+    bool isValid() const { return !std::isnan(mLeft); }
+    float width() const { return mRight - mLeft; }
+
+    void setEmpty() { mLeft = mRight = mTop = mBottom = 0; }
 
     // Shift the rectangle with given amount.
     void offset(float dx, float dy) {
@@ -55,8 +59,17 @@ struct MinikinRect {
 
     void offset(const Point& p) { offset(p.x, p.y); }
     void join(const MinikinRect& r) { return join(r.mLeft, r.mTop, r.mRight, r.mBottom, 0, 0); }
+    void join(const MinikinRect& r, float dx, float dy) {
+        return join(r.mLeft, r.mTop, r.mRight, r.mBottom, dx, dy);
+    }
     void join(const MinikinRect& r, const Point& p) {
         return join(r.mLeft, r.mTop, r.mRight, r.mBottom, p.x, p.y);
+    }
+
+    static MinikinRect makeInvalid() {
+        return MinikinRect(
+                std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN(),
+                std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN());
     }
 
     float mLeft;
