@@ -83,32 +83,11 @@ protected:
                             (int)LineBreakWordStyle::None, false);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(lineWidth);
         TabStops tabStops(nullptr, 0, 10);
         return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
-                               doHyphenation, false);
-    }
-
-    LineBreakResult doLineBreakForBounds(const U16StringPiece& textBuffer, bool doHyphenation,
-                                         float lineWidth) {
-        MeasuredTextBuilder builder;
-        auto family1 = buildFontFamily("OvershootTest.ttf");
-        auto family2 = buildFontFamily("Ascii.ttf");
-        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
-        auto fc = FontCollection::create(families);
-        MinikinPaint paint(fc);
-        paint.size = 10.0f;  // Make 1em=10px
-        paint.localeListId = LocaleListCache::getId("en-US");
-        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                            (int)LineBreakWordStyle::None, false);
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-                true /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
-        RectangleLineWidth rectangleLineWidth(lineWidth);
-        TabStops tabStops(nullptr, 0, 10);
-        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
-                               doHyphenation, true);
+                               doHyphenation);
     }
 
 private:
@@ -127,19 +106,18 @@ TEST_F(GreedyLineBreakerTest, roundingError) {
     paint.localeListId = LocaleListCache::getId("en-US");
     const std::vector<uint16_t> textBuffer = utf8ToUtf16("8888888888888888888");
 
-    float measured =
-            Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr, nullptr);
+    float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
+                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
                         (int)LineBreakWordStyle::None, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
             textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-            false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+            false /* ignore kerning */, nullptr /* no hint */);
     RectangleLineWidth rectangleLineWidth(measured);
     TabStops tabStops(nullptr, 0, 10);
     LineBreakResult r = breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
-                                        false /* do hyphenation */, false /* useBoundsForWidth */);
+                                        false /* do hyphenation */);
 
     EXPECT_EQ(1u, r.breakPoints.size());
 }
@@ -729,11 +707,11 @@ TEST_F(GreedyLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 10);
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -749,11 +727,11 @@ TEST_F(GreedyLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 10);
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -780,12 +758,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -801,12 +779,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -865,12 +843,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -888,12 +866,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -919,12 +897,12 @@ TEST_F(GreedyLineBreakerTest, CrashFix_Space_Tab) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, CHAR_WIDTH);
 
-        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
-                                            DO_HYPHEN, false /* useBoundsForWidth */);
+        const auto actual =
+                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -1088,11 +1066,10 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_SingleChar) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
-                               false /* useBoundsForWidth */);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
     };
 
     {
@@ -1184,11 +1161,10 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_MultipleChars) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
-                               false /* useBoundsForWidth */);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
     };
 
     {
@@ -1273,11 +1249,10 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_CJK) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
-                               false /* useBoundsForWidth */);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
     };
 
     {
@@ -1425,11 +1400,10 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_with_punctuation) 
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
-                               false /* useBoundsForWidth */);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
     };
 
     {
@@ -1613,146 +1587,6 @@ TEST_F(GreedyLineBreakerTest, testControllCharAfterSpace) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-    }
-}
-
-TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
-    // The OvershootTest.ttf has following coverage, extent, width and bbox.
-    // U+0061(a): 1em, (   0, 0) - (1,   1)
-    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
-    // U+0063(c): 1em, (   0, 0) - (2,   1)
-    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
-    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
-    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
-    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
-    constexpr bool NO_HYPHEN = false;  // No hyphenation in this test case.
-
-    const std::vector<uint16_t> textBuf = utf8ToUtf16("dddd dddd dddd dddd");
-    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
-    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
-    // Note that disable clang-format everywhere since aligned expectation is more readable.
-    {
-        constexpr float LINE_WIDTH = 1000;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd dddd dddd dddd", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
-    }
-    {
-        constexpr float LINE_WIDTH = 110;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd dddd ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd dddd", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
-    }
-    {
-        constexpr float LINE_WIDTH = 100;
-        // Even if the total advance of "dddd dddd" is 90, the width of bounding box of "dddd dddd"
-        // is
-        // Rect(0em, 1em, 10.5em, 0em). So "dddd dddd" is broken into two lines.
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
-    }
-}
-
-TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
-    // The OvershootTest.ttf has following coverage, extent, width and bbox.
-    // U+0061(a): 1em, (   0, 0) - (1,   1)
-    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
-    // U+0063(c): 1em, (   0, 0) - (2,   1)
-    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
-    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
-    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
-    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
-    constexpr bool NO_HYPHEN = false;  // No hyphenation in this test case.
-
-    const std::vector<uint16_t> textBuf = utf8ToUtf16("gggg gggg gggg gggg");
-    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
-    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
-    // Note that disable clang-format everywhere since aligned expectation is more readable.
-    {
-        constexpr float LINE_WIDTH = 1000;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg gggg gggg gggg", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
-    }
-    {
-        constexpr float LINE_WIDTH = 110;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg gggg ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg gggg" , 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
-    }
-    {
-        constexpr float LINE_WIDTH = 100;
-        // Even if the total advance of "dddd dddd" is 90, the width of bounding box of "dddd dddd"
-        // is
-        // Rect(0em, 1em, 10.5em, 0em). So "dddd dddd" is broken into two lines.
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg" , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
     }
 }
 }  // namespace

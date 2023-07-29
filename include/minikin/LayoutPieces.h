@@ -30,19 +30,14 @@ struct LayoutPieces {
 
     struct Key {
         Key(const Range& range, HyphenEdit hyphenEdit, bool dir, uint32_t paintId)
-                : range(range),
-                  hyphenEdit(hyphenEdit),
-                  dir(dir),
-                  paintId(paintId),
-                  hash(calcHash()) {}
+                : range(range), hyphenEdit(hyphenEdit), dir(dir), paintId(paintId) {}
 
         Range range;
         HyphenEdit hyphenEdit;
         bool dir;
         uint32_t paintId;
-        uint32_t hash;
 
-        uint32_t calcHash() const {
+        uint32_t hash() const {
             return Hasher()
                     .update(range.getStart())
                     .update(range.getEnd())
@@ -63,7 +58,7 @@ struct LayoutPieces {
     };
 
     struct KeyHasher {
-        std::size_t operator()(const Key& key) const { return key.hash; }
+        std::size_t operator()(const Key& key) const { return key.hash(); }
     };
 
     struct PaintHasher {
@@ -75,10 +70,10 @@ struct LayoutPieces {
 
     uint32_t nextPaintId;
     std::unordered_map<MinikinPaint, uint32_t, PaintHasher> paintMap;
-    std::unordered_map<Key, LayoutSlot, KeyHasher> offsetMap;
+    std::unordered_map<Key, LayoutPiece, KeyHasher> offsetMap;
 
     void insert(const Range& range, HyphenEdit edit, const LayoutPiece& layout, bool dir,
-                const MinikinPaint& paint, const MinikinRect& rect) {
+                const MinikinPaint& paint) {
         uint32_t paintId = findPaintId(paint);
         if (paintId == kNoPaintId) {
             paintId = nextPaintId++;
@@ -86,29 +81,22 @@ struct LayoutPieces {
         }
         offsetMap.emplace(std::piecewise_construct,
                           std::forward_as_tuple(range, edit, dir, paintId),
-                          std::forward_as_tuple(layout, rect));
+                          std::forward_as_tuple(layout));
     }
 
     template <typename F>
     void getOrCreate(const U16StringPiece& textBuf, const Range& range, const Range& context,
                      const MinikinPaint& paint, bool dir, StartHyphenEdit startEdit,
-                     EndHyphenEdit endEdit, uint32_t paintId, bool boundsCalculation, F& f) const {
+                     EndHyphenEdit endEdit, uint32_t paintId, F& f) const {
         const HyphenEdit edit = packHyphenEdit(startEdit, endEdit);
         auto it = offsetMap.find(Key(range, edit, dir, paintId));
-        if (it != offsetMap.end()) {
-            const LayoutPiece& piece = it->second.mLayout;
-            const MinikinRect& bounds = it->second.mBounds;
-            if (boundsCalculation && !bounds.isValid()) {
-                f(piece, paint, LayoutPiece::calculateBounds(piece, paint));
-            } else {
-                f(piece, paint, bounds);
-            }
-            return;
+        if (it == offsetMap.end()) {
+            LayoutCache::getInstance().getOrCreate(textBuf.substr(context),
+                                                   range - context.getStart(), paint, dir,
+                                                   startEdit, endEdit, f);
+        } else {
+            f(it->second, paint);
         }
-
-        LayoutCache::getInstance().getOrCreate(textBuf.substr(context), range - context.getStart(),
-                                               paint, dir, startEdit, endEdit, boundsCalculation,
-                                               f);
     }
 
     uint32_t findPaintId(const MinikinPaint& paint) const {
@@ -119,7 +107,7 @@ struct LayoutPieces {
     uint32_t getMemoryUsage() const {
         uint32_t result = 0;
         for (const auto& i : offsetMap) {
-            result += i.first.getMemoryUsage() + i.second.mLayout.getMemoryUsage();
+            result += i.first.getMemoryUsage() + i.second.getMemoryUsage();
         }
         result += (sizeof(MinikinPaint) + sizeof(uint32_t)) * paintMap.size();
         return result;

@@ -39,17 +39,6 @@ static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontColl
     return buildLayout(text, paint);
 }
 
-static std::pair<LayoutPiece, MinikinRect> buildLayoutAndBounds(
-        const std::string& text, std::shared_ptr<FontCollection> fc) {
-    MinikinPaint paint(fc);
-    paint.size = 10.0f;  // make 1em = 10px
-    auto utf16 = utf8ToUtf16(text);
-    LayoutPiece lp = LayoutPiece(utf16, Range(0, utf16.size()), false /* rtl */, paint,
-                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
-    MinikinRect rect = LayoutPiece::calculateBounds(lp, paint);
-    return std::make_pair(lp, rect);
-}
-
 static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontCollection> fc,
                                const std::string fontFeaturesSettings) {
     MinikinPaint paint(fc);
@@ -261,6 +250,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
     }
 }
 
+#ifdef FEATURE_HORIZONTAL_CLIPPING
 TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
     // See doLayoutTest for the details of OvershootTest.ttf
     // The OvershootTest.ttf has following coverage, extent, width and bbox.
@@ -273,56 +263,73 @@ TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
     // U+0067: 1em, (-1.5, 0) - (1,   1)
     auto fc = makeFontCollection({"OvershootTest.ttf"});
     {
-        auto [layout, bounds] = buildLayoutAndBounds("a", fc);
+        auto layout = buildLayout("a", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_FALSE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("b", fc);
+        auto layout = buildLayout("b", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 15, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 15, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("c", fc);
+        auto layout = buildLayout("c", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 20, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("d", fc);
+        auto layout = buildLayout("d", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 25, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 25, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("e", fc);
+        auto layout = buildLayout("e", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-5, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("f", fc);
+        auto layout = buildLayout("f", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-10, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-10, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("g", fc);
+        auto layout = buildLayout("g", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_TRUE(layout.flags()[0]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("ag", fc);
+        auto layout = buildLayout("ag", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_FALSE(layout.flags()[0]);
+        EXPECT_TRUE(layout.flags()[1]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("ga", fc);
+        auto layout = buildLayout("ga", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-15, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(10, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_TRUE(layout.flags()[0]);
+        EXPECT_FALSE(layout.flags()[1]);
     }
     {
-        auto [layout, bounds] = buildLayoutAndBounds("dg", fc);
+        auto layout = buildLayout("dg", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 25, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, 10, 25, 0), layout.glyphBounds()[0]);
+        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), layout.glyphBounds()[1]);
+        EXPECT_TRUE(layout.flags()[0]);
+        EXPECT_TRUE(layout.flags()[1]);
     }
 }
+#endif  // FEATURE_HORIZONTAL_CLIPPING
 
 }  // namespace
 }  // namespace minikin

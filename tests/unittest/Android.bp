@@ -46,6 +46,7 @@ cc_test {
         "AndroidLineBreakerHelperTest.cpp",
         "BidiUtilsTest.cpp",
         "BufferTest.cpp",
+        "BoundsCacheTest.cpp",
         "CmapCoverageTest.cpp",
         "EmojiTest.cpp",
         "FontTest.cpp",

@@ -55,15 +55,6 @@ inline bool isLineEndSpace(uint16_t c) {
            || c == 0x3000;
 }
 
-inline Range trimTrailingLineEndSpaces(const U16StringPiece& textBuf, const Range& range) {
-    for (uint32_t i = 0; i < range.getLength(); i++) {
-        if (!isLineEndSpace(textBuf[range.getEnd() - i - 1])) {
-            return Range(range.getStart(), range.getEnd() - i);
-        }
-    }
-    return Range(range.getStart(), range.getStart());
-}
-
 inline Locale getEffectiveLocale(uint32_t localeListId) {
     const LocaleList& localeList = LocaleListCache::getById(localeListId);
     return localeList.empty() ? Locale() : localeList[0];
