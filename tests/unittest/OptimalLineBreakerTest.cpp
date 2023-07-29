@@ -79,28 +79,8 @@ protected:
         bool computeHyphen = frequency != HyphenationFrequency::None;
         std::unique_ptr<MeasuredText> measuredText =
                 builder.build(textBuffer, computeHyphen, false /* compute full layout */,
-                              false /* computeBounds */, ignoreKerning, nullptr /* no hint */);
+                              ignoreKerning, nullptr /* no hint */);
         return doLineBreak(textBuffer, *measuredText, strategy, frequency, lineWidth);
-    }
-
-    LineBreakResult doLineBreakForBounds(const U16StringPiece& textBuffer, BreakStrategy strategy,
-                                         HyphenationFrequency frequency, float lineWidth) {
-        MeasuredTextBuilder builder;
-        auto family1 = buildFontFamily("OvershootTest.ttf");
-        auto family2 = buildFontFamily("Ascii.ttf");
-        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
-        auto fc = FontCollection::create(families);
-        MinikinPaint paint(fc);
-        paint.size = 10.0f;  // Make 1em=10px
-        paint.localeListId = LocaleListCache::getId("en-US");
-        builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, false);
-        bool computeHyphen = frequency != HyphenationFrequency::None;
-        std::unique_ptr<MeasuredText> measuredText = builder.build(
-                textBuffer, computeHyphen, false /* compute full layout */,
-                true /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
-        RectangleLineWidth rectangleLineWidth(lineWidth);
-        return breakLineOptimal(textBuffer, *measuredText, rectangleLineWidth, strategy, frequency,
-                                false /* justified */, true /* useBoundsForWidth */);
     }
 
     LineBreakResult doLineBreak(const U16StringPiece& textBuffer, const MeasuredText& measuredText,
@@ -108,7 +88,7 @@ protected:
                                 float lineWidth) {
         RectangleLineWidth rectangleLineWidth(lineWidth);
         return breakLineOptimal(textBuffer, measuredText, rectangleLineWidth, strategy, frequency,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     }
 
     void expectBreak(const std::vector<LineBreakExpectation>& expect,
@@ -779,7 +759,7 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -798,7 +778,7 @@ TEST_F(OptimalLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -829,7 +809,7 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
 
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
@@ -848,7 +828,7 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         const auto actual =
                 doLineBreak(textBuf, *measuredText, HIGH_QUALITY, NORMAL_HYPHENATION, LINE_WIDTH);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
@@ -923,7 +903,7 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measured = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
 
         // clang-format off
         std::vector<LineBreakExpectation> expect = {
@@ -966,7 +946,7 @@ TEST_F(OptimalLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measured = builder.build(
                 textBuf, true /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
 
         // clang-format off
         std::vector<LineBreakExpectation> expect = {
@@ -1121,12 +1101,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_SingleChar) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::None,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1214,12 +1194,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_MultipleChars) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::None,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1302,12 +1282,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_continuedReplacem
         builder.addReplacementRun(19, 24, 5 * CHAR_WIDTH, LocaleListCache::getId("en-US"));
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::None,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1378,12 +1358,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_CJK) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore krening */, nullptr /* no hint */);
+                false /* ignore krening */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::None,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1535,12 +1515,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpan_GraphemeLineBreakWithMultiple
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::None,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1670,12 +1650,12 @@ TEST_F(OptimalLineBreakerTest, testReplacementSpanNotBreakTest_with_punctuation)
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+                false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
         return breakLineOptimal(textBuf, *measuredText, rectangleLineWidth,
                                 BreakStrategy::HighQuality, HyphenationFrequency::Normal,
-                                false /* justified */, false /* useBoundsForWidth */);
+                                false /* justified */);
     };
 
     {
@@ -1876,161 +1856,18 @@ TEST_F(OptimalLineBreakerTest, roundingError) {
     const std::vector<uint16_t> textBuffer = utf8ToUtf16("8888888888888888888");
 
     float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
-                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr,
-                                         nullptr /* bounds */);
+                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
             textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-            false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+            false /* ignore kerning */, nullptr /* no hint */);
     RectangleLineWidth rectangleLineWidth(measured);
     TabStops tabStops(nullptr, 0, 10);
     LineBreakResult r = doLineBreak(textBuffer, *measuredText, BreakStrategy::Balanced,
                                     HyphenationFrequency::None, measured);
 
     EXPECT_EQ(1u, r.breakPoints.size());
-}
-
-TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_trailing) {
-    // The OvershootTest.ttf has following coverage, extent, width and bbox.
-    // U+0061(a): 1em, (   0, 0) - (1,   1)
-    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
-    // U+0063(c): 1em, (   0, 0) - (2,   1)
-    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
-    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
-    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
-    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
-    const std::vector<uint16_t> textBuf = utf8ToUtf16("dddd dddd dddd dddd");
-    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
-    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
-    // Note that disable clang-format everywhere since aligned expectation is more readable.
-    {
-        constexpr float LINE_WIDTH = 1000;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd dddd dddd dddd", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
-    }
-    {
-        constexpr float LINE_WIDTH = 110;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd dddd ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd dddd", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
-    }
-    {
-        constexpr float LINE_WIDTH = 100;
-        // Even if the total advance of "dddd dddd" is 90, the width of bounding box of "dddd dddd"
-        // is
-        // Rect(0em, 1em, 10.5em, 0em). So "dddd dddd" is broken into two lines.
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"dddd", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
-    }
-}
-
-TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_preceding) {
-    // The OvershootTest.ttf has following coverage, extent, width and bbox.
-    // U+0061(a): 1em, (   0, 0) - (1,   1)
-    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
-    // U+0063(c): 1em, (   0, 0) - (2,   1)
-    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
-    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
-    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
-    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
-    const std::vector<uint16_t> textBuf = utf8ToUtf16("gggg gggg gggg gggg");
-    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
-    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
-    // Note that disable clang-format everywhere since aligned expectation is more readable.
-    {
-        constexpr float LINE_WIDTH = 1000;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg gggg gggg gggg", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
-    }
-    {
-        constexpr float LINE_WIDTH = 110;
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg gggg ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg gggg", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
-    }
-    {
-        constexpr float LINE_WIDTH = 100;
-        // Even if the total advance of "gggg gggg" is 90, the width of bounding box of "gggg gggg"
-        // is
-        // Rect(0em, 1em, 10.5em, 0em). So "gggg gggg" is broken into two lines.
-        // clang-format off
-        std::vector<LineBreakExpectation> expect = {
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-                {"gggg", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
-        };
-        // clang-format on
-
-        const auto actual = doLineBreakForBounds(textBuf, BreakStrategy::HighQuality,
-                                                 HyphenationFrequency::None, LINE_WIDTH);
-        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
-                                                   << " vs " << std::endl
-                                                   << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
-    }
 }
 
 }  // namespace

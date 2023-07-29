@@ -55,9 +55,8 @@ public:
     virtual bool canBreak() const override { return true; }
     virtual uint32_t getLocaleListId() const { return mLocaleListId; }
 
-    virtual void getMetrics(const U16StringPiece&, std::vector<float>* advances,
-                            std::vector<uint8_t>* /*flags*/, LayoutPieces*,
-                            bool /*boundsCalculation*/, LayoutPieces*) const {
+    virtual void getMetrics(const U16StringPiece&, std::vector<float>* advances, LayoutPieces*,
+                            LayoutPieces*) const {
         std::fill(advances->begin() + mRange.getStart(), advances->begin() + mRange.getEnd(),
                   mWidth);
     }
@@ -71,12 +70,6 @@ public:
     virtual MinikinExtent getExtent(const U16StringPiece& /* text */, const Range& /* range */,
                                     const LayoutPieces& /* pieces */) const override {
         return {mAscent, mDescent};
-    }
-
-    virtual LineMetrics getLineMetrics(const U16StringPiece& text, const Range& range,
-                                       const LayoutPieces& pieces) const {
-        auto [adv, rect] = getBounds(text, range, pieces);
-        return LineMetrics(getExtent(text, range, pieces), rect, adv);
     }
 
     virtual const MinikinPaint* getPaint() const { return &mPaint; }
@@ -205,13 +198,11 @@ static std::string toString(const U16StringPiece& textBuf, const LineBreakResult
         if (isInsertion(endEdit)) {
             hyphenatedStr.push_back('-');
         }
-        char lineMsg[256] = {};
+        char lineMsg[128] = {};
         snprintf(lineMsg, sizeof(lineMsg),
-                 "Line %2d, Width: %5.1f, Hyphen(%hhu, %hhu), Extent(%5.1f, %5.1f), Bounds(%f, %f, "
-                 "%f, %f), Text: \"%s\"\n",
+                 "Line %2d, Width: %5.1f, Hyphen(%hhu, %hhu), Extent(%5.1f, %5.1f), Text: \"%s\"\n",
                  i, lines.widths[i], startEdit, endEdit, lines.ascents[i], lines.descents[i],
-                 lines.bounds[i].mLeft, lines.bounds[i].mTop, lines.bounds[i].mRight,
-                 lines.bounds[i].mBottom, hyphenatedStr.c_str());
+                 hyphenatedStr.c_str());
         out += lineMsg;
     }
     return out;

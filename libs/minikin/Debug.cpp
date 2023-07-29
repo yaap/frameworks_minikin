@@ -81,8 +81,7 @@ std::string toString(const MinikinExtent& extent) {
 
 std::string toString(const LayoutPiece& layout) {
     std::stringstream ss;
-    ss << "{advance=" << layout.advance() << ", extent=" << toString(layout.extent())
-       << ", glyphs=";
+    ss << "advance=" << layout.advance() << ", extent=" << toString(layout.extent()) << ", glyphs=";
 
     for (uint32_t i = 0; i < layout.glyphCount(); ++i) {
         ss << "{id:" << layout.glyphIdAt(i) << ", pos = " << toString(layout.pointAt(i))

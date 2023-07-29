@@ -332,11 +332,17 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     const size_t bufSize = textBuf.size();
 
     mAdvances.resize(count, 0);  // Need zero filling.
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+    mFlags.resize(count, 0);
+#endif  // FEATURE_HORIZONTAL_CLIPPING
 
     // Usually the number of glyphs are less than number of code units.
     mFontIndices.reserve(count);
     mGlyphIds.reserve(count);
     mPoints.reserve(count);
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+    mGlyphBounds.reserve(count);
+#endif  // FEATURE_HORIZONTAL_CLIPPING
 
     HbBufferUniquePtr buffer(hb_buffer_create());
     U16StringPiece substr = textBuf.substr(range);
@@ -475,8 +481,18 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 mPoints.emplace_back(x + xoff, y + yoff);
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
 
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+                MinikinRect bounds;
+                fakedFont.font->typeface()->GetBounds(&bounds, glyph_ix, paint, fakedFont.fakery);
+                bounds.offset(x + xoff, y + yoff);
+
+                mGlyphBounds.emplace_back(bounds.mLeft, bounds.mTop, bounds.mRight, bounds.mBottom);
+#endif  // FEATURE_HORIZONTAL_CLIPPING
                 if (clusterBaseIndex < count) {
                     mAdvances[clusterBaseIndex] += xAdvance;
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+                    mFlags[clusterBaseIndex] = bounds.mLeft < x || bounds.mRight > x + xAdvance;
+#endif  // FEATURE_HORIZONTAL_CLIPPING
                 } else {
                     ALOGE("cluster %zu (start %zu) out of bounds of count %zu", clusterBaseIndex,
                           start, count);
@@ -492,22 +508,10 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mFontIndices.shrink_to_fit();
     mGlyphIds.shrink_to_fit();
     mPoints.shrink_to_fit();
+#ifdef FEATURE_HORIZONTAL_CLIPPING
+    mGlyphBounds.shrink_to_fit();
+#endif  // FEATURE_HORIZONTAL_CLIPPING
     mAdvance = x;
-}
-
-// static
-MinikinRect LayoutPiece::calculateBounds(const LayoutPiece& layout, const MinikinPaint& paint) {
-    MinikinRect out;
-    for (uint32_t i = 0; i < layout.glyphCount(); ++i) {
-        MinikinRect bounds;
-        uint32_t glyphId = layout.glyphIdAt(i);
-        const FakedFont& fakedFont = layout.fontAt(i);
-        const Point& pos = layout.pointAt(i);
-
-        fakedFont.typeface()->GetBounds(&bounds, glyphId, paint, fakedFont.fakery);
-        out.join(bounds, pos);
-    }
-    return out;
 }
 
 LayoutPiece::~LayoutPiece() {}

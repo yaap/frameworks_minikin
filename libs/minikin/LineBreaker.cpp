@@ -24,13 +24,13 @@ namespace minikin {
 LineBreakResult breakIntoLines(const U16StringPiece& textBuffer, BreakStrategy strategy,
                                HyphenationFrequency frequency, bool justified,
                                const MeasuredText& measuredText, const LineWidth& lineWidth,
-                               const TabStops& tabStops, bool useBoundsForWidth) {
+                               const TabStops& tabStops) {
     if (strategy == BreakStrategy::Greedy || textBuffer.hasChar(CHAR_TAB)) {
         return breakLineGreedy(textBuffer, measuredText, lineWidth, tabStops,
-                               frequency != HyphenationFrequency::None, useBoundsForWidth);
+                               frequency != HyphenationFrequency::None);
     } else {
-        return breakLineOptimal(textBuffer, measuredText, lineWidth, strategy, frequency, justified,
-                                useBoundsForWidth);
+        return breakLineOptimal(textBuffer, measuredText, lineWidth, strategy, frequency,
+                                justified);
     }
 }
 
