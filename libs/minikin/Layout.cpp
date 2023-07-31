@@ -18,12 +18,6 @@
 
 #include "minikin/Layout.h"
 
-#include <cmath>
-#include <iostream>
-#include <mutex>
-#include <string>
-#include <vector>
-
 #include <hb-icu.h>
 #include <hb-ot.h>
 #include <log/log.h>
@@ -31,18 +25,23 @@
 #include <unicode/utf16.h>
 #include <utils/LruCache.h>
 
-#include "minikin/Emoji.h"
-#include "minikin/HbUtils.h"
-#include "minikin/LayoutCache.h"
-#include "minikin/LayoutPieces.h"
-#include "minikin/Macros.h"
+#include <cmath>
+#include <iostream>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #include "BidiUtils.h"
 #include "LayoutSplitter.h"
 #include "LayoutUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
-
+#include "minikin/BoundsCache.h"
+#include "minikin/Emoji.h"
+#include "minikin/HbUtils.h"
+#include "minikin/LayoutCache.h"
+#include "minikin/LayoutPieces.h"
+#include "minikin/Macros.h"
 namespace minikin {
 
 void Layout::doLayout(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags,
@@ -163,6 +162,7 @@ void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvan
 
 void Layout::purgeCaches() {
     LayoutCache::getInstance().clear();
+    BoundsCache::getInstance().clear();
 }
 
 }  // namespace minikin
