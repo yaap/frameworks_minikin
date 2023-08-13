@@ -167,37 +167,41 @@ std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBu
                                                     const Range& range, const Run& run) {
     std::vector<DesperateBreak> out;
 
-    bool calculateFallback = true;
     if (run.lineBreakWordStyle() == LineBreakWordStyle::None) {
-        calculateFallback = false;
-    }
-
-    WordBreaker wb;
-    wb.setText(textBuf.data(), textBuf.length());
-    ssize_t next =
-            wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()), run.lineBreakStyle(),
-                                   LineBreakWordStyle::None, range.getStart());
-
-    if (!range.contains(next)) {
-        calculateFallback = false;
-    }
-
-    ParaWidth width = measured.widths[range.getStart()];
-    for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
-        const float w = measured.widths[i];
-        if (w == 0) {
-            continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
-        }
-        if (calculateFallback && i == (uint32_t)next) {
-            out.emplace_back(i, width, SCORE_FALLBACK);
-            next = wb.next();
-            if (!range.contains(next)) {
-                break;
+        ParaWidth width = measured.widths[range.getStart()];
+        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
+            const float w = measured.widths[i];
+            if (w == 0) {
+                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
             }
-        } else {
             out.emplace_back(i, width, SCORE_DESPERATE);
+            width += w;
         }
-        width += w;
+    } else {
+        WordBreaker wb;
+        wb.setText(textBuf.data(), textBuf.length());
+        ssize_t next = wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()),
+                                              run.lineBreakStyle(), LineBreakWordStyle::None,
+                                              range.getStart());
+
+        const bool calculateFallback = !range.contains(next);
+        ParaWidth width = measured.widths[range.getStart()];
+        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
+            const float w = measured.widths[i];
+            if (w == 0) {
+                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+            }
+            if (calculateFallback && i == (uint32_t)next) {
+                out.emplace_back(i, width, SCORE_FALLBACK);
+                next = wb.next();
+                if (!range.contains(next)) {
+                    break;
+                }
+            } else {
+                out.emplace_back(i, width, SCORE_DESPERATE);
+            }
+            width += w;
+        }
     }
 
     return out;
