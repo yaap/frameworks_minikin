@@ -89,10 +89,12 @@ cc_library {
         android: {
             shared_libs: [
                 "libicu",
+                "aconfig_text_flags_c_lib",
             ],
             export_shared_lib_headers: [
                 "libicu",
             ],
+            cppflags: [ "-DUSE_FEATURE_FLAGS" ],
         },
         host: {
             shared_libs: [

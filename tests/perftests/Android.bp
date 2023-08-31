@@ -37,6 +37,7 @@ cc_benchmark {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "aconfig_text_flags_c_lib",
     ],
 
     shared_libs: [

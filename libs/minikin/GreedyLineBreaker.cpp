@@ -16,17 +16,17 @@
 
 #define LOG_TAG "GreedyLineBreak"
 
-#include "minikin/Characters.h"
-#include "minikin/LineBreaker.h"
-#include "minikin/MeasuredText.h"
-#include "minikin/Range.h"
-#include "minikin/U16StringPiece.h"
-
+#include "FeatureFlags.h"
 #include "HyphenatorMap.h"
 #include "LineBreakerUtil.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
 #include "WordBreaker.h"
+#include "minikin/Characters.h"
+#include "minikin/LineBreaker.h"
+#include "minikin/MeasuredText.h"
+#include "minikin/Range.h"
+#include "minikin/U16StringPiece.h"
 
 namespace minikin {
 
@@ -293,6 +293,9 @@ bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
 }
 
 bool GreedyLineBreaker::doLineBreakWithFallback(const Range& range) {
+    if (!features::phrase_strict_fallback()) {
+        return false;
+    }
     Run* targetRun = nullptr;
     for (const auto& run : mMeasuredText.runs) {
         if (run->getRange().contains(range)) {
