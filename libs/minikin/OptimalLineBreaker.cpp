@@ -285,7 +285,8 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
             if (proc.widthFromLastWordBreak() > minLineWidth) {
                 desperateBreaks = populateDesperatePoints(textBuf, measured, contextRange, *run);
             }
-            appendWithMerging(beginHyIter, doHyphenation ? hyIter : beginHyIter, desperateBreaks,
+            const bool doHyphenationRun = doHyphenation && run->canHyphenate();
+            appendWithMerging(beginHyIter, doHyphenationRun ? hyIter : beginHyIter, desperateBreaks,
                               proc, hyphenPenalty, isRtl, &result);
 
             // We skip breaks for zero-width characters inside replacement spans.
