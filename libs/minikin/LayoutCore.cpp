@@ -15,6 +15,7 @@
  */
 
 #define LOG_TAG "Minikin"
+#define ATRACE_TAG ATRACE_TAG_VIEW
 
 #include "minikin/LayoutCore.h"
 
@@ -24,6 +25,7 @@
 #include <unicode/ubidi.h>
 #include <unicode/utf16.h>
 #include <utils/LruCache.h>
+#include <utils/Trace.h>
 
 #include <cmath>
 #include <iostream>
@@ -497,6 +499,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
 // static
 MinikinRect LayoutPiece::calculateBounds(const LayoutPiece& layout, const MinikinPaint& paint) {
+    ATRACE_CALL();
     MinikinRect out;
     for (uint32_t i = 0; i < layout.glyphCount(); ++i) {
         MinikinRect bounds;

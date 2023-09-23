@@ -76,6 +76,7 @@ cc_library {
     shared_libs: [
         "liblog",
         "libharfbuzz_ng",
+        "libcutils",
     ],
     header_libs: [
         "libbase_headers",
