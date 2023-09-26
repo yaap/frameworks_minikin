@@ -528,4 +528,20 @@ LocaleList::LocaleList(std::vector<Locale>&& locales) : mLocales(std::move(local
     }
 }
 
+bool LocaleList::atLeastOneScriptMatch(const LocaleList& list) const {
+    if ((mUnionOfSubScriptBits & list.mUnionOfSubScriptBits) != 0) {
+        return true;
+    }
+
+    for (const Locale& myLocale : mLocales) {
+        for (const Locale& otherLocale : list.mLocales) {
+            if (myLocale.isEqualScript(otherLocale)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 }  // namespace minikin
