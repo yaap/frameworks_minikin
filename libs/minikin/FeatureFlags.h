@@ -17,25 +17,19 @@
 #ifndef MINIKIN_FEATURE_FLAGS_H
 #define MINIKIN_FEATURE_FLAGS_H
 
-#ifdef USE_FEATURE_FLAGS
+#ifdef __ANDROID__
 #include <com_android_text_flags.h>
-#endif  // USE_FEATURE_FLAGS
+#endif  // __ANDROID__
 
 namespace features {
 
-#ifdef USE_FEATURE_FLAGS
-
 inline bool phrase_strict_fallback() {
+#ifdef __ANDROID__
     return com_android_text_flags_phrase_strict_fallback();
-}
-
 #else
-
-inline bool phrase_strict_fallback() {
     return true;
+#endif  // __ANDROID__
 }
-
-#endif  // USE_FEATURE_FLAGS
 
 }  // namespace features
 
