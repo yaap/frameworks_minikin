@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "FeatureFlags.h"
 #include "HyphenatorMap.h"
 #include "LayoutUtils.h"
 #include "LineBreakerUtil.h"
@@ -167,7 +168,8 @@ std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBu
                                                     const Range& range, const Run& run) {
     std::vector<DesperateBreak> out;
 
-    if (run.lineBreakWordStyle() == LineBreakWordStyle::None) {
+    if (!features::phrase_strict_fallback() ||
+        run.lineBreakWordStyle() == LineBreakWordStyle::None) {
         ParaWidth width = measured.widths[range.getStart()];
         for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
             const float w = measured.widths[i];

@@ -41,6 +41,7 @@ cc_test {
         "libutils",
         "libz",
         "libcutils",
+        "aconfig_text_flags_c_lib",
     ],
 
     srcs: [
