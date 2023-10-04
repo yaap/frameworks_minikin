@@ -16,18 +16,18 @@
 
 #define LOG_TAG "Minikin"
 
-#include <libxml/tree.h>
+#include "FontTestUtils.h"
+
+#include <libxml/parser.h>
 #include <log/log.h>
 #include <unistd.h>
 
-#include "minikin/FontCollection.h"
-#include "minikin/FontFamily.h"
-#include "minikin/LocaleList.h"
-
-#include "FontTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "minikin/FontCollection.h"
+#include "minikin/FontFamily.h"
+#include "minikin/LocaleList.h"
 
 namespace minikin {
 
