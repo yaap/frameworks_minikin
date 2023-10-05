@@ -37,6 +37,16 @@
 
 namespace minikin {
 
+class BreakIterator {
+public:
+    BreakIterator() {}
+    virtual ~BreakIterator() {}
+    virtual void setText(UText* text, size_t size) = 0;
+    virtual bool isBoundary(int32_t i) = 0;
+    virtual int32_t following(size_t i) = 0;
+    virtual int32_t next() = 0;
+};
+
 // A class interface for providing pooling implementation of ICU's line breaker.
 // The implementation can be customized for testing purposes.
 class ICULineBreakerPool {
@@ -44,7 +54,7 @@ public:
     struct Slot {
         Slot() : localeId(0), breaker(nullptr) {}
         Slot(uint64_t localeId, LineBreakStyle lbStyle, LineBreakWordStyle lbWordStyle,
-             IcuUbrkUniquePtr&& breaker)
+             std::unique_ptr<BreakIterator>&& breaker)
                 : localeId(localeId),
                   lbStyle(lbStyle),
                   lbWordStyle(lbWordStyle),
@@ -60,7 +70,7 @@ public:
         uint64_t localeId;
         LineBreakStyle lbStyle;
         LineBreakWordStyle lbWordStyle;
-        IcuUbrkUniquePtr breaker;
+        std::unique_ptr<BreakIterator> breaker;
     };
     virtual ~ICULineBreakerPool() {}
     virtual Slot acquire(const Locale& locale, LineBreakStyle lbStyle,
@@ -93,6 +103,33 @@ protected:
 private:
     std::list<Slot> mPool GUARDED_BY(mMutex);
     mutable std::mutex mMutex;
+};
+
+class ICUBreakIterator : public BreakIterator {
+public:
+    ICUBreakIterator(IcuUbrkUniquePtr&& breaker) : mBreaker(std::move(breaker)) {}
+    virtual ~ICUBreakIterator() {}
+    virtual void setText(UText* text, size_t size);
+    virtual bool isBoundary(int32_t i);
+    virtual int32_t following(size_t i);
+    virtual int32_t next();
+
+private:
+    IcuUbrkUniquePtr mBreaker;
+};
+
+class NoBreakBreakIterator : public BreakIterator {
+public:
+    NoBreakBreakIterator() {}
+    virtual ~NoBreakBreakIterator() {}
+
+    virtual void setText(UText*, size_t size) { mSize = size; }
+    virtual bool isBoundary(int32_t i) { return i == 0 || i == static_cast<int32_t>(mSize); }
+    virtual int32_t following(size_t) { return mSize; }
+    virtual int32_t next() { return mSize; }
+
+private:
+    size_t mSize = 0;
 };
 
 class WordBreaker {
