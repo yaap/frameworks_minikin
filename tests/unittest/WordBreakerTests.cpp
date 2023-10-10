@@ -672,7 +672,7 @@ TEST(WordBreakerTest, LineBreakerPool_acquire_with_release) {
             pool.acquire(enUS, LineBreakStyle::Loose, LineBreakWordStyle::None);
 
     uint64_t enUSBreakerLocaleId = enUSBreaker.localeId;
-    UBreakIterator* enUSBreakerPtr = enUSBreaker.breaker.get();
+    auto* enUSBreakerPtr = enUSBreaker.breaker.get();
 
     pool.release(std::move(enUSBreaker));
     EXPECT_EQ(nullptr, enUSBreaker.breaker.get());

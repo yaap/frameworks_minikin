@@ -32,16 +32,40 @@
 namespace minikin {
 
 namespace {
-static UBreakIterator* createNewIterator(const Locale& locale, LineBreakStyle lbStyle,
-                                         LineBreakWordStyle lbWordStyle) {
+static std::unique_ptr<BreakIterator> createNewIterator(const Locale& locale,
+                                                        LineBreakStyle lbStyle,
+                                                        LineBreakWordStyle lbWordStyle) {
     // TODO: handle failure status
-    UErrorCode status = U_ZERO_ERROR;
-    char localeID[ULOC_FULLNAME_CAPACITY] = {};
-    uloc_forLanguageTag(locale.getStringWithLineBreakOption(lbStyle, lbWordStyle).c_str(), localeID,
-                        ULOC_FULLNAME_CAPACITY, nullptr, &status);
-    return ubrk_open(UBreakIteratorType::UBRK_LINE, localeID, nullptr, 0, &status);
+    if (lbStyle == LineBreakStyle::NoBreak) {
+        return std::make_unique<NoBreakBreakIterator>();
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+        char localeID[ULOC_FULLNAME_CAPACITY] = {};
+        uloc_forLanguageTag(locale.getStringWithLineBreakOption(lbStyle, lbWordStyle).c_str(),
+                            localeID, ULOC_FULLNAME_CAPACITY, nullptr, &status);
+        IcuUbrkUniquePtr icuBrkPtr(
+                ubrk_open(UBreakIteratorType::UBRK_LINE, localeID, nullptr, 0, &status));
+        return std::make_unique<ICUBreakIterator>(std::move(icuBrkPtr));
+    }
 }
 }  // namespace
+
+void ICUBreakIterator::setText(UText* text, size_t) {
+    UErrorCode status = U_ZERO_ERROR;
+    ubrk_setUText(mBreaker.get(), text, &status);
+}
+
+bool ICUBreakIterator::isBoundary(int32_t i) {
+    return ubrk_isBoundary(mBreaker.get(), i);
+}
+
+int32_t ICUBreakIterator::following(size_t i) {
+    return ubrk_following(mBreaker.get(), i);
+}
+
+int32_t ICUBreakIterator::next() {
+    return ubrk_next(mBreaker.get());
+}
 
 ICULineBreakerPool::Slot ICULineBreakerPoolImpl::acquire(const Locale& locale,
                                                          LineBreakStyle lbStyle,
@@ -57,8 +81,7 @@ ICULineBreakerPool::Slot ICULineBreakerPoolImpl::acquire(const Locale& locale,
     }
 
     // Not found in pool. Create new one.
-    return {id, lbStyle, lbWordStyle,
-            IcuUbrkUniquePtr(createNewIterator(locale, lbStyle, lbWordStyle))};
+    return {id, lbStyle, lbWordStyle, createNewIterator(locale, lbStyle, lbWordStyle)};
 }
 
 void ICULineBreakerPoolImpl::release(ICULineBreakerPool::Slot&& slot) {
@@ -86,10 +109,9 @@ ssize_t WordBreaker::followingWithLocale(const Locale& locale, LineBreakStyle lb
         return mCurrent;
     }
     mIcuBreaker = mPool->acquire(locale, lbStyle, lbWordStyle);
-    UErrorCode status = U_ZERO_ERROR;
     MINIKIN_ASSERT(mText != nullptr, "setText must be called first");
     // TODO: handle failure status
-    ubrk_setUText(mIcuBreaker.breaker.get(), mUText.get(), &status);
+    mIcuBreaker.breaker->setText(mUText.get(), mTextSize);
     if (mInEmailOrUrl) {
         // Note:
         // Don't reset mCurrent, mLast, or mScanOffset for keeping email/URL context.
@@ -171,9 +193,9 @@ static bool isValidBreak(const uint16_t* buf, size_t bufEnd, int32_t i) {
 // Customized iteratorNext that takes care of both resets and our modifications
 // to ICU's behavior.
 int32_t WordBreaker::iteratorNext() {
-    int32_t result = ubrk_following(mIcuBreaker.breaker.get(), mCurrent);
+    int32_t result = mIcuBreaker.breaker->following(mCurrent);
     while (!isValidBreak(mText, mTextSize, result)) {
-        result = ubrk_next(mIcuBreaker.breaker.get());
+        result = mIcuBreaker.breaker->next();
     }
     return result;
 }
@@ -221,11 +243,11 @@ void WordBreaker::detectEmailOrUrl() {
             }
         }
         if (state == SAW_AT || state == SAW_COLON_SLASH_SLASH) {
-            if (!ubrk_isBoundary(mIcuBreaker.breaker.get(), i)) {
+            if (!mIcuBreaker.breaker->isBoundary(i)) {
                 // If there are combining marks or such at the end of the URL or the email address,
                 // consider them a part of the URL or the email, and skip to the next actual
                 // boundary.
-                i = ubrk_following(mIcuBreaker.breaker.get(), i);
+                i = mIcuBreaker.breaker->following(i);
             }
             mInEmailOrUrl = true;
         } else {
