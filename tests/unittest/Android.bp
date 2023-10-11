@@ -29,6 +29,8 @@ cc_test {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "libflagtest",
+        "libbase_ndk",
     ],
 
     // Shared libraries which are dependencies of minikin; these are not automatically
@@ -42,6 +44,7 @@ cc_test {
         "libz",
         "libcutils",
         "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
 
     srcs: [

@@ -185,7 +185,7 @@ void MeasuredText::measure(const U16StringPiece& textBuf, bool computeHyphenatio
             continue;
         }
 
-        proc.updateLocaleIfNecessary(*run);
+        proc.updateLocaleIfNecessary(*run, false /* forceWordStyleAutoToPhrase */);
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
             // Even if the run is not a candidate of line break, treat the end of run as the line
             // break candidate.

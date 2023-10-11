@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <memory>
-
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 
-#include "minikin/Hyphenator.h"
+#include <memory>
 
 #include "FileUtils.h"
 #include "FontTestUtils.h"
@@ -29,6 +29,7 @@
 #include "MinikinInternal.h"
 #include "UnicodeUtils.h"
 #include "WordBreaker.h"
+#include "minikin/Hyphenator.h"
 
 namespace minikin {
 namespace {
@@ -46,6 +47,17 @@ constexpr float DESCENT = 20.0f;
 // The ascent/descent of CustomExtent.ttf with text size = 10.
 constexpr float CUSTOM_ASCENT = -160.0f;
 constexpr float CUSTOM_DESCENT = 40.0f;
+
+// A test string for Japanese. The meaning is that "Today is a sunny day."
+// The expected line break of phrase and non-phrase cases are:
+//     Phrase: | \u672C\u65E5\u306F | \u6674\u5929\u306A\u308A\u3002 |
+// Non-Phrase: | \u672C | \u65E5 | \u306F | \u6674 | \u5929 | \u306A | \u308A\u3002 |
+const char* JP_TEXT = "\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002";
+
+// A test string for Korean. The meaning is that "I want to eat breakfast."
+// The phrase based line break breaks at spaces, non-phrase based line break breaks at grapheme.
+const char* KO_TEXT =
+        "\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020\uC2F6\uC2B5\uB2C8\uB2E4\u002E";
 
 class GreedyLineBreakerTest : public testing::Test {
 public:
@@ -67,6 +79,48 @@ protected:
     LineBreakResult doLineBreak(const U16StringPiece& textBuffer, bool doHyphenation,
                                 float lineWidth) {
         return doLineBreak(textBuffer, doHyphenation, "en-US", lineWidth);
+    }
+
+    LineBreakResult doLineBreakForJapanese(const U16StringPiece& textBuffer,
+                                           LineBreakWordStyle lbwStyle, const std::string& lang,
+                                           float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family = buildFontFamily("Japanese.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId(lang);
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
+                            (int)lbwStyle, true, false);
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops, false,
+                               false);
+    }
+
+    LineBreakResult doLineBreakForKorean(const U16StringPiece& textBuffer,
+                                         LineBreakWordStyle lbwStyle, const std::string& lang,
+                                         float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family = buildFontFamily("Hangul.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId(lang);
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
+                            (int)lbwStyle, true, false);
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops, false,
+                               false);
     }
 
     LineBreakResult doLineBreak(const U16StringPiece& textBuffer, bool doHyphenation,
@@ -1841,5 +1895,413 @@ TEST_F(GreedyLineBreakerTest, testBreakWithHyphenation_NoHyphenationSpan) {
                                                    << toString(textBuf, actual);
     }
 }
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002" , 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5" , 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002" , 60),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002", 40),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002"  , 20),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    // When the line becomes more or equal to 5, the phrase based line break is disabled.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002"  , 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::None should break with grapheme bounds");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020\uC2F6\uC2B5", 100),
+                line("\uB2C8\uB2E4\u002E", 30),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::None, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::Phrase should break with spaces");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020", 70),
+                line("\uC2F6\uC2B5\uB2C8\uB2E4\u002E", 50),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::Phrase, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::Auto should perform as phrase based line break.");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020", 70),
+                line("\uC2F6\uC2B5\uB2C8\uB2E4\u002E", 50),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::Auto, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
 }  // namespace
 }  // namespace minikin

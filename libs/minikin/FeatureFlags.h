@@ -31,6 +31,14 @@ inline bool phrase_strict_fallback() {
 #endif  // __ANDROID__
 }
 
+inline bool word_style_auto() {
+#ifdef __ANDROID__
+    return com_android_text_flags_word_style_auto();
+#else
+    return true;
+#endif  // __ANDROID__
+}
+
 }  // namespace features
 
 #endif  // FEATURE_FLAGS

@@ -97,6 +97,8 @@ struct OptimizeContext {
     // fonts), it's only guaranteed to pick one.
     float spaceWidth = 0.0f;
 
+    bool retryWithPhraseWordBreak = false;
+
     // Append desperate break point to the candidates.
     inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
                               uint32_t spaceCount, bool isRtl) {
@@ -239,7 +241,7 @@ void appendWithMerging(std::vector<HyphenBreak>::const_iterator hyIter,
 // Enumerate all line break candidates.
 OptimizeContext populateCandidates(const U16StringPiece& textBuf, const MeasuredText& measured,
                                    const LineWidth& lineWidth, HyphenationFrequency frequency,
-                                   bool isJustified) {
+                                   bool isJustified, bool forceWordStyleAutoToPhrase) {
     const ParaWidth minLineWidth = lineWidth.getMin();
     CharProcessor proc(textBuf);
 
@@ -260,7 +262,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
             result.linePenalty = std::max(penalties.second, result.linePenalty);
         }
 
-        proc.updateLocaleIfNecessary(*run);
+        proc.updateLocaleIfNecessary(*run, forceWordStyleAutoToPhrase);
 
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
             MINIKIN_ASSERT(textBuf[i] != CHAR_TAB, "TAB is not supported in optimal line breaker");
@@ -301,6 +303,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
         }
     }
     result.spaceWidth = proc.spaceWidth;
+    result.retryWithPhraseWordBreak = proc.retryWithPhraseWordBreak;
     return result;
 }
 
@@ -484,11 +487,40 @@ LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredTe
     if (textBuf.size() == 0) {
         return LineBreakResult();
     }
+
     const OptimizeContext context =
-            populateCandidates(textBuf, measured, lineWidth, frequency, justified);
+            populateCandidates(textBuf, measured, lineWidth, frequency, justified,
+                               false /* forceWordStyleAutoToPhrase */);
     LineBreakOptimizer optimizer;
-    return optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy, justified,
-                                   useBoundsForWidth);
+    LineBreakResult res = optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy,
+                                                  justified, useBoundsForWidth);
+
+    if (!features::word_style_auto()) {
+        return res;
+    }
+
+    // The line breaker says that retry with phrase based word break because of the auto option and
+    // given locales.
+    if (!context.retryWithPhraseWordBreak) {
+        return res;
+    }
+
+    // If the line break result is more than heuristics threshold, don't try pharse based word
+    // break.
+    if (res.breakPoints.size() >= LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res;
+    }
+
+    const OptimizeContext phContext =
+            populateCandidates(textBuf, measured, lineWidth, frequency, justified,
+                               true /* forceWordStyleAutoToPhrase */);
+    LineBreakResult res2 = optimizer.computeBreaks(phContext, textBuf, measured, lineWidth,
+                                                   strategy, justified, useBoundsForWidth);
+    if (res2.breakPoints.size() < LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res2;
+    } else {
+        return res;
+    }
 }
 
 }  // namespace minikin

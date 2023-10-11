@@ -123,6 +123,7 @@ public:
     // Returns true if this script supports the given script. For example, ja-Jpan supports Hira,
     // ja-Hira doesn't support Jpan.
     bool supportsScript(uint32_t script) const;
+    bool supportsScript(char c1, char c2, char c3, char c4) const;
 
     std::string getString() const;
 
@@ -219,6 +220,9 @@ public:
 
     bool atLeastOneScriptMatch(const LocaleList& list) const;
 
+    bool hasJapanese() const { return hasScript('J', 'p', 'a', 'n'); }
+    bool hasKorean() const { return hasScript('K', 'o', 'r', 'e'); }
+
 private:
     friend struct Locale;  // for calcScoreFor
 
@@ -232,6 +236,8 @@ private:
 
     uint8_t getUnionOfSubScriptBits() const { return mUnionOfSubScriptBits; }
     bool isAllTheSameLocale() const { return mIsAllTheSameLocale; }
+
+    bool hasScript(char c1, char c2, char c3, char c4) const;
 
     // Do not copy and assign.
     LocaleList(const LocaleList&) = delete;

@@ -467,6 +467,12 @@ bool Locale::supportsScript(uint32_t script) const {
     return supportsScript(mSubScriptBits, scriptToSubScriptBits(packedScript));
 }
 
+bool Locale::supportsScript(char c1, char c2, char c3, char c4) const {
+    uint32_t packedScript = packScript(c1, c2, c3, c4);
+    if (packedScript == mScript) return true;
+    return supportsScript(mSubScriptBits, scriptToSubScriptBits(packedScript));
+}
+
 int Locale::calcScoreFor(const LocaleList& supported) const {
     bool languageScriptMatch = false;
     bool subtagMatch = false;
@@ -541,6 +547,15 @@ bool LocaleList::atLeastOneScriptMatch(const LocaleList& list) const {
         }
     }
 
+    return false;
+}
+
+bool LocaleList::hasScript(char c1, char c2, char c3, char c4) const {
+    for (const Locale& locale : mLocales) {
+        if (locale.supportsScript(c1, c2, c3, c4)) {
+            return true;
+        }
+    }
     return false;
 }
 
