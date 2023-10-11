@@ -431,18 +431,21 @@ void GreedyLineBreaker::process() {
 
     // Following two will be initialized after the first iteration.
     uint32_t localeListId = LocaleListCache::kInvalidListId;
+    LineBreakStyle lineBreakStyle;
     uint32_t nextWordBoundaryOffset = 0;
     for (const auto& run : mMeasuredText.runs) {
         const Range range = run->getRange();
 
         // Update locale if necessary.
         uint32_t newLocaleListId = run->getLocaleListId();
-        if (localeListId != newLocaleListId) {
+        LineBreakStyle newLineBreakStyle = run->lineBreakStyle();
+        if (localeListId != newLocaleListId || lineBreakStyle != newLineBreakStyle) {
             Locale locale = getEffectiveLocale(newLocaleListId);
             nextWordBoundaryOffset = wordBreaker.followingWithLocale(
                     locale, run->lineBreakStyle(), run->lineBreakWordStyle(), range.getStart());
             mHyphenator = HyphenatorMap::lookup(locale);
             localeListId = newLocaleListId;
+            lineBreakStyle = newLineBreakStyle;
         }
 
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {

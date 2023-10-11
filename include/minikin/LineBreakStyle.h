@@ -26,6 +26,7 @@ enum class LineBreakStyle : uint8_t {
     Loose = 1,
     Normal = 2,
     Strict = 3,
+    NoBreak = 4,
 };
 
 // The line break word style(lw) of the strings.

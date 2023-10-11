@@ -186,13 +186,15 @@ struct CharProcessor {
     // time before feeding characters.
     void updateLocaleIfNecessary(const Run& run) {
         uint32_t newLocaleListId = run.getLocaleListId();
-        if (localeListId != newLocaleListId) {
+        LineBreakStyle newLineBreakStyle = run.lineBreakStyle();
+        if (localeListId != newLocaleListId || lineBreakStyle != newLineBreakStyle) {
             Locale locale = getEffectiveLocale(newLocaleListId);
             nextWordBreak = breaker.followingWithLocale(locale, run.lineBreakStyle(),
                                                         run.lineBreakWordStyle(),
                                                         run.getRange().getStart());
             hyphenator = HyphenatorMap::lookup(locale);
             localeListId = newLocaleListId;
+            lineBreakStyle = newLineBreakStyle;
         }
     }
 
@@ -221,8 +223,9 @@ struct CharProcessor {
     }
 
 private:
-    // The current locale list id.
+    // The current locale list id, line break style, line break word style.
     uint32_t localeListId = LocaleListCache::kInvalidListId;
+    LineBreakStyle lineBreakStyle;
 
     WordBreaker breaker;
 };
