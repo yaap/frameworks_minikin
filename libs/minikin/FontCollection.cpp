@@ -30,6 +30,8 @@
 #include "minikin/Characters.h"
 #include "minikin/Emoji.h"
 #include "minikin/FontFileParser.h"
+#include "minikin/MinikinExtent.h"
+#include "minikin/MinikinPaint.h"
 
 using std::vector;
 
@@ -604,6 +606,69 @@ FontCollection::FamilyMatchResult FontCollection::FamilyMatchResult::intersect(
         }
     }
     return b.build();
+}
+
+MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& paint) const {
+    uint32_t localeId = paint.localeListId;
+    MinikinExtent result(0, 0);
+    for (uint8_t i = 0; i < mFamilyCount; ++i) {
+        const auto& family = getFamilyAt(i);
+        if (!family->isCustomFallback()) {
+            break;
+        }
+
+        // Use this family
+        MinikinExtent extent(0, 0);
+        FakedFont font = getFamilyAt(i)->getClosestMatch(paint.fontStyle);
+        font.typeface()->GetFontExtent(&extent, paint, font.fakery);
+        result.extendBy(extent);
+    }
+
+    if (localeId == LocaleListCache::kInvalidListId) {
+        return result;
+    }
+
+    // If default is requested, use compact one.
+    const FamilyVariant requestVariant = paint.familyVariant == FamilyVariant::DEFAULT
+                                                 ? FamilyVariant::COMPACT
+                                                 : paint.familyVariant;
+    const LocaleList& requestedLocaleList = LocaleListCache::getById(localeId);
+
+    bool familyFound = false;
+    for (uint8_t i = 0; i < mFamilyCount; ++i) {
+        const auto& family = getFamilyAt(i);
+        const FamilyVariant familyVariant = family->variant() == FamilyVariant::DEFAULT
+                                                    ? FamilyVariant::COMPACT
+                                                    : family->variant();
+
+        if (familyVariant != requestVariant) {
+            continue;
+        }
+
+        uint32_t fontLocaleId = family->localeListId();
+        if (fontLocaleId == LocaleListCache::kInvalidListId) {
+            continue;
+        }
+        const LocaleList& fontLocaleList = LocaleListCache::getById(fontLocaleId);
+        if (!requestedLocaleList.atLeastOneScriptMatch(fontLocaleList)) {
+            continue;
+        }
+
+        // Use this family
+        MinikinExtent extent(0, 0);
+        FakedFont font = getFamilyAt(i)->getClosestMatch(paint.fontStyle);
+        font.typeface()->GetFontExtent(&extent, paint, font.fakery);
+        result.extendBy(extent);
+
+        familyFound = true;
+    }
+
+    if (!familyFound) {
+        FakedFont font = getFamilyAt(0)->getClosestMatch(paint.fontStyle);
+        font.typeface()->GetFontExtent(&result, paint, font.fakery);
+    }
+
+    return result;
 }
 
 std::vector<FontCollection::Run> FontCollection::itemize(U16StringPiece text, FontStyle,
