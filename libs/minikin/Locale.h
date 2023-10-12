@@ -217,6 +217,8 @@ public:
     // The effective means the first non empty emoji style in the list.
     EmojiStyle getEmojiStyle() const { return mEmojiStyle; }
 
+    bool atLeastOneScriptMatch(const LocaleList& list) const;
+
 private:
     friend struct Locale;  // for calcScoreFor
 
