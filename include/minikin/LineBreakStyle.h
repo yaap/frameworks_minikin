@@ -27,6 +27,7 @@ enum class LineBreakStyle : uint8_t {
     Normal = 2,
     Strict = 3,
     NoBreak = 4,
+    Auto = 5,
 };
 
 // The line break word style(lw) of the strings.
@@ -34,6 +35,7 @@ enum class LineBreakStyle : uint8_t {
 enum class LineBreakWordStyle : uint8_t {
     None = 0,
     Phrase = 1,
+    Auto = 2,
 };
 
 }  // namespace minikin

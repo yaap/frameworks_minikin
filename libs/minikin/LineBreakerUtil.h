@@ -19,18 +19,20 @@
 
 #include <vector>
 
-#include "minikin/Hyphenator.h"
-#include "minikin/MeasuredText.h"
-#include "minikin/U16StringPiece.h"
-
 #include "HyphenatorMap.h"
 #include "LayoutUtils.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "WordBreaker.h"
+#include "minikin/Hyphenator.h"
+#include "minikin/LineBreakStyle.h"
+#include "minikin/MeasuredText.h"
+#include "minikin/U16StringPiece.h"
 
 namespace minikin {
+
+constexpr uint32_t LBW_AUTO_HEURISTICS_LINE_COUNT = 5;
 
 // ParaWidth is used to hold cumulative width from beginning of paragraph. Note that for very large
 // paragraphs, accuracy could degrade using only 32-bit float. Note however that float is used
@@ -134,6 +136,58 @@ inline void populateHyphenationPoints(
     }
 }
 
+// Class for tracking the word breaker transition point.
+class WordBreakerTransitionTracker {
+public:
+    // Update the word breaker transition information. This function return true if the word
+    // breaker need to be updated.
+    bool update(const Run& run) {
+        const uint32_t newLocaleListId = run.getLocaleListId();
+        const LineBreakStyle newLineBreakStyle = run.lineBreakStyle();
+        const LineBreakWordStyle newLineBreakWordStyle = run.lineBreakWordStyle();
+        const bool isUpdate = localeListId != newLocaleListId ||
+                              lineBreakStyle != newLineBreakStyle ||
+                              lineBreakWordStyle != newLineBreakWordStyle;
+
+        localeListId = newLocaleListId;
+        lineBreakStyle = newLineBreakStyle;
+        lineBreakWordStyle = newLineBreakWordStyle;
+
+        return isUpdate;
+    }
+
+    const LocaleList& getCurrentLocaleList() const {
+        return LocaleListCache::getById(localeListId);
+    }
+
+    LineBreakStyle getCurrentLineBreakStyle() const { return lineBreakStyle; }
+
+    LineBreakWordStyle getCurrentLineBreakWordStyle() const { return lineBreakWordStyle; }
+
+private:
+    uint32_t localeListId = LocaleListCache::kInvalidListId;
+    LineBreakStyle lineBreakStyle = LineBreakStyle::None;
+    LineBreakWordStyle lineBreakWordStyle = LineBreakWordStyle::None;
+};
+
+inline std::pair<LineBreakWordStyle, bool> resolveWordStyleAuto(LineBreakWordStyle lbWordStyle,
+                                                                const LocaleList& localeList,
+                                                                bool forceWordStyleAutoToPhrase) {
+    if (lbWordStyle == LineBreakWordStyle::Auto) {
+        if (forceWordStyleAutoToPhrase) {
+            return std::make_pair(LineBreakWordStyle::Phrase, false);
+        } else if (localeList.hasKorean()) {
+            return std::make_pair(LineBreakWordStyle::Phrase, false);
+        } else if (localeList.hasJapanese()) {
+            return std::make_pair(LineBreakWordStyle::None, true);
+        } else {
+            return std::make_pair(LineBreakWordStyle::None, false);
+        }
+    } else {
+        return std::make_pair(lbWordStyle, false);
+    }
+}
+
 // Processes and retrieve informations from characters in the paragraph.
 struct CharProcessor {
     // The number of spaces.
@@ -166,6 +220,8 @@ struct CharProcessor {
     // The current hyphenator.
     const Hyphenator* hyphenator = nullptr;
 
+    bool retryWithPhraseWordBreak = false;
+
     // Retrieve the current word range.
     inline Range wordRange() const { return breaker.wordRange(); }
 
@@ -184,17 +240,17 @@ struct CharProcessor {
 
     // The user of CharProcessor must call updateLocaleIfNecessary with valid locale at least one
     // time before feeding characters.
-    void updateLocaleIfNecessary(const Run& run) {
-        uint32_t newLocaleListId = run.getLocaleListId();
-        LineBreakStyle newLineBreakStyle = run.lineBreakStyle();
-        if (localeListId != newLocaleListId || lineBreakStyle != newLineBreakStyle) {
-            Locale locale = getEffectiveLocale(newLocaleListId);
-            nextWordBreak = breaker.followingWithLocale(locale, run.lineBreakStyle(),
-                                                        run.lineBreakWordStyle(),
+    void updateLocaleIfNecessary(const Run& run, bool forceWordStyleAutoToPhrase) {
+        if (wbTracker.update(run)) {
+            const LocaleList& localeList = wbTracker.getCurrentLocaleList();
+            const Locale locale = localeList.empty() ? Locale() : localeList[0];
+
+            LineBreakWordStyle lbWordStyle = wbTracker.getCurrentLineBreakWordStyle();
+            std::tie(lbWordStyle, retryWithPhraseWordBreak) =
+                    resolveWordStyleAuto(lbWordStyle, localeList, forceWordStyleAutoToPhrase);
+            nextWordBreak = breaker.followingWithLocale(locale, run.lineBreakStyle(), lbWordStyle,
                                                         run.getRange().getStart());
             hyphenator = HyphenatorMap::lookup(locale);
-            localeListId = newLocaleListId;
-            lineBreakStyle = newLineBreakStyle;
         }
     }
 
@@ -223,10 +279,7 @@ struct CharProcessor {
     }
 
 private:
-    // The current locale list id, line break style, line break word style.
-    uint32_t localeListId = LocaleListCache::kInvalidListId;
-    LineBreakStyle lineBreakStyle;
-
+    WordBreakerTransitionTracker wbTracker;
     WordBreaker breaker;
 };
 }  // namespace minikin

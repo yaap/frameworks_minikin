@@ -49,9 +49,11 @@ public:
               mEnableHyphenation(enableHyphenation),
               mUseBoundsForWidth(useBoundsForWidth) {}
 
-    void process();
+    void process(bool forceWordStyleAutoToPhrase);
 
     LineBreakResult getResult() const;
+
+    bool retryWithPhraseWordBreak = false;
 
 private:
     struct BreakPoint {
@@ -425,27 +427,27 @@ void GreedyLineBreaker::processLineBreak(uint32_t offset, WordBreaker* breaker,
     }
 }
 
-void GreedyLineBreaker::process() {
+void GreedyLineBreaker::process(bool forceWordStyleAutoToPhrase) {
     WordBreaker wordBreaker;
     wordBreaker.setText(mTextBuf.data(), mTextBuf.size());
 
-    // Following two will be initialized after the first iteration.
-    uint32_t localeListId = LocaleListCache::kInvalidListId;
-    LineBreakStyle lineBreakStyle;
+    WordBreakerTransitionTracker wbTracker;
     uint32_t nextWordBoundaryOffset = 0;
     for (const auto& run : mMeasuredText.runs) {
         const Range range = run->getRange();
 
         // Update locale if necessary.
-        uint32_t newLocaleListId = run->getLocaleListId();
-        LineBreakStyle newLineBreakStyle = run->lineBreakStyle();
-        if (localeListId != newLocaleListId || lineBreakStyle != newLineBreakStyle) {
-            Locale locale = getEffectiveLocale(newLocaleListId);
-            nextWordBoundaryOffset = wordBreaker.followingWithLocale(
-                    locale, run->lineBreakStyle(), run->lineBreakWordStyle(), range.getStart());
+        if (wbTracker.update(*run)) {
+            const LocaleList& localeList = wbTracker.getCurrentLocaleList();
+            const Locale locale = localeList.empty() ? Locale() : localeList[0];
+
+            LineBreakWordStyle lbWordStyle = wbTracker.getCurrentLineBreakWordStyle();
+            std::tie(lbWordStyle, retryWithPhraseWordBreak) =
+                    resolveWordStyleAuto(lbWordStyle, localeList, forceWordStyleAutoToPhrase);
+
+            nextWordBoundaryOffset = wordBreaker.followingWithLocale(locale, run->lineBreakStyle(),
+                                                                     lbWordStyle, range.getStart());
             mHyphenator = HyphenatorMap::lookup(locale);
-            localeListId = newLocaleListId;
-            lineBreakStyle = newLineBreakStyle;
         }
 
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
@@ -523,8 +525,35 @@ LineBreakResult breakLineGreedy(const U16StringPiece& textBuf, const MeasuredTex
     }
     GreedyLineBreaker lineBreaker(textBuf, measured, lineWidthLimits, tabStops, enableHyphenation,
                                   useBoundsForWidth);
-    lineBreaker.process();
-    return lineBreaker.getResult();
+    lineBreaker.process(false);
+    LineBreakResult res = lineBreaker.getResult();
+
+    if (!features::word_style_auto()) {
+        return res;
+    }
+
+    // The line breaker says that retry with phrase based word break because of the auto option and
+    // given locales.
+    if (!lineBreaker.retryWithPhraseWordBreak) {
+        return res;
+    }
+
+    // If the line break result is more than heuristics threshold, don't try pharse based word
+    // break.
+    if (res.breakPoints.size() >= LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res;
+    }
+
+    GreedyLineBreaker phLineBreaker(textBuf, measured, lineWidthLimits, tabStops, enableHyphenation,
+                                    useBoundsForWidth);
+    phLineBreaker.process(true);
+    LineBreakResult res2 = phLineBreaker.getResult();
+
+    if (res2.breakPoints.size() < LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res2;
+    } else {
+        return res;
+    }
 }
 
 }  // namespace minikin

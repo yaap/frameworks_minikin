@@ -35,6 +35,11 @@ namespace {
 static std::unique_ptr<BreakIterator> createNewIterator(const Locale& locale,
                                                         LineBreakStyle lbStyle,
                                                         LineBreakWordStyle lbWordStyle) {
+    MINIKIN_ASSERT(lbStyle != LineBreakStyle::Auto,
+                   "LineBreakStyle::Auto must be resolved beforehand.");
+    MINIKIN_ASSERT(lbWordStyle != LineBreakWordStyle::Auto,
+                   "LineBreakWordStyle::Auto must be resolved beforehand.");
+
     // TODO: handle failure status
     if (lbStyle == LineBreakStyle::NoBreak) {
         return std::make_unique<NoBreakBreakIterator>();
@@ -70,6 +75,11 @@ int32_t ICUBreakIterator::next() {
 ICULineBreakerPool::Slot ICULineBreakerPoolImpl::acquire(const Locale& locale,
                                                          LineBreakStyle lbStyle,
                                                          LineBreakWordStyle lbWordStyle) {
+    if (lbStyle == LineBreakStyle::Auto) {
+        lbStyle = locale.supportsScript('J', 'p', 'a', 'n') ? LineBreakStyle::Strict
+                                                            : LineBreakStyle::None;
+    }
+
     const uint64_t id = locale.getIdentifier();
     std::lock_guard<std::mutex> lock(mMutex);
     for (auto i = mPool.begin(); i != mPool.end(); i++) {
