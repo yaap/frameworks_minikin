@@ -34,11 +34,11 @@
 #include <vector>
 
 #include "BidiUtils.h"
-#include "FontFeatureUtils.h"
 #include "LayoutUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/Emoji.h"
+#include "minikin/FontFeature.h"
 #include "minikin/HbUtils.h"
 #include "minikin/LayoutCache.h"
 #include "minikin/LayoutPieces.h"
