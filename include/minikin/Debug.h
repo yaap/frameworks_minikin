@@ -25,6 +25,7 @@ struct Point;
 struct MinikinRect;
 struct MinikinExtent;
 struct MinikinPaint;
+struct FontFeature;
 class Range;
 class U16StringPiece;
 class LayoutPiece;
@@ -40,6 +41,8 @@ std::string toString(const Range& range);
 std::string toString(const MinikinExtent& extent);
 std::string toString(const LayoutPiece& layout);
 std::string toString(const MinikinPaint& paint);
+std::string toString(const FontFeature& feature);
+std::string toString(const std::vector<FontFeature>& features);
 
 }  // namespace debug
 
