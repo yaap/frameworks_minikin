@@ -55,6 +55,7 @@ public:
               mStartHyphen(startHyphen),
               mEndHyphen(endHyphen),
               mIsRtl(dir),
+              mFontFeatureSettings(paint.fontFeatureSettings),
               mHash(computeHash()) {}
 
     bool operator==(const LayoutCacheKey& o) const {
@@ -64,6 +65,7 @@ public:
                mFontFlags == o.mFontFlags && mLocaleListId == o.mLocaleListId &&
                mFamilyVariant == o.mFamilyVariant && mStartHyphen == o.mStartHyphen &&
                mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl && mNchars == o.mNchars &&
+               mFontFeatureSettings == o.mFontFeatureSettings &&
                !memcmp(mChars, o.mChars, mNchars * sizeof(uint16_t));
     }
 
@@ -77,6 +79,7 @@ public:
     void freeText() {
         delete[] mChars;
         mChars = NULL;
+        mFontFeatureSettings.clear();
     }
 
     uint32_t getMemoryUsage() const { return sizeof(LayoutCacheKey) + sizeof(uint16_t) * mNchars; }
@@ -99,6 +102,7 @@ private:
     StartHyphenEdit mStartHyphen;
     EndHyphenEdit mEndHyphen;
     bool mIsRtl;
+    std::vector<FontFeature> mFontFeatureSettings;
     // Note: any fields added to MinikinPaint must also be reflected here.
     // TODO: language matching (possibly integrate into style)
     android::hash_t mHash;
@@ -120,6 +124,7 @@ private:
                 .update(packHyphenEdit(mStartHyphen, mEndHyphen))
                 .update(mIsRtl)
                 .updateShorts(mChars, mNchars)
+                .update(mFontFeatureSettings)
                 .hash();
     }
 };

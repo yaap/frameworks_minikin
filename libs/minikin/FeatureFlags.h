@@ -39,6 +39,14 @@ inline bool word_style_auto() {
 #endif  // __ANDROID__
 }
 
+inline bool inter_character_justification() {
+#ifdef __ANDROID__
+    return com_android_text_flags_inter_character_justification();
+#else
+    return true;
+#endif  // __ANDROID__
+}
+
 }  // namespace features
 
 #endif  // FEATURE_FLAGS
