@@ -246,11 +246,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         SCOPED_TRACE("Different font feature settings");
         auto collection = buildFontCollection("Ascii.ttf");
         MinikinPaint paint1(collection);
-        paint1.fontFeatureSettings = "";
+        paint1.fontFeatureSettings = FontFeature::parse("");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
-        paint2.fontFeatureSettings = "'liga' on";
+        paint2.fontFeatureSettings = FontFeature::parse("'liga' on");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
