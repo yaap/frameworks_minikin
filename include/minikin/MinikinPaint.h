@@ -23,7 +23,6 @@
 #include "minikin/FamilyVariant.h"
 #include "minikin/FontCollection.h"
 #include "minikin/FontFamily.h"
-#include "minikin/FontFeature.h"
 #include "minikin/Hasher.h"
 
 namespace minikin {
@@ -46,7 +45,7 @@ enum MinikinFontFlags {
 };
 
 // Possibly move into own .h file?
-// Note: if you add a field here, either add it to LayoutCacheKey
+// Note: if you add a field here, either add it to LayoutCacheKey or to skipCache()
 struct MinikinPaint {
     MinikinPaint(const std::shared_ptr<FontCollection>& font)
             : size(0),
@@ -60,7 +59,7 @@ struct MinikinPaint {
               fontFeatureSettings(),
               font(font) {}
 
-    bool skipCache() const;
+    bool skipCache() const { return !fontFeatureSettings.empty(); }
 
     float size;
     float scaleX;
@@ -71,7 +70,7 @@ struct MinikinPaint {
     uint32_t localeListId;
     FontStyle fontStyle;
     FamilyVariant familyVariant;
-    std::vector<FontFeature> fontFeatureSettings;
+    std::string fontFeatureSettings;
     std::shared_ptr<FontCollection> font;
 
     void copyFrom(const MinikinPaint& paint) { *this = paint; }
@@ -101,7 +100,7 @@ struct MinikinPaint {
                 .update(localeListId)
                 .update(fontStyle.identifier())
                 .update(static_cast<uint8_t>(familyVariant))
-                .update(fontFeatureSettings)
+                .updateString(fontFeatureSettings)
                 .update(font->getId())
                 .hash();
     }

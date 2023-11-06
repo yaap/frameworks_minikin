@@ -17,12 +17,9 @@
 
 #define LOG_TAG "Minikin"
 
-#include "MinikinInternal.h"
-
 #include <log/log.h>
 
-#include "FeatureFlags.h"
-#include "minikin/MinikinPaint.h"
+#include "MinikinInternal.h"
 
 namespace minikin {
 
@@ -46,14 +43,6 @@ uint16_t getVsIndex(uint32_t codePoint) {
 
 bool isVariationSelector(uint32_t codePoint) {
     return isBMPVariationSelector(codePoint) || isVariationSelectorSupplement(codePoint);
-}
-
-bool MinikinPaint::skipCache() const {
-    if (features::inter_character_justification()) {
-        return false;  // if the flag is on, do not skip the cache.
-    } else {
-        return !fontFeatureSettings.empty();
-    }
 }
 
 }  // namespace minikin

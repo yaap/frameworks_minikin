@@ -54,7 +54,7 @@ static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontColl
                                const std::string fontFeaturesSettings) {
     MinikinPaint paint(fc);
     paint.size = 10.0f;  // make 1em = 10px
-    paint.fontFeatureSettings = FontFeature::parse(fontFeaturesSettings);
+    paint.fontFeatureSettings = fontFeaturesSettings;
     return buildLayout(text, paint);
 }
 
