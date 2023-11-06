@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-#include <com_android_text_flags.h>
-#include <flag_macros.h>
 #include <gtest/gtest.h>
 
+#include "FontFeatureUtils.h"
 #include "FontTestUtils.h"
-#include "minikin/FontFeature.h"
 #include "minikin/MinikinPaint.h"
 
 namespace minikin {
@@ -55,7 +53,7 @@ TEST_F(DefaultFontFeatureTest, default) {
 
 TEST_F(DefaultFontFeatureTest, disable) {
     auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"chws\" off");
+    paint.fontFeatureSettings = "\"chws\" off";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     std::sort(f.begin(), f.end(), compareFeatureTag);
@@ -67,7 +65,7 @@ TEST_F(DefaultFontFeatureTest, disable) {
 
 TEST_F(DefaultFontFeatureTest, preserve) {
     auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"ruby\" on");
+    paint.fontFeatureSettings = "\"ruby\" on";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     std::sort(f.begin(), f.end(), compareFeatureTag);
@@ -97,7 +95,7 @@ TEST_F(DefaultFontFeatureTest, large_letter_spacing) {
 
 TEST_F(DefaultFontFeatureTest, halt_disable_chws) {
     auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"halt\" on");
+    paint.fontFeatureSettings = "\"halt\" on";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     EXPECT_EQ(1u, f.size());
@@ -107,7 +105,7 @@ TEST_F(DefaultFontFeatureTest, halt_disable_chws) {
 
 TEST_F(DefaultFontFeatureTest, palt_disable_chws) {
     auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
+    paint.fontFeatureSettings = "\"palt\" on";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     EXPECT_EQ(1u, f.size());
@@ -118,7 +116,7 @@ TEST_F(DefaultFontFeatureTest, palt_disable_chws) {
 TEST_F(DefaultFontFeatureTest, halt_disable_chws_large_letter_spacing) {
     auto paint = MinikinPaint(font);
     paint.letterSpacing = 1.0;  // em
-    paint.fontFeatureSettings = FontFeature::parse("\"halt\" on");
+    paint.fontFeatureSettings = "\"halt\" on";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     std::sort(f.begin(), f.end(), compareFeatureTag);
@@ -135,7 +133,7 @@ TEST_F(DefaultFontFeatureTest, halt_disable_chws_large_letter_spacing) {
 TEST_F(DefaultFontFeatureTest, palt_disable_chws_large_letter_spacing) {
     auto paint = MinikinPaint(font);
     paint.letterSpacing = 1.0;  // em
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
+    paint.fontFeatureSettings = "\"palt\" on";
 
     auto f = cleanAndAddDefaultFontFeatures(paint);
     std::sort(f.begin(), f.end(), compareFeatureTag);
@@ -147,29 +145,6 @@ TEST_F(DefaultFontFeatureTest, palt_disable_chws_large_letter_spacing) {
     EXPECT_FALSE(f[1].value);
     EXPECT_EQ(palt_tag, f[2].tag);
     EXPECT_TRUE(f[2].value);
-}
-
-class FontFeatureTest : public testing::Test {
-protected:
-    std::shared_ptr<FontCollection> font;
-
-    virtual void SetUp() override { font = buildFontCollection("Ascii.ttf"); }
-};
-
-TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagEnabled,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      inter_character_justification))) {
-    auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
-    EXPECT_FALSE(paint.skipCache());
-}
-
-TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagDisabled,
-                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                       inter_character_justification))) {
-    auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
-    EXPECT_TRUE(paint.skipCache());
 }
 
 }  // namespace minikin

@@ -14,28 +14,11 @@
  * limitations under the License.
  */
 
+#include "FontFeatureUtils.h"
+
 #include "StringPiece.h"
-#include "minikin/FontFeature.h"
-#include "minikin/MinikinPaint.h"
 
 namespace minikin {
-
-std::vector<FontFeature> FontFeature::parse(std::string_view fontFeatureSettings) {
-    std::vector<FontFeature> features;
-
-    SplitIterator it(StringPiece(fontFeatureSettings), ',');
-    while (it.hasNext()) {
-        StringPiece featureStr = it.next();
-        static hb_feature_t feature;
-        // We do not allow setting features on ranges. As such, reject any setting that has
-        // non-universal range.
-        if (hb_feature_from_string(featureStr.data(), featureStr.size(), &feature) &&
-            feature.start == 0 && feature.end == (unsigned int)-1) {
-            features.push_back({feature.tag, feature.value});
-        }
-    }
-    return features;
-}
 
 std::vector<hb_feature_t> cleanAndAddDefaultFontFeatures(const MinikinPaint& paint) {
     std::vector<hb_feature_t> features;
@@ -57,17 +40,27 @@ std::vector<hb_feature_t> cleanAndAddDefaultFontFeatures(const MinikinPaint& pai
     static constexpr hb_tag_t halt_tag = HB_TAG('h', 'a', 'l', 't');
     static constexpr hb_tag_t palt_tag = HB_TAG('p', 'a', 'l', 't');
 
-    for (const FontFeature& feature : paint.fontFeatureSettings) {
-        // OpenType requires disabling default `chws` feature if glyph-width features.
-        // https://docs.microsoft.com/en-us/typography/opentype/spec/features_ae#tag-chws
-        // Here, we follow Chrome's impl: not enabling default `chws` feature if `palt` or
-        // `halt` is enabled.
-        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/fonts/shaping/font_features.cc;drc=77a9a09de0688ca449f5333a305ceaf3f36b6daf;l=215
-        if (feature.tag == chws_tag ||
-            (feature.value && (feature.tag == halt_tag || feature.tag == palt_tag))) {
-            default_enable_chws = false;
+    SplitIterator it(paint.fontFeatureSettings, ',');
+    while (it.hasNext()) {
+        StringPiece featureStr = it.next();
+        static hb_feature_t feature;
+        // We do not allow setting features on ranges. As such, reject any setting that has
+        // non-universal range.
+        if (hb_feature_from_string(featureStr.data(), featureStr.size(), &feature) &&
+            feature.start == 0 && feature.end == (unsigned int)-1) {
+            // OpenType requires disabling default `chws` feature if glyph-width features.
+            // https://docs.microsoft.com/en-us/typography/opentype/spec/features_ae#tag-chws
+            // Here, we follow Chrome's impl: not enabling default `chws` feature if `palt` or
+            // `halt` is enabled.
+            // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/fonts/shaping/font_features.cc;drc=77a9a09de0688ca449f5333a305ceaf3f36b6daf;l=215
+            if (default_enable_chws &&
+                (feature.tag == chws_tag ||
+                 (feature.value && (feature.tag == halt_tag || feature.tag == palt_tag)))) {
+                default_enable_chws = false;
+            }
+
+            features.push_back(feature);
         }
-        features.push_back({feature.tag, feature.value, 0, ~0u});
     }
 
     if (default_enable_chws) {
