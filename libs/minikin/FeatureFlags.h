@@ -38,6 +38,7 @@ namespace features {
 
 DEFINE_FEATURE_FLAG_ACCESSOROR(phrase_strict_fallback)
 DEFINE_FEATURE_FLAG_ACCESSOROR(word_style_auto)
+DEFINE_FEATURE_FLAG_ACCESSOROR(inter_character_justification)
 
 }  // namespace features
 
