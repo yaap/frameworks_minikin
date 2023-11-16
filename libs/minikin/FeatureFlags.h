@@ -23,21 +23,21 @@
 
 namespace features {
 
-inline bool phrase_strict_fallback() {
 #ifdef __ANDROID__
-    return com_android_text_flags_phrase_strict_fallback();
-#else
-    return true;
-#endif  // __ANDROID__
-}
+#define DEFINE_FEATURE_FLAG_ACCESSOROR(feature_name)                \
+    inline bool feature_name() {                                    \
+        static bool flag = com_android_text_flags_##feature_name(); \
+        return flag;                                                \
+    }
+#else  //  __ANDROID__
+#define DEFINE_FEATURE_FLAG_ACCESSOROR(feature_name) \
+    inline bool feature_name() {                     \
+        return true;                                 \
+    }
+#endif  //  __ANDROID__
 
-inline bool word_style_auto() {
-#ifdef __ANDROID__
-    return com_android_text_flags_word_style_auto();
-#else
-    return true;
-#endif  // __ANDROID__
-}
+DEFINE_FEATURE_FLAG_ACCESSOROR(phrase_strict_fallback)
+DEFINE_FEATURE_FLAG_ACCESSOROR(word_style_auto)
 
 }  // namespace features
 
