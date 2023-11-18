@@ -29,6 +29,7 @@ public:
     StringPiece(const char* data) : mData(data), mLength(data == nullptr ? 0 : strlen(data)) {}
     StringPiece(const char* data, size_t length) : mData(data), mLength(length) {}
     StringPiece(const std::string& str) : mData(str.data()), mLength(str.size()) {}
+    StringPiece(std::string_view str) : mData(str.data()), mLength(str.size()) {}
 
     inline const char* data() const { return mData; }
     inline size_t length() const { return mLength; }

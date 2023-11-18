@@ -21,6 +21,7 @@
 
 #include <sstream>
 
+#include "minikin/FontFeature.h"
 #include "minikin/FontFileParser.h"
 #include "minikin/LayoutCore.h"
 #include "minikin/LocaleList.h"
@@ -76,6 +77,18 @@ std::string toString(const Range& range) {
 std::string toString(const MinikinExtent& extent) {
     std::stringstream ss;
     ss << extent;
+    return ss.str();
+}
+
+std::string toString(const FontFeature& feature) {
+    std::stringstream ss;
+    ss << feature;
+    return ss.str();
+}
+
+std::string toString(const std::vector<FontFeature>& features) {
+    std::stringstream ss;
+    ss << features;
     return ss.str();
 }
 
