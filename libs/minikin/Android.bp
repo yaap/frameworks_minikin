@@ -52,6 +52,7 @@ cc_library {
         "MinikinFontFactory.cpp",
         "MinikinInternal.cpp",
         "OptimalLineBreaker.cpp",
+        "ScriptUtils.cpp",
         "SparseBitSet.cpp",
         "SystemFonts.cpp",
         "WordBreaker.cpp",
