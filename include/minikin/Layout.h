@@ -79,12 +79,14 @@ public:
     static float measureText(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
                              const MinikinPaint& paint, StartHyphenEdit startHyphen,
                              EndHyphenEdit endHyphen, float* advances) {
-        return measureText(str, range, bidiFlags, paint, startHyphen, endHyphen, advances, nullptr);
+        return measureText(str, range, bidiFlags, paint, startHyphen, endHyphen, advances, nullptr,
+                           nullptr);
     }
 
     static float measureText(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
                              const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                             EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds);
+                             EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds,
+                             uint32_t* clusterCount);
 
     const std::vector<float>& advances() const { return mAdvances; }
 
@@ -122,18 +124,19 @@ private:
     static float doLayoutRunCached(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                                    const MinikinPaint& paint, size_t dstStart,
                                    StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                                   Layout* layout, float* advances, MinikinRect* bounds);
+                                   Layout* layout, float* advances, MinikinRect* bounds,
+                                   uint32_t* clusterCount);
 
     // Lay out a single word
     static float doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                               bool isRtl, const MinikinPaint& paint, size_t bufStart,
                               StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                              float* advances, MinikinRect* bounds);
+                              float* advances, MinikinRect* bounds, uint32_t* clusterCount);
 
     // Lay out a single bidi run
     void doLayoutRun(const uint16_t* buf, size_t start, size_t count, size_t bufSize, bool isRtl,
                      const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                     EndHyphenEdit endHyphen, MinikinRect* bounds);
+                     EndHyphenEdit endHyphen, MinikinRect* bounds, uint32_t* clusterCount);
 
     std::vector<LayoutGlyph> mGlyphs;
 

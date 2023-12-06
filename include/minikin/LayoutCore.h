@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include "minikin/Constants.h"
 #include "minikin/FontFamily.h"
 #include "minikin/Hyphenator.h"
 #include "minikin/MinikinExtent.h"
@@ -49,6 +50,7 @@ public:
     float advance() const { return mAdvance; }
     const MinikinExtent& extent() const { return mExtent; }
     const std::vector<FakedFont>& fonts() const { return mFonts; }
+    uint32_t clusterCount() const { return mClusterCount; }
 
     // Helper accessors
     uint32_t glyphCount() const { return mGlyphIds.size(); }
@@ -75,6 +77,9 @@ private:
 
     float mAdvance;
     MinikinExtent mExtent;
+    uint8_t mClusterCount;
+    static_assert(std::numeric_limits<decltype(mClusterCount)>::max() > CHAR_LIMIT_FOR_CACHE,
+                  "The cluster count should have enough capacity to have the char limit for cache");
 
     std::vector<FakedFont> mFonts;
 };

@@ -51,14 +51,18 @@ void Layout::doLayout(const U16StringPiece& textBuf, const Range& range, Bidi bi
     mGlyphs.reserve(count);
     for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
         doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, range.getStart(),
-                          startHyphen, endHyphen, this, nullptr, nullptr);
+                          startHyphen, endHyphen, this, nullptr, nullptr, nullptr);
     }
 }
 
 float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags,
                           const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                          EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds) {
+                          EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds,
+                          uint32_t* clusterCount) {
     float advance = 0;
+    if (clusterCount) {
+        *clusterCount = 0;
+    }
 
     MinikinRect tmpBounds;
     for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
@@ -67,7 +71,7 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
         tmpBounds.setEmpty();
         float run_advance = doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, 0,
                                               startHyphen, endHyphen, nullptr, advancesForRun,
-                                              bounds ? &tmpBounds : nullptr);
+                                              bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
             bounds->join(tmpBounds, advance, 0);
         }
@@ -79,7 +83,8 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
 float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                                 const MinikinPaint& paint, size_t dstStart,
                                 StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                                Layout* layout, float* advances, MinikinRect* bounds) {
+                                Layout* layout, float* advances, MinikinRect* bounds,
+                                uint32_t* clusterCount) {
     if (!range.isValid()) {
         return 0.0f;  // ICU failed to retrieve the bidi run?
     }
@@ -98,7 +103,7 @@ float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& rang
                 textBuf.data() + context.getStart(), piece.getStart() - context.getStart(),
                 piece.getLength(), context.getLength(), isRtl, paint, piece.getStart() - dstStart,
                 pieceStartHyphen, pieceEndHyphen, layout, advancesForRun,
-                bounds ? &tmpBounds : nullptr);
+                bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
             bounds->join(tmpBounds, advance, 0);
         }
@@ -130,9 +135,11 @@ public:
             mBounds->join(bounds, mTotalAdvance, 0);
         }
         mTotalAdvance += layoutPiece.advance();
+        mClusterCount += layoutPiece.clusterCount();
     }
 
     float getTotalAdvance() { return mTotalAdvance; }
+    uint32_t getClusterCount() const { return mClusterCount; }
 
 private:
     Layout* mLayout;
@@ -140,13 +147,14 @@ private:
     float mTotalAdvance{0};
     const uint32_t mOutOffset;
     const float mWordSpacing;
+    uint32_t mClusterCount;
     MinikinRect* mBounds;
 };
 
 float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                            bool isRtl, const MinikinPaint& paint, size_t bufStart,
                            StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                           float* advances, MinikinRect* bounds) {
+                           float* advances, MinikinRect* bounds, uint32_t* clusterCount) {
     float wordSpacing = count == 1 && isWordSpace(buf[start]) ? paint.wordSpacing : 0;
     float totalAdvance = 0;
     const bool boundsCalculation = bounds != nullptr;
@@ -157,6 +165,9 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
     LayoutCache::getInstance().getOrCreate(textBuf, range, paint, isRtl, startHyphen, endHyphen,
                                            boundsCalculation, f);
     totalAdvance = f.getTotalAdvance();
+    if (clusterCount) {
+        *clusterCount += f.getClusterCount();
+    }
 
     if (wordSpacing != 0) {
         totalAdvance += wordSpacing;
