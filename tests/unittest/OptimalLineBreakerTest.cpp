@@ -1934,7 +1934,7 @@ TEST_F(OptimalLineBreakerTest, roundingError) {
 
     float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
                                          StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr,
-                                         nullptr /* bounds */);
+                                         nullptr /* bounds */, nullptr /* cluster count */);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, true, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
