@@ -58,7 +58,8 @@ public:
     }
 
     inline Hasher& update(const std::vector<FontFeature>& features) {
-        update(features.size());
+        uint32_t size = features.size();
+        update(size);
         for (const FontFeature& feature : features) {
             update(feature);
         }

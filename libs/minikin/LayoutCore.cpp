@@ -37,6 +37,7 @@
 #include "LayoutUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "ScriptUtils.h"
 #include "minikin/Emoji.h"
 #include "minikin/FontFeature.h"
 #include "minikin/HbUtils.h"
@@ -136,45 +137,6 @@ hb_font_funcs_t* getFontFuncsForEmoji() {
 static bool isColorBitmapFont(const HbFontUniquePtr& font) {
     HbBlob cbdt(font, HB_TAG('C', 'B', 'D', 'T'));
     return cbdt;
-}
-
-static hb_codepoint_t decodeUtf16(const uint16_t* chars, size_t len, ssize_t* iter) {
-    UChar32 result;
-    U16_NEXT(chars, *iter, (ssize_t)len, result);
-    if (U_IS_SURROGATE(result)) {  // isolated surrogate
-        result = 0xFFFDu;          // U+FFFD REPLACEMENT CHARACTER
-    }
-    return (hb_codepoint_t)result;
-}
-
-static hb_script_t getScriptRun(const uint16_t* chars, size_t len, ssize_t* iter) {
-    if (size_t(*iter) == len) {
-        return HB_SCRIPT_UNKNOWN;
-    }
-    uint32_t cp = decodeUtf16(chars, len, iter);
-    hb_unicode_funcs_t* unicode_func = hb_unicode_funcs_get_default();
-    hb_script_t current_script = hb_unicode_script(unicode_func, cp);
-    for (;;) {
-        if (size_t(*iter) == len) break;
-        const ssize_t prev_iter = *iter;
-        cp = decodeUtf16(chars, len, iter);
-        const hb_script_t script = hb_unicode_script(unicode_func, cp);
-        if (script != current_script) {
-            if (current_script == HB_SCRIPT_INHERITED || current_script == HB_SCRIPT_COMMON) {
-                current_script = script;
-            } else if (script == HB_SCRIPT_INHERITED || script == HB_SCRIPT_COMMON) {
-                continue;
-            } else {
-                *iter = prev_iter;
-                break;
-            }
-        }
-    }
-    if (current_script == HB_SCRIPT_INHERITED) {
-        current_script = HB_SCRIPT_COMMON;
-    }
-
-    return current_script;
 }
 
 /**
@@ -403,11 +365,10 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
         // Note: scriptRunStart and scriptRunEnd, as well as run.start and run.end, run between 0
         // and count.
-        ssize_t scriptRunEnd;
-        for (ssize_t scriptRunStart = run.start; scriptRunStart < run.end;
-             scriptRunStart = scriptRunEnd) {
-            scriptRunEnd = scriptRunStart;
-            hb_script_t script = getScriptRun(buf + start, run.end, &scriptRunEnd /* iterator */);
+        for (const auto [range, script] : ScriptText(textBuf, run.start, run.end)) {
+            ssize_t scriptRunStart = range.getStart();
+            ssize_t scriptRunEnd = range.getEnd();
+
             // After the last line, scriptRunEnd is guaranteed to have increased, since the only
             // time getScriptRun does not increase its iterator is when it has already reached the
             // end of the buffer. But that can't happen, since if we have already reached the end

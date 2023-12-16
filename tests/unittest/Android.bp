@@ -75,6 +75,7 @@ cc_test {
         "MeasuredTextTest.cpp",
         "MeasurementTests.cpp",
         "OptimalLineBreakerTest.cpp",
+        "ScriptUtilsTest.cpp",
         "SparseBitSetTest.cpp",
         "StringPieceTest.cpp",
         "SystemFontsTest.cpp",
