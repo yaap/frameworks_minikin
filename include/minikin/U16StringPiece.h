@@ -52,6 +52,9 @@ public:
         return std::find(mData, end, c) != end;
     }
 
+    // Returns a code point of the given position.
+    uint32_t codePointAt(uint32_t pos) const;
+
 private:
     const uint16_t* mData;
     uint32_t mLength;
