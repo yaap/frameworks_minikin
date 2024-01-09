@@ -30,7 +30,6 @@
 #include <cmath>
 #include <iostream>
 #include <mutex>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -318,7 +317,6 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
     float x = 0;
     float y = 0;
-    std::set<uint8_t> clusterSet;
     for (int run_ix = isRtl ? items.size() - 1 : 0;
          isRtl ? run_ix >= 0 : run_ix < static_cast<int>(items.size());
          isRtl ? --run_ix : ++run_ix) {
@@ -439,7 +437,6 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 mGlyphIds.push_back(glyph_ix);
                 mPoints.emplace_back(x + xoff, y + yoff);
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
-                clusterSet.insert(clusterBaseIndex);
 
                 if (clusterBaseIndex < count) {
                     mAdvances[clusterBaseIndex] += xAdvance;
@@ -459,7 +456,6 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mGlyphIds.shrink_to_fit();
     mPoints.shrink_to_fit();
     mAdvance = x;
-    mClusterCount = clusterSet.size();
 }
 
 // static

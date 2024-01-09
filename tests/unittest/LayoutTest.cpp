@@ -447,12 +447,9 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("I");
         std::vector<float> advances(text.size());
-        uint32_t clusterCount = 0;
         Range range(0, text.size());
         EXPECT_EQ(1.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr,
-                                            &clusterCount));
-        ASSERT_EQ(1u, clusterCount);
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(1u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
     }
@@ -460,12 +457,9 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("IV");
         std::vector<float> advances(text.size());
-        uint32_t clusterCount = 0;
         Range range(0, text.size());
         EXPECT_EQ(6.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr,
-                                            &clusterCount));
-        ASSERT_EQ(2u, clusterCount);
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(2u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);
@@ -474,12 +468,10 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("IVX");
         std::vector<float> advances(text.size());
-        uint32_t clusterCount = 0;
         Range range(0, text.size());
-        EXPECT_EQ(16.0f, Layout::measureText(text, range, Bidi::LTR, paint,
-                                             StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
-                                             advances.data(), nullptr, &clusterCount));
-        ASSERT_EQ(3u, clusterCount);
+        EXPECT_EQ(16.0f,
+                  Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
+                                      EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
         ASSERT_EQ(3u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);

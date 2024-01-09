@@ -220,9 +220,9 @@ TEST_F(GreedyLineBreakerTest, roundingError) {
     paint.localeListId = LocaleListCache::getId("en-US");
     const std::vector<uint16_t> textBuffer = utf8ToUtf16("8888888888888888888");
 
-    float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
-                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr,
-                                         nullptr, nullptr);
+    float measured =
+            Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr, nullptr);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
                         (int)LineBreakWordStyle::None, true, false);
