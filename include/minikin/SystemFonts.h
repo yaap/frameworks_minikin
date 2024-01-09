@@ -17,6 +17,7 @@
 #ifndef MINIKIN_SYSTEM_FONTS_H
 #define MINIKIN_SYSTEM_FONTS_H
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
