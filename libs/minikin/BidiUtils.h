@@ -40,6 +40,8 @@ using UBiDiUniquePtr = std::unique_ptr<UBiDi, UBiDiDeleter>;
 class BidiText {
 public:
     struct RunInfo {
+        uint32_t runOffset;
+        uint32_t runCount;
         Range range;
         bool isRtl;
     };
