@@ -69,7 +69,7 @@ TEST_F(LayoutTest, doLayoutTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(70.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -88,7 +88,7 @@ TEST_F(LayoutTest, doLayoutTest) {
         text = utf8ToUtf16("two words");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(90.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -107,7 +107,7 @@ TEST_F(LayoutTest, doLayoutTest) {
         text = utf8ToUtf16("three words test");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(160.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -126,7 +126,7 @@ TEST_F(LayoutTest, doLayoutTest) {
         text = utf8ToUtf16("two  spaces");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(110.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -157,7 +157,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(70.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -176,7 +176,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
         text = utf8ToUtf16("two words");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(95.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -196,7 +196,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
         text = utf8ToUtf16("three words test");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(170.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -217,7 +217,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
         text = utf8ToUtf16("two  spaces");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(120.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -251,7 +251,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(70.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -270,7 +270,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
         text = utf8ToUtf16("two words");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(85.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -290,7 +290,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
         text = utf8ToUtf16("three word test");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(140.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -311,7 +311,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
         text = utf8ToUtf16("two  spaces");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(100.0f, layout.getAdvance());
 
         getBounds(text, Bidi::LTR, paint, &rect);
@@ -337,10 +337,10 @@ TEST_F(LayoutTest, doLayoutTest_rtlTest) {
     Range range(0, text.size());
 
     Layout ltrLayout(text, range, Bidi::FORCE_LTR, paint, StartHyphenEdit::NO_EDIT,
-                     EndHyphenEdit::NO_EDIT);
+                     EndHyphenEdit::NO_EDIT, RunFlag::NONE);
 
     Layout rtlLayout(text, range, Bidi::FORCE_RTL, paint, StartHyphenEdit::NO_EDIT,
-                     EndHyphenEdit::NO_EDIT);
+                     EndHyphenEdit::NO_EDIT, RunFlag::NONE);
 
     ASSERT_EQ(ltrLayout.nGlyphs(), rtlLayout.nGlyphs());
     ASSERT_EQ(6u, ltrLayout.nGlyphs());
@@ -360,13 +360,13 @@ TEST_F(LayoutTest, singleRunBidiTest) {
     Range range(0, text.size());
 
     Layout ltrLayout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                     EndHyphenEdit::NO_EDIT);
+                     EndHyphenEdit::NO_EDIT, RunFlag::NONE);
 
     Layout rtlLayout(text, range, Bidi::RTL, paint, StartHyphenEdit::NO_EDIT,
-                     EndHyphenEdit::NO_EDIT);
+                     EndHyphenEdit::NO_EDIT, RunFlag::NONE);
 
     Layout defaultRtlLayout(text, range, Bidi::DEFAULT_RTL, paint, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT);
+                            EndHyphenEdit::NO_EDIT, RunFlag::NONE);
 
     const size_t nGlyphs = ltrLayout.nGlyphs();
     ASSERT_EQ(3u, nGlyphs);
@@ -393,7 +393,7 @@ TEST_F(LayoutTest, hyphenationTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(70.0f, layout.getAdvance());
     }
     {
@@ -401,7 +401,7 @@ TEST_F(LayoutTest, hyphenationTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::INSERT_HYPHEN);
+                      EndHyphenEdit::INSERT_HYPHEN, RunFlag::NONE);
         EXPECT_EQ(80.0f, layout.getAdvance());
     }
     {
@@ -409,7 +409,7 @@ TEST_F(LayoutTest, hyphenationTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                      EndHyphenEdit::REPLACE_WITH_HYPHEN);
+                      EndHyphenEdit::REPLACE_WITH_HYPHEN, RunFlag::NONE);
         EXPECT_EQ(70.0f, layout.getAdvance());
     }
     {
@@ -417,7 +417,7 @@ TEST_F(LayoutTest, hyphenationTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::INSERT_HYPHEN,
-                      EndHyphenEdit::NO_EDIT);
+                      EndHyphenEdit::NO_EDIT, RunFlag::NONE);
         EXPECT_EQ(80.0f, layout.getAdvance());
     }
     {
@@ -425,7 +425,7 @@ TEST_F(LayoutTest, hyphenationTest) {
         text = utf8ToUtf16("oneword");
         Range range(0, text.size());
         Layout layout(text, range, Bidi::LTR, paint, StartHyphenEdit::INSERT_HYPHEN,
-                      EndHyphenEdit::INSERT_HYPHEN);
+                      EndHyphenEdit::INSERT_HYPHEN, RunFlag::NONE);
         EXPECT_EQ(90.0f, layout.getAdvance());
     }
 }
@@ -447,9 +447,12 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("I");
         std::vector<float> advances(text.size());
+        uint32_t clusterCount = 0;
         Range range(0, text.size());
         EXPECT_EQ(1.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr,
+                                            &clusterCount, RunFlag::NONE));
+        ASSERT_EQ(1u, clusterCount);
         ASSERT_EQ(1u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
     }
@@ -457,9 +460,12 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("IV");
         std::vector<float> advances(text.size());
+        uint32_t clusterCount = 0;
         Range range(0, text.size());
         EXPECT_EQ(6.0f, Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
+                                            EndHyphenEdit::NO_EDIT, advances.data(), nullptr,
+                                            &clusterCount, RunFlag::NONE));
+        ASSERT_EQ(2u, clusterCount);
         ASSERT_EQ(2u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);
@@ -468,17 +474,18 @@ TEST_F(LayoutTest, measuredTextTest) {
         MinikinPaint paint(fc);
         std::vector<uint16_t> text = utf8ToUtf16("IVX");
         std::vector<float> advances(text.size());
+        uint32_t clusterCount = 0;
         Range range(0, text.size());
         EXPECT_EQ(16.0f,
                   Layout::measureText(text, range, Bidi::LTR, paint, StartHyphenEdit::NO_EDIT,
-                                      EndHyphenEdit::NO_EDIT, advances.data(), nullptr));
+                                      EndHyphenEdit::NO_EDIT, advances.data(), nullptr,
+                                      &clusterCount, RunFlag::NONE));
+        ASSERT_EQ(3u, clusterCount);
         ASSERT_EQ(3u, advances.size());
         EXPECT_EQ(1.0f, advances[0]);
         EXPECT_EQ(5.0f, advances[1]);
         EXPECT_EQ(10.0f, advances[2]);
     }
 }
-
-// TODO: Add more test cases, e.g. measure text, letter spacing.
 
 }  // namespace minikin

@@ -105,6 +105,9 @@ private:
     bool overhangExceedLineLimit(const Range& range);
     bool doLineBreakWithFallback(const Range& range);
 
+    // Returns true if the current break point exceeds the width constraint.
+    bool isWidthExceeded() const;
+
     // Info about the line currently processing.
     uint32_t mLineNum = 0;
     double mLineWidth = 0;
@@ -117,6 +120,8 @@ private:
     double mLineWidthAtPrevWordBoundary = 0;
     double mSumOfCharWidthsAtPrevWordBoundary = 0;
     bool mIsPrevWordBreakIsInEmailOrUrl = false;
+    float mLineStartLetterSpacing = 0;  // initialized in the first loop of the run.
+    float mCurrentLetterSpacing = 0;
 
     // The hyphenator currently used.
     const Hyphenator* mHyphenator = nullptr;
@@ -139,8 +144,10 @@ void GreedyLineBreaker::breakLineAt(uint32_t offset, float lineWidth, float rema
                                     float remainingNextSumOfCharWidths,
                                     EndHyphenEdit thisLineEndHyphen,
                                     StartHyphenEdit nextLineStartHyphen) {
+    float edgeLetterSpacing = (mLineStartLetterSpacing + mCurrentLetterSpacing) / 2.0f;
     // First, push the break to result.
-    mBreakPoints.emplace_back(offset, lineWidth, mStartHyphenEdit, thisLineEndHyphen);
+    mBreakPoints.emplace_back(offset, lineWidth - edgeLetterSpacing, mStartHyphenEdit,
+                              thisLineEndHyphen);
 
     // Update the current line info.
     mLineWidthLimit = mLineWidthLimits.getAt(++mLineNum);
@@ -151,6 +158,7 @@ void GreedyLineBreaker::breakLineAt(uint32_t offset, float lineWidth, float rema
     mLineWidthAtPrevWordBoundary = 0;
     mSumOfCharWidthsAtPrevWordBoundary = 0;
     mIsPrevWordBreakIsInEmailOrUrl = false;
+    mLineStartLetterSpacing = mCurrentLetterSpacing;
 }
 
 bool GreedyLineBreaker::tryLineBreakWithWordBreak() {
@@ -268,13 +276,14 @@ bool GreedyLineBreaker::tryLineBreakWithHyphenation(const Range& range, WordBrea
 bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
     float width = mMeasuredText.widths[range.getStart()];
 
+    const float estimatedLetterSpacing = (mLineStartLetterSpacing + mCurrentLetterSpacing) * 0.5;
     // Starting from + 1 since at least one character needs to be assigned to a line.
     for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
         const float w = mMeasuredText.widths[i];
         if (w == 0) {
             continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
         }
-        if (width + w > mLineWidthLimit ||
+        if (width + w - estimatedLetterSpacing > mLineWidthLimit ||
             overhangExceedLineLimit(Range(range.getStart(), i + 1))) {
             // Okay, here is the longest position.
             breakLineAt(i, width, mLineWidth - width, mSumOfCharWidths - width,
@@ -395,10 +404,22 @@ bool GreedyLineBreaker::overhangExceedLineLimit(const Range& range) {
            mLineWidthLimit;
 }
 
+bool GreedyLineBreaker::isWidthExceeded() const {
+    // The text layout adds letter spacing to the all characters, but the spaces at left and
+    // right edge are removed. Here, we use the accumulated character widths as a text widths, but
+    // it includes the letter spacing at the left and right edge. Thus, we need to remove a letter
+    // spacing amount for one character. However, it is hard to get letter spacing of the left and
+    // right edge and it makes greey line breaker O(n^2): n for line break and  n for perforimng
+    // BiDi run resolution for getting left and right edge for every break opportunity. To avoid
+    // this performance regression, use the letter spacing of the previous break point and letter
+    // spacing of current break opportunity instead.
+    const float estimatedLetterSpacing = (mLineStartLetterSpacing + mCurrentLetterSpacing) * 0.5;
+    return (mLineWidth - estimatedLetterSpacing) > mLineWidthLimit;
+}
+
 void GreedyLineBreaker::processLineBreak(uint32_t offset, WordBreaker* breaker,
                                          bool doHyphenation) {
-    while (mLineWidth > mLineWidthLimit ||
-           overhangExceedLineLimit(Range(getPrevLineBreakOffset(), offset))) {
+    while (isWidthExceeded() || overhangExceedLineLimit(Range(getPrevLineBreakOffset(), offset))) {
         if (tryLineBreakWithWordBreak()) {
             continue;  // The word in the new line may still be too long for the line limit.
         }
@@ -433,7 +454,17 @@ void GreedyLineBreaker::process(bool forceWordStyleAutoToPhrase) {
 
     WordBreakerTransitionTracker wbTracker;
     uint32_t nextWordBoundaryOffset = 0;
-    for (const auto& run : mMeasuredText.runs) {
+    for (uint32_t runIndex = 0; runIndex < mMeasuredText.runs.size(); ++runIndex) {
+        const std::unique_ptr<Run>& run = mMeasuredText.runs[runIndex];
+        if (features::inter_character_justification()) {
+            mCurrentLetterSpacing = run->getLetterSpacingInPx();
+            if (runIndex == 0) {
+                mLineStartLetterSpacing = mCurrentLetterSpacing;
+            }
+        } else {
+            mCurrentLetterSpacing = 0;
+            mLineStartLetterSpacing = 0;
+        }
         const Range range = run->getRange();
 
         // Update locale if necessary.

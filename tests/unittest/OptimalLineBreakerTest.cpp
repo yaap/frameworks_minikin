@@ -195,6 +195,27 @@ protected:
         }
     }
 
+    LineBreakResult doLineBreakWithLetterSpacing(const U16StringPiece& textBuffer,
+                                                 BreakStrategy strategy,
+                                                 HyphenationFrequency frequency,
+                                                 float letterSpacing, float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family1 = buildFontFamily("Ascii.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family1};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.scaleX = 1.0f;
+        paint.letterSpacing = letterSpacing;
+        paint.localeListId = LocaleListCache::getId("en-US");
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, true, false);
+        bool computeHyphen = frequency != HyphenationFrequency::None;
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, computeHyphen, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        return doLineBreak(textBuffer, *measuredText, strategy, frequency, lineWidth);
+    }
+
 private:
     std::vector<uint8_t> mHyphenationPattern;
 };
@@ -1932,9 +1953,10 @@ TEST_F(OptimalLineBreakerTest, roundingError) {
     paint.localeListId = LocaleListCache::getId("en-US");
     const std::vector<uint16_t> textBuffer = utf8ToUtf16("8888888888888888888");
 
-    float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
-                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr,
-                                         nullptr /* bounds */);
+    float measured =
+            Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr,
+                                nullptr /* bounds */, nullptr /* cluster count */, RunFlag::NONE);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), 0, 0, true, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
@@ -2476,5 +2498,169 @@ TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakAuto,
                                                    << toString(textBuf, actual);
     }
 }
+
+TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testBreakLetterSpacing,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      inter_character_justification))) {
+    constexpr BreakStrategy HIGH_QUALITY = BreakStrategy::HighQuality;
+    constexpr HyphenationFrequency NO_HYPHEN = HyphenationFrequency::None;
+    const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");
+
+    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
+    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        constexpr float LINE_WIDTH = 1000;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This is an example text.", 470, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 470;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This is an example text.", 470, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 460;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This is an example ", 350, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"text.",                90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 240;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This is an ", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"example ",    130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"text.",        90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 130;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This ",     70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"is an ",    90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"example ", 130, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"text.",     90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 120;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"This ",  70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"is an ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"exa",    50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"mple ",  70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"text.",  90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 30;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"Th",  30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"is ", 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"is ", 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"an ", 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"e",   10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"xa",  30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"mp",  30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"le ", 30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"te",  30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"xt",  30, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {".",   10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 10;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"T",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"h",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"i",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"s ", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"i",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"s ", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"a",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"n ", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"e",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"x",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"a",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"m",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"p",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"l",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"e ", 10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"t",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"e",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"x",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"t",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {".",  10, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakWithLetterSpacing(textBuf, HIGH_QUALITY, NO_HYPHEN, 1.0f, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
 }  // namespace
 }  // namespace minikin

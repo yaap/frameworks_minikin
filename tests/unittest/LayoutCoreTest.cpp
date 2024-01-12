@@ -84,6 +84,7 @@ TEST(LayoutPieceTest, doLayoutTest) {
         auto fc = makeFontCollection({"LayoutTestFont.ttf"});
         auto layout = buildLayout("I", fc);
         EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(1u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-100.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -96,6 +97,7 @@ TEST(LayoutPieceTest, doLayoutTest) {
         auto fc = makeFontCollection({"LayoutTestFont.ttf"});
         auto layout = buildLayout("II", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
         EXPECT_EQ(MinikinExtent(-100.0f, 20.0f), layout.extent());
@@ -112,6 +114,7 @@ TEST(LayoutPieceTest, doLayoutTest) {
         auto fc = makeFontCollection({"LayoutTestFont.ttf"});
         auto layout = buildLayout("IV", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
         EXPECT_EQ(MinikinExtent(-100.0f, 20.0f), layout.extent());
@@ -139,6 +142,7 @@ TEST(LayoutPieceTest, doLayoutTest_MultiFont) {
         auto fc = makeFontCollection({"LayoutTestFont.ttf", "Hiragana.ttf"});
         auto layout = buildLayout("I\u3042", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(10.0f, 0), layout.pointAt(1));
         EXPECT_EQ(MinikinExtent(-160.0f, 40.0f), layout.extent());
@@ -155,6 +159,7 @@ TEST(LayoutPieceTest, doLayoutTest_MultiFont) {
         auto fc = makeFontCollection({"LayoutTestFont.ttf", "Hiragana.ttf"});
         auto layout = buildLayout("\u3042I", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(Point(20.0f, 0), layout.pointAt(1));
         EXPECT_EQ(MinikinExtent(-160.0f, 40.0f), layout.extent());
@@ -178,6 +183,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("fi", fc);
         EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(1u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -191,6 +197,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("ff", fc);
         EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(1u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -204,6 +211,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("fi", fc, "'liga' off");
         EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(1u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -217,6 +225,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("ff", fc, "'liga' off");
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -232,6 +241,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("fii", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());
@@ -248,6 +258,7 @@ TEST(LayoutPieceTest, doLayoutTest_Ligature) {
         auto fc = makeFontCollection({"Ligature.ttf"});
         auto layout = buildLayout("if", fc);
         EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
         EXPECT_EQ(Point(0, 0), layout.pointAt(0));
         EXPECT_EQ(MinikinExtent(-80.0f, 20.0f), layout.extent());
         EXPECT_EQ(1u, layout.fonts().size());

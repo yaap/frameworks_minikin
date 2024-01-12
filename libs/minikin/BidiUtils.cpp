@@ -53,7 +53,7 @@ BidiText::RunInfo BidiText::getRunInfoAt(uint32_t runOffset) const {
     MINIKIN_ASSERT(runOffset < mRunCount, "Out of range access. %d/%d", runOffset, mRunCount);
     if (mRunCount == 1) {
         // Single run. No need to iteract with UBiDi.
-        return {mRange, mIsRtl};
+        return {0, 1, mRange, mIsRtl};
     }
 
     int32_t startRun = -1;
@@ -61,15 +61,15 @@ BidiText::RunInfo BidiText::getRunInfoAt(uint32_t runOffset) const {
     const UBiDiDirection runDir = ubidi_getVisualRun(mBidi.get(), runOffset, &startRun, &lengthRun);
     if (startRun == -1 || lengthRun == -1) {
         ALOGE("invalid visual run");
-        return {Range::invalidRange(), false};
+        return {0, 1, Range::invalidRange(), false};
     }
     const uint32_t runStart = std::max(static_cast<uint32_t>(startRun), mRange.getStart());
     const uint32_t runEnd = std::min(static_cast<uint32_t>(startRun + lengthRun), mRange.getEnd());
     if (runEnd <= runStart) {
         // skip the empty run.
-        return {Range::invalidRange(), false};
+        return {0, 1, Range::invalidRange(), false};
     }
-    return {Range(runStart, runEnd), (runDir == UBIDI_RTL)};
+    return {runOffset, mRunCount, Range(runStart, runEnd), (runDir == UBIDI_RTL)};
 }
 
 BidiText::BidiText(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags)

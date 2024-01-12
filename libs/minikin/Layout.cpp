@@ -41,45 +41,148 @@
 #include "minikin/LayoutCache.h"
 #include "minikin/LayoutPieces.h"
 #include "minikin/Macros.h"
+
 namespace minikin {
+
+void adjustGlyphLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
+                                  std::vector<LayoutGlyph>* glyphs) {
+    if (runFlag & RunFlag::LEFT_EDGE) {
+        const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
+        const float letterSpacingHalf = letterSpacing * 0.5f;
+        for (uint32_t i = 0; i < glyphs->size(); i++) {
+            glyphs->at(i).x -= letterSpacingHalf;
+        }
+    }
+}
+
+float adjustAdvanceLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
+                                     uint32_t leftEdgeIndex, uint32_t rightEdgeIndex, float advance,
+                                     float* advances, uint32_t size) {
+    const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
+    const float letterSpacingHalf = letterSpacing * 0.5f;
+    if (letterSpacing == 0) {
+        return advance;
+    }
+
+    if (runFlag & RunFlag::LEFT_EDGE) {
+        if (advances) {
+            advances[leftEdgeIndex] -= letterSpacingHalf;
+        }
+        advance -= letterSpacingHalf;
+    }
+
+    if (runFlag & RunFlag::RIGHT_EDGE) {
+        if (advances) {
+            uint32_t i;
+            uint32_t remaining = size - rightEdgeIndex + 1;
+            // Skip until the cluster head.
+            for (i = 0; i < remaining; ++i) {
+                if (advances[rightEdgeIndex - i] != 0) {
+                    break;
+                }
+            }
+            if (i != remaining) {
+                advances[rightEdgeIndex - i] -= letterSpacingHalf;
+            }
+        }
+        advance -= letterSpacingHalf;
+    }
+    return advance;
+}
+
+void adjustBoundsLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
+                                   MinikinRect* bounds) {
+    if (!bounds) {
+        return;
+    }
+    const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
+    const float letterSpacingHalf = letterSpacing * 0.5f;
+    if (letterSpacing == 0) {
+        return;
+    }
+    if (runFlag & RunFlag::LEFT_EDGE) {
+        bounds->mLeft -= letterSpacingHalf;
+        bounds->mRight -= letterSpacingHalf;
+    }
+
+    if (runFlag & RunFlag::RIGHT_EDGE) {
+        bounds->mRight -= letterSpacingHalf;
+    }
+}
 
 void Layout::doLayout(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags,
                       const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                      EndHyphenEdit endHyphen) {
+                      EndHyphenEdit endHyphen, RunFlag runFlag) {
     const uint32_t count = range.getLength();
     mAdvances.resize(count, 0);
     mGlyphs.reserve(count);
+    uint32_t leftEdgeIndex = range.getStart();
+    uint32_t rightEdgeIndex = range.getEnd();
     for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
         doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, range.getStart(),
-                          startHyphen, endHyphen, this, nullptr, nullptr);
+                          startHyphen, endHyphen, this, nullptr, nullptr, nullptr);
+        if (!runInfo.range.isEmpty()) {
+            if (runInfo.runOffset == 0) {
+                leftEdgeIndex =
+                        runInfo.isRtl ? runInfo.range.getEnd() - 1 : runInfo.range.getStart();
+            }
+            if (runInfo.runOffset == runInfo.runCount - 1) {
+                rightEdgeIndex =
+                        runInfo.isRtl ? runInfo.range.getStart() : runInfo.range.getEnd() - 1;
+            }
+        }
     }
+    adjustGlyphLetterSpacingEdge(paint, runFlag, &mGlyphs);
+    mAdvance = adjustAdvanceLetterSpacingEdge(paint, runFlag, leftEdgeIndex - range.getStart(),
+                                              rightEdgeIndex - range.getStart(), mAdvance,
+                                              mAdvances.data(), mAdvances.size());
 }
 
 float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags,
                           const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                          EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds) {
+                          EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds,
+                          uint32_t* clusterCount, RunFlag runFlag) {
     float advance = 0;
+    if (clusterCount) {
+        *clusterCount = 0;
+    }
 
     MinikinRect tmpBounds;
+    uint32_t leftEdgeIndex = range.getStart();
+    uint32_t rightEdgeIndex = range.getEnd();
     for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
         const size_t offset = range.toRangeOffset(runInfo.range.getStart());
         float* advancesForRun = advances ? advances + offset : nullptr;
         tmpBounds.setEmpty();
         float run_advance = doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, 0,
                                               startHyphen, endHyphen, nullptr, advancesForRun,
-                                              bounds ? &tmpBounds : nullptr);
+                                              bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
             bounds->join(tmpBounds, advance, 0);
         }
         advance += run_advance;
+        if (!runInfo.range.isEmpty()) {
+            if (runInfo.runOffset == 0) {
+                leftEdgeIndex =
+                        runInfo.isRtl ? runInfo.range.getEnd() - 1 : runInfo.range.getStart();
+            }
+            if (runInfo.runOffset == runInfo.runCount - 1) {
+                rightEdgeIndex =
+                        runInfo.isRtl ? runInfo.range.getStart() : runInfo.range.getEnd() - 1;
+            }
+        }
     }
-    return advance;
+    adjustBoundsLetterSpacingEdge(paint, runFlag, bounds);
+    return adjustAdvanceLetterSpacingEdge(paint, runFlag, leftEdgeIndex - range.getStart(),
+                                          rightEdgeIndex - range.getStart(), advance, advances,
+                                          range.getLength());
 }
 
 float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                                 const MinikinPaint& paint, size_t dstStart,
                                 StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                                Layout* layout, float* advances, MinikinRect* bounds) {
+                                Layout* layout, float* advances, MinikinRect* bounds,
+                                uint32_t* clusterCount) {
     if (!range.isValid()) {
         return 0.0f;  // ICU failed to retrieve the bidi run?
     }
@@ -98,7 +201,7 @@ float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& rang
                 textBuf.data() + context.getStart(), piece.getStart() - context.getStart(),
                 piece.getLength(), context.getLength(), isRtl, paint, piece.getStart() - dstStart,
                 pieceStartHyphen, pieceEndHyphen, layout, advancesForRun,
-                bounds ? &tmpBounds : nullptr);
+                bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
             bounds->join(tmpBounds, advance, 0);
         }
@@ -130,9 +233,11 @@ public:
             mBounds->join(bounds, mTotalAdvance, 0);
         }
         mTotalAdvance += layoutPiece.advance();
+        mClusterCount += layoutPiece.clusterCount();
     }
 
     float getTotalAdvance() { return mTotalAdvance; }
+    uint32_t getClusterCount() const { return mClusterCount; }
 
 private:
     Layout* mLayout;
@@ -140,13 +245,14 @@ private:
     float mTotalAdvance{0};
     const uint32_t mOutOffset;
     const float mWordSpacing;
+    uint32_t mClusterCount;
     MinikinRect* mBounds;
 };
 
 float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                            bool isRtl, const MinikinPaint& paint, size_t bufStart,
                            StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                           float* advances, MinikinRect* bounds) {
+                           float* advances, MinikinRect* bounds, uint32_t* clusterCount) {
     float wordSpacing = count == 1 && isWordSpace(buf[start]) ? paint.wordSpacing : 0;
     float totalAdvance = 0;
     const bool boundsCalculation = bounds != nullptr;
@@ -157,6 +263,9 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
     LayoutCache::getInstance().getOrCreate(textBuf, range, paint, isRtl, startHyphen, endHyphen,
                                            boundsCalculation, f);
     totalAdvance = f.getTotalAdvance();
+    if (clusterCount) {
+        *clusterCount += f.getClusterCount();
+    }
 
     if (wordSpacing != 0) {
         totalAdvance += wordSpacing;
