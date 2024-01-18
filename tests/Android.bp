@@ -14,7 +14,6 @@ filegroup {
         "data/Cherokee.ttf",
         "data/ColorEmojiFont.ttf",
         "data/ColorTextMixedEmojiFont.ttf",
-        "data/ControlCharacters.ttf",
         "data/CustomExtent.ttf",
         "data/Emoji.ttf",
         "data/EmojiBase.ttf",

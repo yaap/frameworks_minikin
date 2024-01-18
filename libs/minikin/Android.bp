@@ -55,7 +55,6 @@ cc_library {
         "ScriptUtils.cpp",
         "SparseBitSet.cpp",
         "SystemFonts.cpp",
-        "U16StringPiece.cpp",
         "WordBreaker.cpp",
     ],
     defaults: ["libminikin_defaults"],
