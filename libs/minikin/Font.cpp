@@ -202,14 +202,26 @@ std::unordered_set<AxisTag> Font::getSupportedAxes() const {
 }
 
 HbFontUniquePtr Font::getAdjustedFont(int wght, int ital) const {
+    return getExternalRefs()->getAdjustedFont(wght, ital);
+}
+
+HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(int wght, int ital) const {
     if (wght == -1 && ital == -1) {
-        return HbFontUniquePtr(hb_font_reference(baseFont().get()));
+        return HbFontUniquePtr(hb_font_reference(mBaseFont.get()));
     }
 
-    HbFontUniquePtr font(hb_font_create_sub_font(baseFont().get()));
+    const uint16_t key = packKey(wght, ital);
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    auto it = mVarFontCache.find(key);
+    if (it != mVarFontCache.end()) {
+        return HbFontUniquePtr(hb_font_reference(it->second.get()));
+    }
+
+    HbFontUniquePtr font(hb_font_create_sub_font(mBaseFont.get()));
     std::vector<hb_variation_t> variations;
-    variations.reserve(baseTypeface()->GetAxes().size());
-    for (const FontVariation& variation : baseTypeface()->GetAxes()) {
+    variations.reserve(mTypeface->GetAxes().size());
+    for (const FontVariation& variation : mTypeface->GetAxes()) {
         if (wght != -1 && variation.axisTag == TAG_wght) {
             continue;  // Add wght axis later
         } else if (ital != -1 && variation.axisTag == TAG_ital) {
@@ -225,6 +237,7 @@ HbFontUniquePtr Font::getAdjustedFont(int wght, int ital) const {
         variations.push_back({TAG_ital, static_cast<float>(ital)});
     }
     hb_font_set_variations(font.get(), variations.data(), variations.size());
+    mVarFontCache.emplace(key, HbFontUniquePtr(hb_font_reference(font.get())));
     return font;
 }
 
