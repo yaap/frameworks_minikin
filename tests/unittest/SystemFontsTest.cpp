@@ -105,7 +105,7 @@ TEST(SystemFontTest, getAvailableFont_dedupFonts) {
         EXPECT_EQ(3u, fonts.size());  // Ascii, Bold and BoldItalic
         std::unordered_set<std::string> fontPaths;
         for (const auto& font : fonts) {
-            fontPaths.insert(getBasename(font->typeface()->GetFontPath()));
+            fontPaths.insert(getBasename(font->baseTypeface()->GetFontPath()));
         }
 
         EXPECT_TRUE(fontPaths.find("Ascii.ttf") != fontPaths.end());

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#include <cstdlib>
-#include <string>
-#include <vector>
-
 #include <cutils/log.h>
 #include <unicode/utf.h>
 #include <unicode/utf8.h>
+
+#include <cstdlib>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "minikin/U16StringPiece.h"
 
@@ -136,6 +137,14 @@ std::string utf16ToUtf8(const U16StringPiece& u16String) {
         out.append(buf, outIndex);
     }
     return out;
+}
+
+std::string repeat(const std::string& text, int count) {
+    std::stringstream ss;
+    for (int i = 0; i < count; ++i) {
+        ss << text;
+    }
+    return ss.str();
 }
 
 }  // namespace minikin

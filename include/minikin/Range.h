@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <ostream>
 #include <utility>
 
 namespace minikin {
@@ -116,6 +117,11 @@ private:
     uint32_t mStart;
     uint32_t mEnd;
 };
+
+// For gtest output
+inline std::ostream& operator<<(std::ostream& os, const Range& r) {
+    return os << "(" << r.getStart() << ", " << r.getEnd() << ")";
+}
 
 }  // namespace minikin
 

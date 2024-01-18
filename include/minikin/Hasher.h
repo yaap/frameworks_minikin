@@ -18,9 +18,9 @@
 #define MINIKIN_HASHER_H
 
 #include <cstdint>
-
 #include <string>
 
+#include "minikin/FontFeature.h"
 #include "minikin/Macros.h"
 
 namespace minikin {
@@ -55,6 +55,21 @@ public:
         } bits;
         bits.f = data;
         return update(bits.i);
+    }
+
+    inline Hasher& update(const std::vector<FontFeature>& features) {
+        uint32_t size = features.size();
+        update(size);
+        for (const FontFeature& feature : features) {
+            update(feature);
+        }
+        return *this;
+    }
+
+    inline Hasher& update(const FontFeature& feature) {
+        update(feature.tag);
+        update(feature.value);
+        return *this;
     }
 
     inline Hasher& updateShorts(const uint16_t* data, uint32_t length) {

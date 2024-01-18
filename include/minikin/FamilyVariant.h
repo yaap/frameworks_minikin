@@ -18,6 +18,7 @@
 #define MINIKIN_FAMILY_VARIANT_H
 
 #include <cstdint>
+#include <ostream>
 
 namespace minikin {
 
@@ -27,6 +28,19 @@ enum class FamilyVariant : uint8_t {
     COMPACT = 1,  // Must be the same as FontConfig.VARIANT_COMPACT
     ELEGANT = 2,  // Must be the same as FontConfig.VARIANT_ELEGANT
 };
+
+inline std::ostream& operator<<(std::ostream& os, const FamilyVariant& variant) {
+    switch (variant) {
+        case FamilyVariant::DEFAULT:
+            return os << "default";
+        case FamilyVariant::COMPACT:
+            return os << "compact";
+        case FamilyVariant::ELEGANT:
+            return os << "elegant";
+        default:
+            return os << "[UNKNOWN]";
+    }
+}
 
 }  // namespace minikin
 

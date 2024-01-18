@@ -25,7 +25,8 @@ namespace minikin {
 
 LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredText& measured,
                                  const LineWidth& lineWidthLimits, BreakStrategy strategy,
-                                 HyphenationFrequency frequency, bool justified);
+                                 HyphenationFrequency frequency, bool justified,
+                                 bool useBoundsForWidth);
 
 }  // namespace minikin
 

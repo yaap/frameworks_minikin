@@ -22,6 +22,7 @@
 #include "FreeTypeMinikinFontForTest.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "minikin/Constants.h"
 #include "minikin/FontFamily.h"
 #include "minikin/LocaleList.h"
 
@@ -647,7 +648,7 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // New instance should be used for supported variation.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -656,8 +657,8 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // New instance should be used for supported variation. (multiple variations case)
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('w', 'g', 'h', 't'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('w', 'g', 'h', 't'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -666,14 +667,14 @@ TEST_F(FontFamilyTest, createFamilyWithVariationTest) {
     }
     {
         // Do not ceate new instance if none of variations are supported.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         EXPECT_EQ(nullptr, multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_EQ(nullptr, noAxisFamily->createFamilyWithVariation(variations));
     }
     {
         // At least one axis is supported, should create new instance.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         std::shared_ptr<FontFamily> newFamily(
                 multiAxisFamily->createFamilyWithVariation(variations));
         EXPECT_NE(nullptr, newFamily.get());
@@ -805,7 +806,7 @@ TEST_F(FontFamilyTest, closestMatch) {
 
         size_t idx = dummyFonts.size();
         for (size_t i = 0; i < dummyFonts.size(); i++) {
-            if (dummyFonts[i].get() == closest.font->typeface().get()) {
+            if (dummyFonts[i].get() == closest.font->baseTypeface().get()) {
                 idx = i;
                 break;
             }

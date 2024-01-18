@@ -37,6 +37,7 @@ cc_benchmark {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "aconfig_text_flags_c_lib",
     ],
 
     shared_libs: [
@@ -44,6 +45,8 @@ cc_benchmark {
         "libharfbuzz_ng",
         "libicu",
         "liblog",
-
+        "libcutils",
+        "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
 }

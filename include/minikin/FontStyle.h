@@ -19,6 +19,8 @@
 
 #include <minikin/Buffer.h>
 
+#include <ostream>
+
 namespace minikin {
 
 // FontStyle represents style information.
@@ -61,10 +63,6 @@ public:
     constexpr uint16_t weight() const { return mWeight; }
     constexpr Slant slant() const { return mSlant; }
 
-    constexpr bool operator==(const FontStyle& other) const {
-        return weight() == other.weight() && slant() == other.slant();
-    }
-
     constexpr uint32_t identifier() const {
         return (static_cast<uint32_t>(weight()) << 16) | static_cast<uint32_t>(slant());
     }
@@ -73,6 +71,29 @@ private:
     uint16_t mWeight;
     Slant mSlant;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const FontStyle::Slant& slant) {
+    switch (slant) {
+        case FontStyle::Slant::ITALIC:
+            return os << "italic";
+        case FontStyle::Slant::UPRIGHT:
+            return os << "upright";
+        default:
+            return os << "[UNKNOWN]";
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const FontStyle& style) {
+    return os << "{weight=" << style.weight() << ", slant=" << style.slant() << "}";
+}
+
+constexpr bool operator==(const FontStyle& l, const FontStyle& r) {
+    return l.weight() == r.weight() && l.slant() == r.slant();
+}
+
+constexpr bool operator!=(const FontStyle& l, const FontStyle& r) {
+    return !(l == r);
+}
 
 }  // namespace minikin
 

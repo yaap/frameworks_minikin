@@ -15,6 +15,7 @@
  */
 
 #define LOG_TAG "Minikin"
+#define ATRACE_TAG ATRACE_TAG_VIEW
 
 #include "minikin/LayoutCore.h"
 
@@ -24,6 +25,7 @@
 #include <unicode/ubidi.h>
 #include <unicode/utf16.h>
 #include <utils/LruCache.h>
+#include <utils/Trace.h>
 
 #include <cmath>
 #include <iostream>
@@ -32,11 +34,12 @@
 #include <vector>
 
 #include "BidiUtils.h"
-#include "FontFeatureUtils.h"
 #include "LayoutUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
+#include "ScriptUtils.h"
 #include "minikin/Emoji.h"
+#include "minikin/FontFeature.h"
 #include "minikin/HbUtils.h"
 #include "minikin/LayoutCache.h"
 #include "minikin/LayoutPieces.h"
@@ -134,45 +137,6 @@ hb_font_funcs_t* getFontFuncsForEmoji() {
 static bool isColorBitmapFont(const HbFontUniquePtr& font) {
     HbBlob cbdt(font, HB_TAG('C', 'B', 'D', 'T'));
     return cbdt;
-}
-
-static hb_codepoint_t decodeUtf16(const uint16_t* chars, size_t len, ssize_t* iter) {
-    UChar32 result;
-    U16_NEXT(chars, *iter, (ssize_t)len, result);
-    if (U_IS_SURROGATE(result)) {  // isolated surrogate
-        result = 0xFFFDu;          // U+FFFD REPLACEMENT CHARACTER
-    }
-    return (hb_codepoint_t)result;
-}
-
-static hb_script_t getScriptRun(const uint16_t* chars, size_t len, ssize_t* iter) {
-    if (size_t(*iter) == len) {
-        return HB_SCRIPT_UNKNOWN;
-    }
-    uint32_t cp = decodeUtf16(chars, len, iter);
-    hb_unicode_funcs_t* unicode_func = hb_unicode_funcs_get_default();
-    hb_script_t current_script = hb_unicode_script(unicode_func, cp);
-    for (;;) {
-        if (size_t(*iter) == len) break;
-        const ssize_t prev_iter = *iter;
-        cp = decodeUtf16(chars, len, iter);
-        const hb_script_t script = hb_unicode_script(unicode_func, cp);
-        if (script != current_script) {
-            if (current_script == HB_SCRIPT_INHERITED || current_script == HB_SCRIPT_COMMON) {
-                current_script = script;
-            } else if (script == HB_SCRIPT_INHERITED || script == HB_SCRIPT_COMMON) {
-                continue;
-            } else {
-                *iter = prev_iter;
-                break;
-            }
-        }
-    }
-    if (current_script == HB_SCRIPT_INHERITED) {
-        current_script = HB_SCRIPT_COMMON;
-    }
-
-    return current_script;
 }
 
 /**
@@ -349,7 +313,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     double size = paint.size;
     double scaleX = paint.scaleX;
 
-    std::unordered_map<const Font*, uint32_t> fontMap;
+    std::unordered_map<const MinikinFont*, uint32_t> fontMap;
 
     float x = 0;
     float y = 0;
@@ -358,19 +322,20 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
          isRtl ? --run_ix : ++run_ix) {
         FontCollection::Run& run = items[run_ix];
         FakedFont fakedFont = paint.font->getBestFont(substr, run, paint.fontStyle);
-        auto it = fontMap.find(fakedFont.font.get());
+        const std::shared_ptr<MinikinFont>& typeface = fakedFont.typeface();
+        auto it = fontMap.find(typeface.get());
         uint8_t font_ix;
         if (it == fontMap.end()) {
             // First time to see this font.
             font_ix = mFonts.size();
             mFonts.push_back(fakedFont);
-            fontMap.insert(std::make_pair(fakedFont.font.get(), font_ix));
+            fontMap.insert(std::make_pair(typeface.get(), font_ix));
 
             // We override some functions which are not thread safe.
-            HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.font->baseFont().get()));
+            HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.hbFont().get()));
             hb_font_set_funcs(
                     font.get(), isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
-                    new SkiaArguments({fakedFont.font->typeface().get(), &paint, fakedFont.fakery}),
+                    new SkiaArguments({fakedFont.typeface().get(), &paint, fakedFont.fakery}),
                     [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
             hbFonts.push_back(std::move(font));
         } else {
@@ -387,7 +352,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
         }
         if (needExtent) {
             MinikinExtent verticalExtent;
-            fakedFont.font->typeface()->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
+            typeface->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
             mExtent.extendBy(verticalExtent);
         }
 
@@ -400,11 +365,10 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
         // Note: scriptRunStart and scriptRunEnd, as well as run.start and run.end, run between 0
         // and count.
-        ssize_t scriptRunEnd;
-        for (ssize_t scriptRunStart = run.start; scriptRunStart < run.end;
-             scriptRunStart = scriptRunEnd) {
-            scriptRunEnd = scriptRunStart;
-            hb_script_t script = getScriptRun(buf + start, run.end, &scriptRunEnd /* iterator */);
+        for (const auto [range, script] : ScriptText(textBuf, run.start, run.end)) {
+            ssize_t scriptRunStart = range.getStart();
+            ssize_t scriptRunEnd = range.getEnd();
+
             // After the last line, scriptRunEnd is guaranteed to have increased, since the only
             // time getScriptRun does not increase its iterator is when it has already reached the
             // end of the buffer. But that can't happen, since if we have already reached the end
@@ -493,5 +457,23 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mPoints.shrink_to_fit();
     mAdvance = x;
 }
+
+// static
+MinikinRect LayoutPiece::calculateBounds(const LayoutPiece& layout, const MinikinPaint& paint) {
+    ATRACE_CALL();
+    MinikinRect out;
+    for (uint32_t i = 0; i < layout.glyphCount(); ++i) {
+        MinikinRect bounds;
+        uint32_t glyphId = layout.glyphIdAt(i);
+        const FakedFont& fakedFont = layout.fontAt(i);
+        const Point& pos = layout.pointAt(i);
+
+        fakedFont.typeface()->GetBounds(&bounds, glyphId, paint, fakedFont.fakery);
+        out.join(bounds, pos);
+    }
+    return out;
+}
+
+LayoutPiece::~LayoutPiece() {}
 
 }  // namespace minikin

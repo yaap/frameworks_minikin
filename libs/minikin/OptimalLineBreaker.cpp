@@ -19,11 +19,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "minikin/Characters.h"
-#include "minikin/Layout.h"
-#include "minikin/Range.h"
-#include "minikin/U16StringPiece.h"
-
+#include "FeatureFlags.h"
 #include "HyphenatorMap.h"
 #include "LayoutUtils.h"
 #include "LineBreakerUtil.h"
@@ -31,6 +27,10 @@
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "WordBreaker.h"
+#include "minikin/Characters.h"
+#include "minikin/Layout.h"
+#include "minikin/Range.h"
+#include "minikin/U16StringPiece.h"
 
 namespace minikin {
 
@@ -41,6 +41,7 @@ namespace {
 constexpr float SCORE_INFTY = std::numeric_limits<float>::max();
 constexpr float SCORE_OVERFULL = 1e12f;
 constexpr float SCORE_DESPERATE = 1e10f;
+constexpr float SCORE_FALLBACK = 1e6f;
 
 // Multiplier for hyphen penalty on last line.
 constexpr float LAST_LINE_PENALTY_MULTIPLIER = 4.0f;
@@ -96,12 +97,13 @@ struct OptimizeContext {
     // fonts), it's only guaranteed to pick one.
     float spaceWidth = 0.0f;
 
+    bool retryWithPhraseWordBreak = false;
+
     // Append desperate break point to the candidates.
-    inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, uint32_t spaceCount,
-                              bool isRtl) {
-        candidates.emplace_back(offset, sumOfCharWidths, sumOfCharWidths, SCORE_DESPERATE,
-                                spaceCount, spaceCount,
-                                HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl);
+    inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
+                              uint32_t spaceCount, bool isRtl) {
+        candidates.emplace_back(offset, sumOfCharWidths, sumOfCharWidths, score, spaceCount,
+                                spaceCount, HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl);
     }
 
     // Append hyphenation break point to the candidates.
@@ -156,23 +158,56 @@ struct DesperateBreak {
     // The sum of the character width from the beginning of the word.
     ParaWidth sumOfChars;
 
-    DesperateBreak(uint32_t offset, ParaWidth sumOfChars)
-            : offset(offset), sumOfChars(sumOfChars){};
+    float score;
+
+    DesperateBreak(uint32_t offset, ParaWidth sumOfChars, float score)
+            : offset(offset), sumOfChars(sumOfChars), score(score){};
 };
 
 // Retrieves desperate break points from a word.
-std::vector<DesperateBreak> populateDesperatePoints(const MeasuredText& measured,
-                                                    const Range& range) {
+std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBuf,
+                                                    const MeasuredText& measured,
+                                                    const Range& range, const Run& run) {
     std::vector<DesperateBreak> out;
-    ParaWidth width = measured.widths[range.getStart()];
-    for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
-        const float w = measured.widths[i];
-        if (w == 0) {
-            continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+
+    if (!features::phrase_strict_fallback() ||
+        run.lineBreakWordStyle() == LineBreakWordStyle::None) {
+        ParaWidth width = measured.widths[range.getStart()];
+        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
+            const float w = measured.widths[i];
+            if (w == 0) {
+                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+            }
+            out.emplace_back(i, width, SCORE_DESPERATE);
+            width += w;
         }
-        out.emplace_back(i, width);
-        width += w;
+    } else {
+        WordBreaker wb;
+        wb.setText(textBuf.data(), textBuf.length());
+        ssize_t next = wb.followingWithLocale(getEffectiveLocale(run.getLocaleListId()),
+                                              run.lineBreakStyle(), LineBreakWordStyle::None,
+                                              range.getStart());
+
+        const bool calculateFallback = range.contains(next);
+        ParaWidth width = measured.widths[range.getStart()];
+        for (uint32_t i = range.getStart() + 1; i < range.getEnd(); ++i) {
+            const float w = measured.widths[i];
+            if (w == 0) {
+                continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+            }
+            if (calculateFallback && i == (uint32_t)next) {
+                out.emplace_back(i, width, SCORE_FALLBACK);
+                next = wb.next();
+                if (!range.contains(next)) {
+                    break;
+                }
+            } else {
+                out.emplace_back(i, width, SCORE_DESPERATE);
+            }
+            width += w;
+        }
     }
+
     return out;
 }
 
@@ -192,7 +227,7 @@ void appendWithMerging(std::vector<HyphenBreak>::const_iterator hyIter,
         // breaks first.
         if (d != desperates.end() && (hyIter == endHyIter || d->offset <= hyIter->offset)) {
             out->pushDesperate(d->offset, proc.sumOfCharWidthsAtPrevWordBreak + d->sumOfChars,
-                               proc.effectiveSpaceCount, isRtl);
+                               d->score, proc.effectiveSpaceCount, isRtl);
             d++;
         } else {
             out->pushHyphenation(hyIter->offset, proc.sumOfCharWidths - hyIter->second,
@@ -206,7 +241,7 @@ void appendWithMerging(std::vector<HyphenBreak>::const_iterator hyIter,
 // Enumerate all line break candidates.
 OptimizeContext populateCandidates(const U16StringPiece& textBuf, const MeasuredText& measured,
                                    const LineWidth& lineWidth, HyphenationFrequency frequency,
-                                   bool isJustified) {
+                                   bool isJustified, bool forceWordStyleAutoToPhrase) {
     const ParaWidth minLineWidth = lineWidth.getMin();
     CharProcessor proc(textBuf);
 
@@ -227,7 +262,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
             result.linePenalty = std::max(penalties.second, result.linePenalty);
         }
 
-        proc.updateLocaleIfNecessary(*run);
+        proc.updateLocaleIfNecessary(*run, forceWordStyleAutoToPhrase);
 
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
             MINIKIN_ASSERT(textBuf[i] != CHAR_TAB, "TAB is not supported in optimal line breaker");
@@ -252,9 +287,10 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
                 hyIter++;
             }
             if (proc.widthFromLastWordBreak() > minLineWidth) {
-                desperateBreaks = populateDesperatePoints(measured, contextRange);
+                desperateBreaks = populateDesperatePoints(textBuf, measured, contextRange, *run);
             }
-            appendWithMerging(beginHyIter, doHyphenation ? hyIter : beginHyIter, desperateBreaks,
+            const bool doHyphenationRun = doHyphenation && run->canHyphenate();
+            appendWithMerging(beginHyIter, doHyphenationRun ? hyIter : beginHyIter, desperateBreaks,
                               proc, hyphenPenalty, isRtl, &result);
 
             // We skip breaks for zero-width characters inside replacement spans.
@@ -267,6 +303,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
         }
     }
     result.spaceWidth = proc.spaceWidth;
+    result.retryWithPhraseWordBreak = proc.retryWithPhraseWordBreak;
     return result;
 }
 
@@ -276,7 +313,7 @@ public:
 
     LineBreakResult computeBreaks(const OptimizeContext& context, const U16StringPiece& textBuf,
                                   const MeasuredText& measuredText, const LineWidth& lineWidth,
-                                  BreakStrategy strategy, bool justified);
+                                  BreakStrategy strategy, bool justified, bool useBoundsForWidth);
 
 private:
     // Data used to compute optimal line breaks
@@ -287,14 +324,15 @@ private:
     };
     LineBreakResult finishBreaksOptimal(const U16StringPiece& textBuf, const MeasuredText& measured,
                                         const std::vector<OptimalBreaksData>& breaksData,
-                                        const std::vector<Candidate>& candidates);
+                                        const std::vector<Candidate>& candidates,
+                                        bool useBoundsForWidth);
 };
 
 // Follow "prev" links in candidates array, and copy to result arrays.
 LineBreakResult LineBreakOptimizer::finishBreaksOptimal(
         const U16StringPiece& textBuf, const MeasuredText& measured,
-        const std::vector<OptimalBreaksData>& breaksData,
-        const std::vector<Candidate>& candidates) {
+        const std::vector<OptimalBreaksData>& breaksData, const std::vector<Candidate>& candidates,
+        bool useBoundsForWidth) {
     LineBreakResult result;
     const uint32_t nCand = candidates.size();
     uint32_t prevIndex;
@@ -305,9 +343,28 @@ LineBreakResult LineBreakOptimizer::finishBreaksOptimal(
 
         result.breakPoints.push_back(cand.offset);
         result.widths.push_back(cand.postBreak - prev.preBreak);
-        MinikinExtent extent = measured.getExtent(textBuf, Range(prev.offset, cand.offset));
-        result.ascents.push_back(extent.ascent);
-        result.descents.push_back(extent.descent);
+        if (useBoundsForWidth) {
+            Range range = Range(prev.offset, cand.offset);
+            Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
+            if (actualRange.isEmpty()) {
+                MinikinExtent extent = measured.getExtent(textBuf, range);
+                result.ascents.push_back(extent.ascent);
+                result.descents.push_back(extent.descent);
+                result.bounds.emplace_back(0, extent.ascent, cand.postBreak - prev.preBreak,
+                                           extent.descent);
+            } else {
+                LineMetrics metrics = measured.getLineMetrics(textBuf, actualRange);
+                result.ascents.push_back(metrics.extent.ascent);
+                result.descents.push_back(metrics.extent.descent);
+                result.bounds.emplace_back(metrics.bounds);
+            }
+        } else {
+            MinikinExtent extent = measured.getExtent(textBuf, Range(prev.offset, cand.offset));
+            result.ascents.push_back(extent.ascent);
+            result.descents.push_back(extent.descent);
+            result.bounds.emplace_back(0, extent.ascent, cand.postBreak - prev.preBreak,
+                                       extent.descent);
+        }
 
         const HyphenEdit edit =
                 packHyphenEdit(editForNextLine(prev.hyphenType), editForThisLine(cand.hyphenType));
@@ -321,7 +378,8 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
                                                   const U16StringPiece& textBuf,
                                                   const MeasuredText& measured,
                                                   const LineWidth& lineWidth,
-                                                  BreakStrategy strategy, bool justified) {
+                                                  BreakStrategy strategy, bool justified,
+                                                  bool useBoundsForWidth) {
     const std::vector<Candidate>& candidates = context.candidates;
     uint32_t active = 0;
     const uint32_t nCand = candidates.size();
@@ -357,7 +415,25 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
             }
             const float jScore = breaksData[j].score;
             if (jScore + bestHope >= best) continue;
-            const float delta = candidates[j].preBreak - leftEdge;
+            float delta = candidates[j].preBreak - leftEdge;
+
+            if (useBoundsForWidth) {
+                // FIXME: Support bounds based line break for hyphenated break point.
+                if (candidates[i].hyphenType == HyphenationType::DONT_BREAK &&
+                    candidates[j].hyphenType == HyphenationType::DONT_BREAK) {
+                    if (delta >= 0) {
+                        Range range = Range(candidates[j].offset, candidates[i].offset);
+                        Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
+                        if (!actualRange.isEmpty() && measured.hasOverhang(range)) {
+                            float boundsDelta =
+                                    width - measured.getBounds(textBuf, actualRange).width();
+                            if (boundsDelta < 0) {
+                                delta = boundsDelta;
+                            }
+                        }
+                    }
+                }
+            }
 
             // compute width score for line
 
@@ -399,21 +475,52 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
                               bestPrev,                                            // prev
                               breaksData[bestPrev].lineNumber + 1});               // lineNumber
     }
-    return finishBreaksOptimal(textBuf, measured, breaksData, candidates);
+    return finishBreaksOptimal(textBuf, measured, breaksData, candidates, useBoundsForWidth);
 }
 
 }  // namespace
 
 LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredText& measured,
                                  const LineWidth& lineWidth, BreakStrategy strategy,
-                                 HyphenationFrequency frequency, bool justified) {
+                                 HyphenationFrequency frequency, bool justified,
+                                 bool useBoundsForWidth) {
     if (textBuf.size() == 0) {
         return LineBreakResult();
     }
+
     const OptimizeContext context =
-            populateCandidates(textBuf, measured, lineWidth, frequency, justified);
+            populateCandidates(textBuf, measured, lineWidth, frequency, justified,
+                               false /* forceWordStyleAutoToPhrase */);
     LineBreakOptimizer optimizer;
-    return optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy, justified);
+    LineBreakResult res = optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy,
+                                                  justified, useBoundsForWidth);
+
+    if (!features::word_style_auto()) {
+        return res;
+    }
+
+    // The line breaker says that retry with phrase based word break because of the auto option and
+    // given locales.
+    if (!context.retryWithPhraseWordBreak) {
+        return res;
+    }
+
+    // If the line break result is more than heuristics threshold, don't try pharse based word
+    // break.
+    if (res.breakPoints.size() >= LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res;
+    }
+
+    const OptimizeContext phContext =
+            populateCandidates(textBuf, measured, lineWidth, frequency, justified,
+                               true /* forceWordStyleAutoToPhrase */);
+    LineBreakResult res2 = optimizer.computeBreaks(phContext, textBuf, measured, lineWidth,
+                                                   strategy, justified, useBoundsForWidth);
+    if (res2.breakPoints.size() < LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res2;
+    } else {
+        return res;
+    }
 }
 
 }  // namespace minikin

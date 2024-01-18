@@ -29,6 +29,7 @@
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/CmapCoverage.h"
+#include "minikin/Constants.h"
 #include "minikin/FamilyVariant.h"
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"
@@ -44,21 +45,23 @@ std::shared_ptr<FontFamily> FontFamily::create(std::vector<std::shared_ptr<Font>
 std::shared_ptr<FontFamily> FontFamily::create(FamilyVariant variant,
                                                std::vector<std::shared_ptr<Font>>&& fonts) {
     return create(kEmptyLocaleListId, variant, std::move(fonts), false /* isCustomFallback */,
-                  false /* isDefaultFallback */);
+                  false /* isDefaultFallback */, VariationFamilyType::None);
 }
 
 // static
 std::shared_ptr<FontFamily> FontFamily::create(uint32_t localeListId, FamilyVariant variant,
                                                std::vector<std::shared_ptr<Font>>&& fonts,
-                                               bool isCustomFallback, bool isDefaultFallback) {
+                                               bool isCustomFallback, bool isDefaultFallback,
+                                               VariationFamilyType varFamilyType) {
     // TODO(b/174672300): Revert back to make_shared.
     return std::shared_ptr<FontFamily>(new FontFamily(localeListId, variant, std::move(fonts),
-                                                      isCustomFallback, isDefaultFallback));
+                                                      isCustomFallback, isDefaultFallback,
+                                                      varFamilyType));
 }
 
 FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                        std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback,
-                       bool isDefaultFallback)
+                       bool isDefaultFallback, VariationFamilyType varFamilyType)
         : mFonts(std::make_unique<std::shared_ptr<Font>[]>(fonts.size())),
           // computeCoverage may update supported axes and coverages later.
           mSupportedAxes(nullptr),
@@ -72,7 +75,8 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
           mIsColorEmoji(LocaleListCache::getById(localeListId).getEmojiStyle() ==
                         EmojiStyle::EMOJI),
           mIsCustomFallback(isCustomFallback),
-          mIsDefaultFallback(isDefaultFallback) {
+          mIsDefaultFallback(isDefaultFallback),
+          mVarFamilyType(varFamilyType) {
     MINIKIN_ASSERT(!fonts.empty(), "FontFamily must contain at least one font.");
     MINIKIN_ASSERT(fonts.size() <= std::numeric_limits<uint32_t>::max(),
                    "Number of fonts must be less than 2^32.");
@@ -107,6 +111,7 @@ FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<F
     mIsColorEmoji = static_cast<bool>(reader->read<uint8_t>());
     mIsCustomFallback = static_cast<bool>(reader->read<uint8_t>());
     mIsDefaultFallback = static_cast<bool>(reader->read<uint8_t>());
+    mVarFamilyType = reader->read<VariationFamilyType>();
     mCoverage = SparseBitSet(reader);
     // Read mCmapFmt14Coverage. As it can have null entries, it is stored in the buffer as a sparse
     // array (size, non-null entry count, array of (index, entry)).
@@ -133,6 +138,7 @@ void FontFamily::writeTo(BufferWriter* writer, uint32_t* fontIndex) const {
     writer->write<uint8_t>(mIsColorEmoji);
     writer->write<uint8_t>(mIsCustomFallback);
     writer->write<uint8_t>(mIsDefaultFallback);
+    writer->write<VariationFamilyType>(mVarFamilyType);
     mCoverage.writeTo(writer);
     // Write mCmapFmt14Coverage as a sparse array (size, non-null entry count,
     // array of (index, entry))
@@ -223,6 +229,9 @@ static FontFakery computeFakery(FontStyle wanted, FontStyle actual) {
 }
 
 FakedFont FontFamily::getClosestMatch(FontStyle style) const {
+    if (mVarFamilyType != VariationFamilyType::None) {
+        return getVariationFamilyAdjustment(style);
+    }
     int bestIndex = 0;
     Font* bestFont = mFonts[bestIndex].get();
     int bestMatch = computeMatch(bestFont->style(), style);
@@ -238,9 +247,23 @@ FakedFont FontFamily::getClosestMatch(FontStyle style) const {
     return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
 }
 
+FakedFont FontFamily::getVariationFamilyAdjustment(FontStyle style) const {
+    const bool italic = style.slant() == FontStyle::Slant::ITALIC;
+    switch (mVarFamilyType) {
+        case VariationFamilyType::SingleFont_wghtOnly:
+            return FakedFont{mFonts[0], FontFakery(false, italic, style.weight(), -1)};
+        case VariationFamilyType::SingleFont_wght_ital:
+            return FakedFont{mFonts[0], FontFakery(false, false, style.weight(), italic ? 1 : 0)};
+        case VariationFamilyType::TwoFont_wght:
+            return FakedFont{mFonts[italic ? 1 : 0], FontFakery(false, false, style.weight(), -1)};
+        case VariationFamilyType::None:
+            return FakedFont{mFonts[0], FontFakery()};
+    }
+}
+
 void FontFamily::computeCoverage() {
     const std::shared_ptr<Font>& font = getClosestMatch(FontStyle()).font;
-    HbBlob cmapTable(font->baseFont(), MinikinFont::MakeTag('c', 'm', 'a', 'p'));
+    HbBlob cmapTable(font->baseFont(), MakeTag('c', 'm', 'a', 'p'));
     if (cmapTable.get() == nullptr) {
         ALOGE("Could not get cmap table size!\n");
         return;
@@ -333,7 +356,7 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
         }
         std::shared_ptr<MinikinFont> minikinFont;
         if (supportedVariations) {
-            minikinFont = font->typeface()->createFontWithVariation(variations);
+            minikinFont = font->baseTypeface()->createFontWithVariation(variations);
         }
         if (minikinFont == nullptr) {
             fonts.push_back(font);
@@ -342,7 +365,8 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
         }
     }
 
-    return create(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback, mIsDefaultFallback);
+    return create(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback, mIsDefaultFallback,
+                  VariationFamilyType::None);
 }
 
 }  // namespace minikin

@@ -32,4 +32,6 @@ std::vector<uint16_t> parseUnicodeString(const std::string& in);
 std::vector<uint16_t> utf8ToUtf16(const std::string& text);
 std::string utf16ToUtf8(const U16StringPiece& u16String);
 
+std::string repeat(const std::string& text, int count);
+
 }  // namespace minikin

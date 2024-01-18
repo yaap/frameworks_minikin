@@ -31,6 +31,27 @@
 
 namespace minikin {
 
+// Structs that of line metrics information.
+struct LineMetrics {
+    LineMetrics() : advance(0) {}
+    LineMetrics(const MinikinExtent& extent, const MinikinRect& bounds, float advance)
+            : extent(extent), bounds(bounds), advance(advance) {}
+
+    void append(const LineMetrics& metrics) {
+        append(metrics.extent, metrics.bounds, metrics.advance);
+    }
+
+    void append(const MinikinExtent& nextExtent, const MinikinRect& nextBounds, float nextAdvance) {
+        extent.extendBy(nextExtent);
+        bounds.join(nextBounds, advance, 0);
+        advance += nextAdvance;
+    }
+
+    MinikinExtent extent;
+    MinikinRect bounds;
+    float advance;
+};
+
 class Run {
 public:
     Run(const Range& range) : mRange(range) {}
@@ -41,6 +62,9 @@ public:
 
     // Returns true if this run can be broken into multiple pieces for line breaking.
     virtual bool canBreak() const = 0;
+
+    // Returns true if this run can be hyphenated.
+    virtual bool canHyphenate() const = 0;
 
     // Return the line break style(lb) for this run.
     virtual LineBreakStyle lineBreakStyle() const = 0;
@@ -53,12 +77,16 @@ public:
 
     // Fills the each character's advances, extents and overhangs.
     virtual void getMetrics(const U16StringPiece& text, std::vector<float>* advances,
-                            LayoutPieces* precomputed, LayoutPieces* outPieces) const = 0;
+                            std::vector<uint8_t>* flags, LayoutPieces* precomputed,
+                            bool boundsCalculation, LayoutPieces* outPieces) const = 0;
 
     virtual std::pair<float, MinikinRect> getBounds(const U16StringPiece& text, const Range& range,
                                                     const LayoutPieces& pieces) const = 0;
     virtual MinikinExtent getExtent(const U16StringPiece& text, const Range& range,
                                     const LayoutPieces& pieces) const = 0;
+
+    virtual LineMetrics getLineMetrics(const U16StringPiece& text, const Range& range,
+                                       const LayoutPieces& pieces) const = 0;
 
     virtual void appendLayout(const U16StringPiece& text, const Range& range,
                               const Range& contextRange, const LayoutPieces& pieces,
@@ -93,11 +121,12 @@ protected:
 class StyleRun : public Run {
 public:
     StyleRun(const Range& range, MinikinPaint&& paint, int lineBreakStyle, int lineBreakWordStyle,
-             bool isRtl)
+             bool hyphenation, bool isRtl)
             : Run(range),
               mPaint(std::move(paint)),
               mLineBreakStyle(lineBreakStyle),
               mLineBreakWordStyle(lineBreakWordStyle),
+              mHyphenation(hyphenation),
               mIsRtl(isRtl) {}
 
     bool canBreak() const override { return true; }
@@ -107,17 +136,22 @@ public:
     LineBreakWordStyle lineBreakWordStyle() const override {
         return static_cast<LineBreakWordStyle>(mLineBreakWordStyle);
     }
+    bool canHyphenate() const override { return mHyphenation; }
     uint32_t getLocaleListId() const override { return mPaint.localeListId; }
     bool isRtl() const override { return mIsRtl; }
 
     void getMetrics(const U16StringPiece& text, std::vector<float>* advances,
-                    LayoutPieces* precomputed, LayoutPieces* outPieces) const override;
+                    std::vector<uint8_t>* flags, LayoutPieces* precomputed, bool boundsCalculation,
+                    LayoutPieces* outPieces) const override;
 
     std::pair<float, MinikinRect> getBounds(const U16StringPiece& text, const Range& range,
                                             const LayoutPieces& pieces) const override;
 
     MinikinExtent getExtent(const U16StringPiece& text, const Range& range,
                             const LayoutPieces& pieces) const override;
+
+    LineMetrics getLineMetrics(const U16StringPiece& text, const Range& range,
+                               const LayoutPieces& pieces) const override;
 
     void appendLayout(const U16StringPiece& text, const Range& range, const Range& contextRange,
                       const LayoutPieces& pieces, const MinikinPaint& paint, uint32_t outOrigin,
@@ -135,6 +169,7 @@ private:
     MinikinPaint mPaint;
     int mLineBreakStyle;
     int mLineBreakWordStyle;
+    const bool mHyphenation;
     const bool mIsRtl;
 };
 
@@ -145,12 +180,14 @@ public:
 
     bool isRtl() const { return false; }
     bool canBreak() const { return false; }
+    bool canHyphenate() const { return false; }
     LineBreakStyle lineBreakStyle() const override { return LineBreakStyle::None; }
     LineBreakWordStyle lineBreakWordStyle() const override { return LineBreakWordStyle::None; }
     uint32_t getLocaleListId() const { return mLocaleListId; }
 
     void getMetrics(const U16StringPiece& /* text */, std::vector<float>* advances,
-                    LayoutPieces* /* precomputed */, LayoutPieces* /* outPieces */) const override {
+                    std::vector<uint8_t>* /*flags*/, LayoutPieces* /* precomputed */, bool,
+                    LayoutPieces* /* outPieces */) const override {
         (*advances)[mRange.getStart()] = mWidth;
         // TODO: Get the extents information from the caller.
     }
@@ -165,6 +202,11 @@ public:
     MinikinExtent getExtent(const U16StringPiece& /* text */, const Range& /* range */,
                             const LayoutPieces& /* pieces */) const override {
         return MinikinExtent();
+    }
+
+    LineMetrics getLineMetrics(const U16StringPiece& /*text*/, const Range& /*range*/,
+                               const LayoutPieces& /*pieces*/) const override {
+        return LineMetrics();
     }
 
     void appendLayout(const U16StringPiece& /* text */, const Range& /* range */,
@@ -209,9 +251,44 @@ public:
     // The style information.
     std::vector<std::unique_ptr<Run>> runs;
 
+    // Per character flags.
+    // The loweset bit represents that that character *may* have overhang. If this bit is not set,
+    // the character doesn't have overhang. If this bit is set, the character *may* have overhang.
+    // This information is used for determining using the bounding box based line breaking.
+    static constexpr uint8_t MAY_OVERHANG_BIT = 0b0000'0001;
+    std::vector<uint8_t> flags;
+
     // The copied layout pieces for construcing final layouts.
     // TODO: Stop assigning width/extents if layout pieces are available for reducing memory impact.
     LayoutPieces layoutPieces;
+
+    bool hasOverhang(const Range& range) const {
+        // Heuristics: Check first 5 and last 5 characters and treat there is overhang if at least
+        // one character has overhang.
+        constexpr uint32_t CHARS_TO_DUMPER = 5;
+
+        if (range.getLength() < CHARS_TO_DUMPER * 2) {
+            for (uint32_t i : range) {
+                if ((flags[i] & MAY_OVERHANG_BIT) == MAY_OVERHANG_BIT) {
+                    return true;
+                }
+            }
+        } else {
+            Range first = Range(range.getStart(), range.getStart() + CHARS_TO_DUMPER);
+            Range last = Range(range.getEnd() - CHARS_TO_DUMPER, range.getEnd());
+            for (uint32_t i : first) {
+                if ((flags[i] & MAY_OVERHANG_BIT) == MAY_OVERHANG_BIT) {
+                    return true;
+                }
+            }
+            for (uint32_t i : last) {
+                if ((flags[i] & MAY_OVERHANG_BIT) == MAY_OVERHANG_BIT) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     uint32_t getMemoryUsage() const {
         return sizeof(float) * widths.size() + sizeof(HyphenBreak) * hyphenBreaks.size() +
@@ -223,6 +300,7 @@ public:
                        EndHyphenEdit endHyphen);
     MinikinRect getBounds(const U16StringPiece& textBuf, const Range& range) const;
     MinikinExtent getExtent(const U16StringPiece& textBuf, const Range& range) const;
+    LineMetrics getLineMetrics(const U16StringPiece& textBuf, const Range& range) const;
 
     MeasuredText(MeasuredText&&) = default;
     MeasuredText& operator=(MeasuredText&&) = default;
@@ -233,14 +311,15 @@ private:
     friend class MeasuredTextBuilder;
 
     void measure(const U16StringPiece& textBuf, bool computeHyphenation, bool computeLayout,
-                 bool ignoreHyphenKerning, MeasuredText* hint);
+                 bool computeBounds, bool ignoreHyphenKerning, MeasuredText* hint);
 
     // Use MeasuredTextBuilder instead.
     MeasuredText(const U16StringPiece& textBuf, std::vector<std::unique_ptr<Run>>&& runs,
-                 bool computeHyphenation, bool computeLayout, bool ignoreHyphenKerning,
-                 MeasuredText* hint)
-            : widths(textBuf.size()), runs(std::move(runs)) {
-        measure(textBuf, computeHyphenation, computeLayout, ignoreHyphenKerning, hint);
+                 bool computeHyphenation, bool computeLayout, bool computeBounds,
+                 bool ignoreHyphenKerning, MeasuredText* hint)
+            : widths(textBuf.size()), runs(std::move(runs)), flags(textBuf.size(), 0) {
+        measure(textBuf, computeHyphenation, computeLayout, computeBounds, ignoreHyphenKerning,
+                hint);
     }
 };
 
@@ -249,9 +328,10 @@ public:
     MeasuredTextBuilder() {}
 
     void addStyleRun(int32_t start, int32_t end, MinikinPaint&& paint, int lineBreakStyle,
-                     int lineBreakWordStyle, bool isRtl) {
+                     int lineBreakWordStyle, bool hyphenation, bool isRtl) {
         mRuns.emplace_back(std::make_unique<StyleRun>(Range(start, end), std::move(paint),
-                                                      lineBreakStyle, lineBreakWordStyle, isRtl));
+                                                      lineBreakStyle, lineBreakWordStyle,
+                                                      hyphenation, isRtl));
     }
 
     void addReplacementRun(int32_t start, int32_t end, float width, uint32_t localeListId) {
@@ -267,10 +347,16 @@ public:
     std::unique_ptr<MeasuredText> build(const U16StringPiece& textBuf, bool computeHyphenation,
                                         bool computeLayout, bool ignoreHyphenKerning,
                                         MeasuredText* hint) {
+        return build(textBuf, computeHyphenation, computeLayout, false, ignoreHyphenKerning, hint);
+    }
+
+    std::unique_ptr<MeasuredText> build(const U16StringPiece& textBuf, bool computeHyphenation,
+                                        bool computeLayout, bool computeBounds,
+                                        bool ignoreHyphenKerning, MeasuredText* hint) {
         // Unable to use make_unique here since make_unique is not a friend of MeasuredText.
-        return std::unique_ptr<MeasuredText>(new MeasuredText(textBuf, std::move(mRuns),
-                                                              computeHyphenation, computeLayout,
-                                                              ignoreHyphenKerning, hint));
+        return std::unique_ptr<MeasuredText>(
+                new MeasuredText(textBuf, std::move(mRuns), computeHyphenation, computeLayout,
+                                 computeBounds, ignoreHyphenKerning, hint));
     }
 
     MINIKIN_PREVENT_COPY_ASSIGN_AND_MOVE(MeasuredTextBuilder);

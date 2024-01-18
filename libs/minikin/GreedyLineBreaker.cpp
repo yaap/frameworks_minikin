@@ -16,17 +16,17 @@
 
 #define LOG_TAG "GreedyLineBreak"
 
-#include "minikin/Characters.h"
-#include "minikin/LineBreaker.h"
-#include "minikin/MeasuredText.h"
-#include "minikin/Range.h"
-#include "minikin/U16StringPiece.h"
-
+#include "FeatureFlags.h"
 #include "HyphenatorMap.h"
 #include "LineBreakerUtil.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
 #include "WordBreaker.h"
+#include "minikin/Characters.h"
+#include "minikin/LineBreaker.h"
+#include "minikin/MeasuredText.h"
+#include "minikin/Range.h"
+#include "minikin/U16StringPiece.h"
 
 namespace minikin {
 
@@ -40,17 +40,20 @@ public:
     // destructed.
     GreedyLineBreaker(const U16StringPiece& textBuf, const MeasuredText& measured,
                       const LineWidth& lineWidthLimits, const TabStops& tabStops,
-                      bool enableHyphenation)
+                      bool enableHyphenation, bool useBoundsForWidth)
             : mLineWidthLimit(lineWidthLimits.getAt(0)),
               mTextBuf(textBuf),
               mMeasuredText(measured),
               mLineWidthLimits(lineWidthLimits),
               mTabStops(tabStops),
-              mEnableHyphenation(enableHyphenation) {}
+              mEnableHyphenation(enableHyphenation),
+              mUseBoundsForWidth(useBoundsForWidth) {}
 
-    void process();
+    void process(bool forceWordStyleAutoToPhrase);
 
     LineBreakResult getResult() const;
+
+    bool retryWithPhraseWordBreak = false;
 
 private:
     struct BreakPoint {
@@ -99,6 +102,9 @@ private:
     // This method return true if there is no characters to be processed.
     bool doLineBreakWithGraphemeBounds(const Range& range);
 
+    bool overhangExceedLineLimit(const Range& range);
+    bool doLineBreakWithFallback(const Range& range);
+
     // Info about the line currently processing.
     uint32_t mLineNum = 0;
     double mLineWidth = 0;
@@ -121,6 +127,7 @@ private:
     const LineWidth& mLineWidthLimits;
     const TabStops& mTabStops;
     bool mEnableHyphenation;
+    bool mUseBoundsForWidth;
 
     // The result of line breaking.
     std::vector<BreakPoint> mBreakPoints;
@@ -178,6 +185,10 @@ bool GreedyLineBreaker::tryLineBreakWithHyphenation(const Range& range, WordBrea
 
     const Range targetRange = breaker->wordRange();
     if (!range.contains(targetRange)) {
+        return false;
+    }
+
+    if (!targetRun->canHyphenate()) {
         return false;
     }
 
@@ -263,7 +274,8 @@ bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
         if (w == 0) {
             continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
         }
-        if (width + w > mLineWidthLimit) {
+        if (width + w > mLineWidthLimit ||
+            overhangExceedLineLimit(Range(range.getStart(), i + 1))) {
             // Okay, here is the longest position.
             breakLineAt(i, width, mLineWidth - width, mSumOfCharWidths - width,
                         EndHyphenEdit::NO_EDIT, StartHyphenEdit::NO_EDIT);
@@ -282,6 +294,72 @@ bool GreedyLineBreaker::doLineBreakWithGraphemeBounds(const Range& range) {
     return true;
 }
 
+bool GreedyLineBreaker::doLineBreakWithFallback(const Range& range) {
+    if (!features::phrase_strict_fallback()) {
+        return false;
+    }
+    Run* targetRun = nullptr;
+    for (const auto& run : mMeasuredText.runs) {
+        if (run->getRange().contains(range)) {
+            targetRun = run.get();
+        }
+    }
+
+    if (targetRun == nullptr) {
+        return false;  // The target range may lay on multiple run. Unable to fallback.
+    }
+
+    if (targetRun->lineBreakWordStyle() == LineBreakWordStyle::None) {
+        return false;  // If the line break word style is already none, nothing can be falled back.
+    }
+
+    WordBreaker wb;
+    wb.setText(mTextBuf.data(), mTextBuf.length());
+    ssize_t next = wb.followingWithLocale(getEffectiveLocale(targetRun->getLocaleListId()),
+                                          targetRun->lineBreakStyle(), LineBreakWordStyle::None,
+                                          range.getStart());
+
+    if (!range.contains(next)) {
+        return false;  // No fallback break points.
+    }
+
+    int32_t prevBreak = -1;
+    float wordWidth = 0;
+    float preBreakWidth = 0;
+    for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
+        const float w = mMeasuredText.widths[i];
+        if (w == 0) {
+            continue;  // w == 0 means here is not a grapheme bounds. Don't break here.
+        }
+        if (i == (uint32_t)next) {
+            if (preBreakWidth + wordWidth > mLineWidthLimit) {
+                if (prevBreak == -1) {
+                    return false;  // No candidate before this point. Give up.
+                }
+                breakLineAt(prevBreak, preBreakWidth, mLineWidth - preBreakWidth,
+                            mSumOfCharWidths - preBreakWidth, EndHyphenEdit::NO_EDIT,
+                            StartHyphenEdit::NO_EDIT);
+                return true;
+            }
+            prevBreak = i;
+            next = wb.next();
+            preBreakWidth += wordWidth;
+            wordWidth = w;
+        } else {
+            wordWidth += w;
+        }
+    }
+
+    if (preBreakWidth <= mLineWidthLimit) {
+        breakLineAt(prevBreak, preBreakWidth, mLineWidth - preBreakWidth,
+                    mSumOfCharWidths - preBreakWidth, EndHyphenEdit::NO_EDIT,
+                    StartHyphenEdit::NO_EDIT);
+        return true;
+    }
+
+    return false;
+}
+
 void GreedyLineBreaker::updateLineWidth(uint16_t c, float width) {
     if (c == CHAR_TAB) {
         mSumOfCharWidths = mTabStops.nextTab(mSumOfCharWidths);
@@ -294,18 +372,48 @@ void GreedyLineBreaker::updateLineWidth(uint16_t c, float width) {
     }
 }
 
+bool GreedyLineBreaker::overhangExceedLineLimit(const Range& range) {
+    if (!mUseBoundsForWidth) {
+        return false;
+    }
+    if (!mMeasuredText.hasOverhang(range)) {
+        return false;
+    }
+
+    uint32_t i;
+    for (i = 0; i < range.getLength(); ++i) {
+        uint16_t ch = mTextBuf[range.getEnd() - i - 1];
+        if (!isLineEndSpace(ch)) {
+            break;
+        }
+    }
+    if (i == range.getLength()) {
+        return false;
+    }
+
+    return mMeasuredText.getBounds(mTextBuf, Range(range.getStart(), range.getEnd() - i)).width() >
+           mLineWidthLimit;
+}
+
 void GreedyLineBreaker::processLineBreak(uint32_t offset, WordBreaker* breaker,
                                          bool doHyphenation) {
-    while (mLineWidth > mLineWidthLimit) {
-        const Range lineRange(getPrevLineBreakOffset(), offset);  // The range we need to address.
+    while (mLineWidth > mLineWidthLimit ||
+           overhangExceedLineLimit(Range(getPrevLineBreakOffset(), offset))) {
         if (tryLineBreakWithWordBreak()) {
             continue;  // The word in the new line may still be too long for the line limit.
-        } else if (doHyphenation && tryLineBreakWithHyphenation(lineRange, breaker)) {
+        }
+
+        if (doHyphenation &&
+            tryLineBreakWithHyphenation(Range(getPrevLineBreakOffset(), offset), breaker)) {
             continue;  // TODO: we may be able to return here.
-        } else {
-            if (doLineBreakWithGraphemeBounds(lineRange)) {
-                return;
-            }
+        }
+
+        if (doLineBreakWithFallback(Range(getPrevLineBreakOffset(), offset))) {
+            continue;
+        }
+
+        if (doLineBreakWithGraphemeBounds(Range(getPrevLineBreakOffset(), offset))) {
+            return;
         }
     }
 
@@ -319,24 +427,27 @@ void GreedyLineBreaker::processLineBreak(uint32_t offset, WordBreaker* breaker,
     }
 }
 
-void GreedyLineBreaker::process() {
+void GreedyLineBreaker::process(bool forceWordStyleAutoToPhrase) {
     WordBreaker wordBreaker;
     wordBreaker.setText(mTextBuf.data(), mTextBuf.size());
 
-    // Following two will be initialized after the first iteration.
-    uint32_t localeListId = LocaleListCache::kInvalidListId;
+    WordBreakerTransitionTracker wbTracker;
     uint32_t nextWordBoundaryOffset = 0;
     for (const auto& run : mMeasuredText.runs) {
         const Range range = run->getRange();
 
         // Update locale if necessary.
-        uint32_t newLocaleListId = run->getLocaleListId();
-        if (localeListId != newLocaleListId) {
-            Locale locale = getEffectiveLocale(newLocaleListId);
-            nextWordBoundaryOffset = wordBreaker.followingWithLocale(
-                    locale, run->lineBreakStyle(), run->lineBreakWordStyle(), range.getStart());
+        if (wbTracker.update(*run)) {
+            const LocaleList& localeList = wbTracker.getCurrentLocaleList();
+            const Locale locale = localeList.empty() ? Locale() : localeList[0];
+
+            LineBreakWordStyle lbWordStyle = wbTracker.getCurrentLineBreakWordStyle();
+            std::tie(lbWordStyle, retryWithPhraseWordBreak) =
+                    resolveWordStyleAuto(lbWordStyle, localeList, forceWordStyleAutoToPhrase);
+
+            nextWordBoundaryOffset = wordBreaker.followingWithLocale(locale, run->lineBreakStyle(),
+                                                                     lbWordStyle, range.getStart());
             mHyphenator = HyphenatorMap::lookup(locale);
-            localeListId = newLocaleListId;
         }
 
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
@@ -371,12 +482,32 @@ LineBreakResult GreedyLineBreaker::getResult() const {
             hasTabChar |= mTextBuf[i] == CHAR_TAB;
         }
 
-        MinikinExtent extent =
-                mMeasuredText.getExtent(mTextBuf, Range(prevBreakOffset, breakPoint.offset));
+        if (mUseBoundsForWidth) {
+            Range range = Range(prevBreakOffset, breakPoint.offset);
+            Range actualRange = trimTrailingLineEndSpaces(mTextBuf, range);
+            if (actualRange.isEmpty()) {
+                // No characters before the line-end-spaces.
+                MinikinExtent extent = mMeasuredText.getExtent(mTextBuf, range);
+                out.ascents.push_back(extent.ascent);
+                out.descents.push_back(extent.descent);
+                out.bounds.emplace_back(0, extent.ascent, breakPoint.lineWidth, extent.descent);
+            } else {
+                LineMetrics metrics = mMeasuredText.getLineMetrics(mTextBuf, actualRange);
+                out.ascents.push_back(metrics.extent.ascent);
+                out.descents.push_back(metrics.extent.descent);
+                out.bounds.emplace_back(metrics.bounds);
+            }
+        } else {
+            MinikinExtent extent =
+                    mMeasuredText.getExtent(mTextBuf, Range(prevBreakOffset, breakPoint.offset));
+            out.ascents.push_back(extent.ascent);
+            out.descents.push_back(extent.descent);
+            // We don't have bounding box if mUseBoundsForWidth is false. Use line ascent/descent
+            // and linew width for the bounding box.
+            out.bounds.emplace_back(0, extent.ascent, breakPoint.lineWidth, extent.descent);
+        }
         out.breakPoints.push_back(breakPoint.offset);
         out.widths.push_back(breakPoint.lineWidth);
-        out.ascents.push_back(extent.ascent);
-        out.descents.push_back(extent.descent);
         out.flags.push_back((hasTabChar ? TAB_BIT : 0) | static_cast<int>(breakPoint.hyphenEdit));
 
         prevBreakOffset = breakPoint.offset;
@@ -388,13 +519,41 @@ LineBreakResult GreedyLineBreaker::getResult() const {
 
 LineBreakResult breakLineGreedy(const U16StringPiece& textBuf, const MeasuredText& measured,
                                 const LineWidth& lineWidthLimits, const TabStops& tabStops,
-                                bool enableHyphenation) {
+                                bool enableHyphenation, bool useBoundsForWidth) {
     if (textBuf.size() == 0) {
         return LineBreakResult();
     }
-    GreedyLineBreaker lineBreaker(textBuf, measured, lineWidthLimits, tabStops, enableHyphenation);
-    lineBreaker.process();
-    return lineBreaker.getResult();
+    GreedyLineBreaker lineBreaker(textBuf, measured, lineWidthLimits, tabStops, enableHyphenation,
+                                  useBoundsForWidth);
+    lineBreaker.process(false);
+    LineBreakResult res = lineBreaker.getResult();
+
+    if (!features::word_style_auto()) {
+        return res;
+    }
+
+    // The line breaker says that retry with phrase based word break because of the auto option and
+    // given locales.
+    if (!lineBreaker.retryWithPhraseWordBreak) {
+        return res;
+    }
+
+    // If the line break result is more than heuristics threshold, don't try pharse based word
+    // break.
+    if (res.breakPoints.size() >= LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res;
+    }
+
+    GreedyLineBreaker phLineBreaker(textBuf, measured, lineWidthLimits, tabStops, enableHyphenation,
+                                    useBoundsForWidth);
+    phLineBreaker.process(true);
+    LineBreakResult res2 = phLineBreaker.getResult();
+
+    if (res2.breakPoints.size() < LBW_AUTO_HEURISTICS_LINE_COUNT) {
+        return res2;
+    } else {
+        return res;
+    }
 }
 
 }  // namespace minikin

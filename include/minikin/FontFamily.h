@@ -30,6 +30,13 @@
 
 namespace minikin {
 
+enum VariationFamilyType : uint8_t {
+    None = 0,
+    SingleFont_wghtOnly = 1,
+    SingleFont_wght_ital = 2,
+    TwoFont_wght = 3,
+};
+
 class FontFamily {
 public:
     static std::shared_ptr<FontFamily> create(std::vector<std::shared_ptr<Font>>&& fonts);
@@ -37,7 +44,8 @@ public:
                                               std::vector<std::shared_ptr<Font>>&& fonts);
     static std::shared_ptr<FontFamily> create(uint32_t localeListId, FamilyVariant variant,
                                               std::vector<std::shared_ptr<Font>>&& fonts,
-                                              bool isCustomFallback, bool isDefaultFallback);
+                                              bool isCustomFallback, bool isDefaultFallback,
+                                              VariationFamilyType varFamilyType);
 
     FontFamily(FontFamily&&) = default;
     FontFamily& operator=(FontFamily&&) = default;
@@ -47,6 +55,7 @@ public:
                             const std::vector<std::shared_ptr<FontFamily>>& families);
 
     FakedFont getClosestMatch(FontStyle style) const;
+    FakedFont getVariationFamilyAdjustment(FontStyle style) const;
 
     uint32_t localeListId() const { return mLocaleListId; }
     FamilyVariant variant() const { return mVariant; }
@@ -80,7 +89,7 @@ public:
 private:
     FontFamily(uint32_t localeListId, FamilyVariant variant,
                std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback,
-               bool isDefaultFallback);
+               bool isDefaultFallback, VariationFamilyType varFamilyType);
     explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
 
     void writeTo(BufferWriter* writer, uint32_t* fontIndex) const;
@@ -103,6 +112,7 @@ private:
     bool mIsColorEmoji;                // 1 byte
     bool mIsCustomFallback;            // 1 byte
     bool mIsDefaultFallback;           // 1 byte
+    VariationFamilyType mVarFamilyType;  // 1byte
 
     MINIKIN_PREVENT_COPY_AND_ASSIGN(FontFamily);
 };

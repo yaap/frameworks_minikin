@@ -34,6 +34,8 @@ namespace minikin {
 // The maximum number of font families.
 constexpr uint32_t MAX_FAMILY_COUNT = 254;
 
+class LocaleList;
+
 class FontCollection {
 public:
     static std::shared_ptr<FontCollection> create(
@@ -147,6 +149,8 @@ public:
         return itemize(text, style, localeListId, familyVariant, text.size());
     }
 
+    MinikinExtent getReferenceExtentForLocale(const MinikinPaint& paint) const;
+
     // Returns true if there is a glyph for the code point and variation selector pair.
     // Returns false if no fonts have a glyph for the code point and variation
     // selector pair, or invalid variation selector is passed.
@@ -222,6 +226,9 @@ private:
                                const std::shared_ptr<FontFamily>& fontFamily) const;
 
     bool isPrimaryFamily(const std::shared_ptr<FontFamily>& fontFamily) const;
+
+    void filterFamilyByLocale(const LocaleList& localeList,
+                              const std::function<void(const FontFamily& family)>& callback) const;
 
     static uint32_t calcLocaleMatchingScore(uint32_t userLocaleListId,
                                             const FontFamily& fontFamily);

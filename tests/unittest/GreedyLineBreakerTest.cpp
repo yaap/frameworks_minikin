@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <memory>
-
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 
-#include "minikin/Hyphenator.h"
+#include <memory>
 
 #include "FileUtils.h"
 #include "FontTestUtils.h"
@@ -29,6 +29,7 @@
 #include "MinikinInternal.h"
 #include "UnicodeUtils.h"
 #include "WordBreaker.h"
+#include "minikin/Hyphenator.h"
 
 namespace minikin {
 namespace {
@@ -46,6 +47,17 @@ constexpr float DESCENT = 20.0f;
 // The ascent/descent of CustomExtent.ttf with text size = 10.
 constexpr float CUSTOM_ASCENT = -160.0f;
 constexpr float CUSTOM_DESCENT = 40.0f;
+
+// A test string for Japanese. The meaning is that "Today is a sunny day."
+// The expected line break of phrase and non-phrase cases are:
+//     Phrase: | \u672C\u65E5\u306F | \u6674\u5929\u306A\u308A\u3002 |
+// Non-Phrase: | \u672C | \u65E5 | \u306F | \u6674 | \u5929 | \u306A | \u308A\u3002 |
+const char* JP_TEXT = "\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002";
+
+// A test string for Korean. The meaning is that "I want to eat breakfast."
+// The phrase based line break breaks at spaces, non-phrase based line break breaks at grapheme.
+const char* KO_TEXT =
+        "\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020\uC2F6\uC2B5\uB2C8\uB2E4\u002E";
 
 class GreedyLineBreakerTest : public testing::Test {
 public:
@@ -69,6 +81,48 @@ protected:
         return doLineBreak(textBuffer, doHyphenation, "en-US", lineWidth);
     }
 
+    LineBreakResult doLineBreakForJapanese(const U16StringPiece& textBuffer,
+                                           LineBreakWordStyle lbwStyle, const std::string& lang,
+                                           float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family = buildFontFamily("Japanese.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId(lang);
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
+                            (int)lbwStyle, true, false);
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops, false,
+                               false);
+    }
+
+    LineBreakResult doLineBreakForKorean(const U16StringPiece& textBuffer,
+                                         LineBreakWordStyle lbwStyle, const std::string& lang,
+                                         float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family = buildFontFamily("Hangul.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId(lang);
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
+                            (int)lbwStyle, true, false);
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops, false,
+                               false);
+    }
+
     LineBreakResult doLineBreak(const U16StringPiece& textBuffer, bool doHyphenation,
                                 const std::string& lang, float lineWidth) {
         MeasuredTextBuilder builder;
@@ -80,14 +134,74 @@ protected:
         paint.size = 10.0f;  // Make 1em=10px
         paint.localeListId = LocaleListCache::getId(lang);
         builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                            (int)LineBreakWordStyle::None, false);
+                            (int)LineBreakWordStyle::None, true, false);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(lineWidth);
         TabStops tabStops(nullptr, 0, 10);
         return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
-                               doHyphenation);
+                               doHyphenation, false);
+    }
+
+    LineBreakResult doLineBreakWithNoHyphenSpan(const U16StringPiece& textBuffer,
+                                                const Range& noHyphenRange, float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family1 = buildFontFamily("Ascii.ttf");
+        auto family2 = buildFontFamily("CustomExtent.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
+        auto fc = FontCollection::create(families);
+        if (noHyphenRange.getStart() != 0) {
+            MinikinPaint paint(fc);
+            paint.size = 10.0f;  // Make 1em=10px
+            paint.localeListId = LocaleListCache::getId("en-US");
+            builder.addStyleRun(0, noHyphenRange.getStart(), std::move(paint),
+                                (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                                true /* hyphenation */, false);
+        }
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId("en-US");
+        builder.addStyleRun(noHyphenRange.getStart(), noHyphenRange.getEnd(), std::move(paint),
+                            (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                            false /* hyphenation */, false);
+        if (noHyphenRange.getEnd() != textBuffer.size()) {
+            MinikinPaint paint(fc);
+            paint.size = 10.0f;  // Make 1em=10px
+            paint.localeListId = LocaleListCache::getId("en-US");
+            builder.addStyleRun(noHyphenRange.getEnd(), textBuffer.size(), std::move(paint),
+                                (int)LineBreakStyle::None, (int)LineBreakWordStyle::None,
+                                true /* hyphenation */, false);
+        }
+
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
+                               true /* doHyphenation */, false);
+    }
+
+    LineBreakResult doLineBreakForBounds(const U16StringPiece& textBuffer, bool doHyphenation,
+                                         float lineWidth) {
+        MeasuredTextBuilder builder;
+        auto family1 = buildFontFamily("OvershootTest.ttf");
+        auto family2 = buildFontFamily("Ascii.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
+        auto fc = FontCollection::create(families);
+        MinikinPaint paint(fc);
+        paint.size = 10.0f;  // Make 1em=10px
+        paint.localeListId = LocaleListCache::getId("en-US");
+        builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
+                            (int)LineBreakWordStyle::None, true, false);
+        std::unique_ptr<MeasuredText> measuredText = builder.build(
+                textBuffer, false /* compute hyphenation */, false /* compute full layout */,
+                true /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
+        RectangleLineWidth rectangleLineWidth(lineWidth);
+        TabStops tabStops(nullptr, 0, 10);
+        return breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
+                               doHyphenation, true);
     }
 
 private:
@@ -106,18 +220,19 @@ TEST_F(GreedyLineBreakerTest, roundingError) {
     paint.localeListId = LocaleListCache::getId("en-US");
     const std::vector<uint16_t> textBuffer = utf8ToUtf16("8888888888888888888");
 
-    float measured = Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
-                                         StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr);
+    float measured =
+            Layout::measureText(textBuffer, Range(0, textBuffer.size()), Bidi::LTR, paint,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, nullptr, nullptr);
 
     builder.addStyleRun(0, textBuffer.size(), std::move(paint), (int)LineBreakStyle::None,
-                        (int)LineBreakWordStyle::None, false);
+                        (int)LineBreakWordStyle::None, true, false);
     std::unique_ptr<MeasuredText> measuredText = builder.build(
             textBuffer, false /* compute hyphenation */, false /* compute full layout */,
-            false /* ignore kerning */, nullptr /* no hint */);
+            false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
     RectangleLineWidth rectangleLineWidth(measured);
     TabStops tabStops(nullptr, 0, 10);
     LineBreakResult r = breakLineGreedy(textBuffer, *measuredText, rectangleLineWidth, tabStops,
-                                        false /* do hyphenation */);
+                                        false /* do hyphenation */, false /* useBoundsForWidth */);
 
     EXPECT_EQ(1u, r.breakPoints.size());
 }
@@ -707,11 +822,11 @@ TEST_F(GreedyLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 10);
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -727,11 +842,11 @@ TEST_F(GreedyLineBreakerTest, testZeroWidthCharacter) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 10);
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -758,12 +873,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -779,12 +894,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitchTest) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -843,12 +958,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -866,12 +981,12 @@ TEST_F(GreedyLineBreakerTest, testLocaleSwitch_InEmailOrUrl) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, 0);
 
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -897,12 +1012,12 @@ TEST_F(GreedyLineBreakerTest, CrashFix_Space_Tab) {
                                           DESCENT);
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(LINE_WIDTH);
         TabStops tabStops(nullptr, 0, CHAR_WIDTH);
 
-        const auto actual =
-                breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        const auto actual = breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops,
+                                            DO_HYPHEN, false /* useBoundsForWidth */);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
@@ -1066,10 +1181,11 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_SingleChar) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
+                               false /* useBoundsForWidth */);
     };
 
     {
@@ -1161,10 +1277,11 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_MultipleChars) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
+                               false /* useBoundsForWidth */);
     };
 
     {
@@ -1249,10 +1366,11 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_CJK) {
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
+                               false /* useBoundsForWidth */);
     };
 
     {
@@ -1400,10 +1518,11 @@ TEST_F(GreedyLineBreakerTest, testReplacementSpanNotBreakTest_with_punctuation) 
 
         std::unique_ptr<MeasuredText> measuredText = builder.build(
                 textBuf, false /* compute hyphenation */, false /* compute full layout */,
-                false /* ignore kerning */, nullptr /* no hint */);
+                false /* computeBounds */, false /* ignore kerning */, nullptr /* no hint */);
         RectangleLineWidth rectangleLineWidth(width);
         TabStops tabStops(nullptr, 0, 0);
-        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN);
+        return breakLineGreedy(textBuf, *measuredText, rectangleLineWidth, tabStops, DO_HYPHEN,
+                               false /* useBoundsForWidth */);
     };
 
     {
@@ -1589,5 +1708,600 @@ TEST_F(GreedyLineBreakerTest, testControllCharAfterSpace) {
                                                    << toString(textBuf, actual);
     }
 }
+
+TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
+    // The OvershootTest.ttf has following coverage, extent, width and bbox.
+    // U+0061(a): 1em, (   0, 0) - (1,   1)
+    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
+    // U+0063(c): 1em, (   0, 0) - (2,   1)
+    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
+    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
+    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
+    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
+    constexpr bool NO_HYPHEN = false;  // No hyphenation in this test case.
+
+    const std::vector<uint16_t> textBuf = utf8ToUtf16("dddd dddd dddd dddd");
+    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
+    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        constexpr float LINE_WIDTH = 1000;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"dddd dddd dddd dddd", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
+    }
+    {
+        constexpr float LINE_WIDTH = 110;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"dddd dddd ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"dddd dddd", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
+    }
+    {
+        constexpr float LINE_WIDTH = 100;
+        // Even if the total advance of "dddd dddd" is 90, the width of bounding box of "dddd dddd"
+        // is
+        // Rect(0em, 1em, 10.5em, 0em). So "dddd dddd" is broken into two lines.
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"dddd ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"dddd", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
+    }
+}
+
+TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
+    // The OvershootTest.ttf has following coverage, extent, width and bbox.
+    // U+0061(a): 1em, (   0, 0) - (1,   1)
+    // U+0062(b): 1em, (   0, 0) - (1.5, 1)
+    // U+0063(c): 1em, (   0, 0) - (2,   1)
+    // U+0064(d): 1em, (   0, 0) - (2.5, 1)
+    // U+0065(e): 1em, (-0.5, 0) - (1,   1)
+    // U+0066(f): 1em, (-1.0, 0) - (1,   1)
+    // U+0067(g): 1em, (-1.5, 0) - (1,   1)
+    constexpr bool NO_HYPHEN = false;  // No hyphenation in this test case.
+
+    const std::vector<uint16_t> textBuf = utf8ToUtf16("gggg gggg gggg gggg");
+    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
+    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        constexpr float LINE_WIDTH = 1000;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"gggg gggg gggg gggg", 190, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
+    }
+    {
+        constexpr float LINE_WIDTH = 110;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"gggg gggg ", 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"gggg gggg" , 90, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
+    }
+    {
+        constexpr float LINE_WIDTH = 100;
+        // Even if the total advance of "dddd dddd" is 90, the width of bounding box of "dddd dddd"
+        // is
+        // Rect(0em, 1em, 10.5em, 0em). So "dddd dddd" is broken into two lines.
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"gggg ", 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+                {"gggg" , 40, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT},
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakForBounds(textBuf, NO_HYPHEN, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
+    }
+}
+
+TEST_F(GreedyLineBreakerTest, testBreakWithHyphenation_NoHyphenationSpan) {
+    // "hyphenation" is hyphnated to "hy-phen-a-tion".
+    const std::vector<uint16_t> textBuf = utf8ToUtf16("This is Android. Here is hyphenation.");
+    const Range noHyphenRange(25, 37);  // the range of the word "hyphenation".
+
+    constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
+    constexpr EndHyphenEdit END_HYPHEN = EndHyphenEdit::INSERT_HYPHEN;
+    constexpr EndHyphenEdit NO_END_HYPHEN = EndHyphenEdit::NO_EDIT;
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                { "This is "  , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Android. " , 80, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Here is "  , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "hyphena-"  , 80, NO_START_HYPHEN,    END_HYPHEN, ASCENT, DESCENT },
+                { "tion."    , 50, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+        };
+        // clang-format on
+
+        const auto actual = doLineBreak(textBuf, true /* do hyphenation */, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                { "This is "   , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Android. "  , 80, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "Here is "   , 70, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                // Prevent hyphenation of "hyphenation". Fallback to desperate break.
+                { "hyphenatio" ,100, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+                { "n."         , 20, NO_START_HYPHEN, NO_END_HYPHEN, ASCENT, DESCENT },
+        };
+        // clang-format on
+
+        const auto actual = doLineBreakWithNoHyphenSpan(textBuf, noHyphenRange, LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002" , 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5" , 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002" , 60),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002", 40),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002"  , 20),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::None, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 1));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 2));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 3));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 4));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    // When the line becomes more or equal to 5, the phrase based line break is disabled.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 5));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(repeat(JP_TEXT, 6));
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5", 100),
+                line("\u306F\u6674\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674", 100),
+                line("\u5929\u306A\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A", 100),
+                line("\u308A\u3002\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002", 100),
+                line("\u672C\u65E5\u306F\u6674\u5929\u306A\u308A\u3002"  , 80),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                      word_style_auto))) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::None should break with grapheme bounds");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020\uC2F6\uC2B5", 100),
+                line("\uB2C8\uB2E4\u002E", 30),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::None, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::Phrase should break with spaces");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020", 70),
+                line("\uC2F6\uC2B5\uB2C8\uB2E4\u002E", 50),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::Phrase, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+    {
+        SCOPED_TRACE("LineBreakWOrdStyle::Auto should perform as phrase based line break.");
+        const std::vector<uint16_t> textBuf = utf8ToUtf16(KO_TEXT);
+        constexpr float LINE_WIDTH = 100;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\uC544\uCE68\uBC25\uC744\u0020\uBA39\uACE0\u0020", 70),
+                line("\uC2F6\uC2B5\uB2C8\uB2E4\u002E", 50),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForKorean(textBuf, LineBreakWordStyle::Auto, "ko-KR", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
 }  // namespace
 }  // namespace minikin

@@ -34,6 +34,7 @@ constexpr uint32_t CHAR_MAQAF = 0x05BE;
 constexpr uint32_t CHAR_UCAS_HYPHEN = 0x1400;
 constexpr uint32_t CHAR_ZWJ = 0x200D;
 constexpr uint32_t CHAR_HYPHEN = 0x2010;
+constexpr uint32_t CHAR_REPLACEMENT_CHARACTER = 0xFFFD;
 
 }  // namespace minikin
 

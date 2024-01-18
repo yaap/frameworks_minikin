@@ -18,16 +18,16 @@
 
 #define LOG_TAG "Minikin"
 
+#include <hb-ot.h>
+#include <hb.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include <hb-ot.h>
-#include <hb.h>
-
 #include "MinikinInternal.h"
-#include "minikin/MinikinFont.h"
+#include "minikin/Constants.h"
 
 namespace minikin {
 
@@ -175,7 +175,7 @@ HbFaceUniquePtr FontFileParser::makeHbFace(const void* buffer, size_t size, uint
 std::optional<uint32_t> FontFileParser::getFontRevision() const {
     if (!mFace) return std::optional<uint32_t>();
 
-    HbBlob headTable(mFace, MinikinFont::MakeTag('h', 'e', 'a', 'd'));
+    HbBlob headTable(mFace, MakeTag('h', 'e', 'a', 'd'));
     if (!headTable) return std::optional<uint32_t>();
 
     uint32_t out = 0;
@@ -211,8 +211,8 @@ std::optional<std::string> FontFileParser::getPostScriptName() const {
 std::optional<bool> FontFileParser::isPostScriptType1Font() const {
     if (!mFace) return std::optional<bool>();
 
-    HbBlob cffTable(mFace, MinikinFont::MakeTag('C', 'F', 'F', ' '));
-    HbBlob cff2Table(mFace, MinikinFont::MakeTag('C', 'F', 'F', '2'));
+    HbBlob cffTable(mFace, MakeTag('C', 'F', 'F', ' '));
+    HbBlob cff2Table(mFace, MakeTag('C', 'F', 'F', '2'));
     return cffTable || cff2Table;
 }
 
