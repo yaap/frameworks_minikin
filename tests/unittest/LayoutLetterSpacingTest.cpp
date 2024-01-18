@@ -42,9 +42,6 @@ protected:
                     bool isRtl, RunFlag runFlag) {
         ASSERT_TRUE(mPaint) << "Setup error: must call setShapeParam for setting up the test";
 
-        SCOPED_TRACE(::testing::Message() << "text=" << utf8 << ", flag="
-                                          << static_cast<int>(runFlag) << ", rtl=" << isRtl);
-
         // Prepare parameters
         std::vector<float> expect_advances(expect_advances_args.begin(),
                                            expect_advances_args.end());
@@ -59,10 +56,18 @@ protected:
         float width = Layout::measureText(text, range, bidiFlag, *mPaint, StartHyphenEdit::NO_EDIT,
                                           EndHyphenEdit::NO_EDIT, advances.data(), nullptr, nullptr,
                                           runFlag);
+        // Calculate width without per character widths.
+        float widthWithoutChars =
+                Layout::measureText(text, range, bidiFlag, *mPaint, StartHyphenEdit::NO_EDIT,
+                                    EndHyphenEdit::NO_EDIT, nullptr, nullptr, nullptr, runFlag);
         Layout layout(text, range, bidiFlag, *mPaint, StartHyphenEdit::NO_EDIT,
                       EndHyphenEdit::NO_EDIT, runFlag);
 
+        SCOPED_TRACE(::testing::Message()
+                     << "text=" << utf8 << ", flag=" << static_cast<int>(runFlag)
+                     << ", rtl=" << isRtl << ", layout = " << layout);
         // First, Layout creation and measureText should have the same output
+        EXPECT_EQ(width, widthWithoutChars);
         EXPECT_EQ(advances, layout.getAdvances());
         EXPECT_EQ(width, layout.getAdvance());
 
@@ -76,9 +81,11 @@ protected:
 
         // Verify Glyph offset
         EXPECT_EQ(expect_glyph_offsets.size(), layout.nGlyphs());
+        std::vector<float> actual_glyph_offsets;
         for (uint32_t i = 0; i < expect_glyph_offsets.size(); ++i) {
-            EXPECT_EQ(expect_glyph_offsets[i], layout.getX(i)) << i;
+            actual_glyph_offsets.push_back(layout.getX(i));
         }
+        EXPECT_EQ(expect_glyph_offsets, actual_glyph_offsets);
     }
 
     void setShapeParam(const std::string& font, float letterSpacing) {
@@ -174,6 +181,100 @@ TEST_F(LayoutLetterSpacingTest, measuredTextTest_LetterSpacing_Bidi) {
     LayoutTest({20, 20, 20, 20, 20, 15}, {0, 20, 40, 60, 80, 100}, RRLLRR, RTL, LEFT_EDGE);
     LayoutTest({15, 20, 20, 20, 20, 20}, {5, 25, 45, 65, 85, 105}, RRLLRR, RTL, RIGHT_EDGE);
     LayoutTest({15, 20, 20, 20, 20, 15}, {0, 20, 40, 60, 80, 100}, RRLLRR, RTL, WHOLE_LINE);
+}
+
+TEST_F(LayoutLetterSpacingTest, measureTextTest_ControlCharacters) {
+    // In this test case, use ControlCharacters.ttf for testing. This font supports ASCII plus
+    // following letters.
+    // U+FEFF: ZERO WIDTH NO-BREAK SPACE: Control character and no width.
+    setShapeParam("ControlCharacters.ttf", 1.0f);
+
+    // U+FEFF is a control character, so letter spacing should not be applied.
+    LayoutTest({0}, {0}, "\uFEFF", LTR, NONE);
+    LayoutTest({0}, {0}, "\uFEFF", LTR, LEFT_EDGE);
+    LayoutTest({0}, {0}, "\uFEFF", LTR, RIGHT_EDGE);
+    LayoutTest({0}, {0}, "\uFEFF", LTR, WHOLE_LINE);
+
+    LayoutTest({20, 0}, {5, 20}, "a\uFEFF", LTR, NONE);
+    LayoutTest({15, 0}, {0, 15}, "a\uFEFF", LTR, LEFT_EDGE);
+    LayoutTest({15, 0}, {5, 15}, "a\uFEFF", LTR, RIGHT_EDGE);
+    LayoutTest({10, 0}, {0, 10}, "a\uFEFF", LTR, WHOLE_LINE);
+
+    LayoutTest({20, 0, 20}, {5, 20, 25}, "a\uFEFFa", LTR, NONE);
+    LayoutTest({15, 0, 20}, {0, 15, 20}, "a\uFEFFa", LTR, LEFT_EDGE);
+    LayoutTest({20, 0, 15}, {5, 20, 25}, "a\uFEFFa", LTR, RIGHT_EDGE);
+    LayoutTest({15, 0, 15}, {0, 15, 20}, "a\uFEFFa", LTR, WHOLE_LINE);
+
+    LayoutTest({0, 20}, {0, 5}, "\uFEFFa", LTR, NONE);
+    LayoutTest({0, 15}, {0, 0}, "\uFEFFa", LTR, LEFT_EDGE);
+    LayoutTest({0, 15}, {0, 5}, "\uFEFFa", LTR, RIGHT_EDGE);
+    LayoutTest({0, 10}, {0, 0}, "\uFEFFa", LTR, WHOLE_LINE);
+
+    LayoutTest({0, 20, 0}, {0, 5, 20}, "\uFEFFa\uFEFF", LTR, NONE);
+    LayoutTest({0, 15, 0}, {0, 0, 15}, "\uFEFFa\uFEFF", LTR, LEFT_EDGE);
+    LayoutTest({0, 15, 0}, {0, 5, 15}, "\uFEFFa\uFEFF", LTR, RIGHT_EDGE);
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFFa\uFEFF", LTR, WHOLE_LINE);
+}
+
+TEST_F(LayoutLetterSpacingTest, measureTextTest_ControlCharacters_RTL) {
+    // In this test case, use ControlCharacters.ttf for testing. This font supports ASCII plus
+    // following letters.
+    // U+FEFF: ZERO WIDTH NO-BREAK SPACE: Control character and no width.
+    setShapeParam("ControlCharacters.ttf", 1.0f);
+
+    // U+FEFF is a control character, so letter spacing should not be applied.
+    LayoutTest({0}, {0}, "\uFEFF", RTL, NONE);
+    LayoutTest({0}, {0}, "\uFEFF", RTL, LEFT_EDGE);
+    LayoutTest({0}, {0}, "\uFEFF", RTL, RIGHT_EDGE);
+    LayoutTest({0}, {0}, "\uFEFF", RTL, WHOLE_LINE);
+
+    LayoutTest({20, 0}, {0, 5}, "\u05D0\uFEFF", RTL, NONE);
+    LayoutTest({15, 0}, {0, 0}, "\u05D0\uFEFF", RTL, LEFT_EDGE);
+    LayoutTest({15, 0}, {0, 5}, "\u05D0\uFEFF", RTL, RIGHT_EDGE);
+    LayoutTest({10, 0}, {0, 0}, "\u05D0\uFEFF", RTL, WHOLE_LINE);
+
+    LayoutTest({20, 0, 20}, {5, 20, 25}, "\u05D0\uFEFF\u05D0", RTL, NONE);
+    LayoutTest({20, 0, 15}, {0, 15, 20}, "\u05D0\uFEFF\u05D0", RTL, LEFT_EDGE);
+    LayoutTest({15, 0, 20}, {5, 20, 25}, "\u05D0\uFEFF\u05D0", RTL, RIGHT_EDGE);
+    LayoutTest({15, 0, 15}, {0, 15, 20}, "\u05D0\uFEFF\u05D0", RTL, WHOLE_LINE);
+
+    LayoutTest({0, 20}, {5, 20}, "\uFEFF\u05D0", RTL, NONE);
+    LayoutTest({0, 15}, {0, 15}, "\uFEFF\u05D0", RTL, LEFT_EDGE);
+    LayoutTest({0, 15}, {5, 15}, "\uFEFF\u05D0", RTL, RIGHT_EDGE);
+    LayoutTest({0, 10}, {0, 10}, "\uFEFF\u05D0", RTL, WHOLE_LINE);
+
+    LayoutTest({0, 20, 0}, {0, 5, 20}, "\uFEFF\u05D0\uFEFF", RTL, NONE);
+    LayoutTest({0, 15, 0}, {0, 0, 15}, "\uFEFF\u05D0\uFEFF", RTL, LEFT_EDGE);
+    LayoutTest({0, 15, 0}, {0, 5, 15}, "\uFEFF\u05D0\uFEFF", RTL, RIGHT_EDGE);
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFF\u05D0\uFEFF", RTL, WHOLE_LINE);
+}
+
+TEST_F(LayoutLetterSpacingTest, measureTextTest_ControlCharacters_RTL_Arabic) {
+    // In this test case, use ControlCharacters.ttf for testing. This font supports ASCII plus
+    // following letters.
+    // U+FEFF: ZERO WIDTH NO-BREAK SPACE: Control character and no width.
+    setShapeParam("ControlCharacters.ttf", 1.0f);
+
+    // U+FEFF is a control character, so letter spacing should not be applied.
+    LayoutTest({10, 0}, {0, 0}, "\u0627\uFEFF", RTL, NONE);
+    LayoutTest({10, 0}, {0, 0}, "\u0627\uFEFF", RTL, LEFT_EDGE);
+    LayoutTest({10, 0}, {0, 0}, "\u0627\uFEFF", RTL, RIGHT_EDGE);
+    LayoutTest({10, 0}, {0, 0}, "\u0627\uFEFF", RTL, WHOLE_LINE);
+
+    LayoutTest({10, 0, 10}, {0, 10, 10}, "\u0627\uFEFF\u0627", RTL, NONE);
+    LayoutTest({10, 0, 10}, {0, 10, 10}, "\u0627\uFEFF\u0627", RTL, LEFT_EDGE);
+    LayoutTest({10, 0, 10}, {0, 10, 10}, "\u0627\uFEFF\u0627", RTL, RIGHT_EDGE);
+    LayoutTest({10, 0, 10}, {0, 10, 10}, "\u0627\uFEFF\u0627", RTL, WHOLE_LINE);
+
+    LayoutTest({0, 10}, {0, 10}, "\uFEFF\u0627", RTL, NONE);
+    LayoutTest({0, 10}, {0, 10}, "\uFEFF\u0627", RTL, LEFT_EDGE);
+    LayoutTest({0, 10}, {0, 10}, "\uFEFF\u0627", RTL, RIGHT_EDGE);
+    LayoutTest({0, 10}, {0, 10}, "\uFEFF\u0627", RTL, WHOLE_LINE);
+
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFF\u0627\uFEFF", RTL, NONE);
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFF\u0627\uFEFF", RTL, LEFT_EDGE);
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFF\u0627\uFEFF", RTL, RIGHT_EDGE);
+    LayoutTest({0, 10, 0}, {0, 0, 10}, "\uFEFF\u0627\uFEFF", RTL, WHOLE_LINE);
 }
 
 }  // namespace minikin
