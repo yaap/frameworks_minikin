@@ -19,6 +19,7 @@
 
 #include <gtest/gtest_prod.h>
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
