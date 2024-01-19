@@ -309,7 +309,7 @@ private:
     float mTotalAdvance{0};
     const uint32_t mOutOffset;
     const float mWordSpacing;
-    uint32_t mClusterCount;
+    uint32_t mClusterCount{0};
     MinikinRect* mBounds;
 };
 

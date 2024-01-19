@@ -392,5 +392,16 @@ TEST(LayoutPieceTest, doLayoutTest_SubString) {
     }
 }
 
+TEST(LayoutPieceTest, doLayoutLongTextTest) {
+    auto fc = makeFontCollection({"Ascii.ttf"});
+    std::string text;
+    for (int i = 0; i < 1024; i++) {
+        text += "a";
+    }
+    auto layout = buildLayout(text, fc);
+    EXPECT_EQ(1024u, layout.glyphCount());
+    EXPECT_EQ(1024u, layout.clusterCount());
+}
+
 }  // namespace
 }  // namespace minikin

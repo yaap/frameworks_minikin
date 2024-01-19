@@ -306,7 +306,12 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
     float x = 0;
     float y = 0;
-    std::set<uint8_t> clusterSet;
+
+    constexpr uint32_t MAX_LENGTH_FOR_BITSET = 256;  // std::bit_ceil(CHAR_LIMIT_FOR_CACHE);
+    std::bitset<MAX_LENGTH_FOR_BITSET> clusterSet;
+    std::set<uint32_t> clusterSetForLarge;
+    const bool useLargeSet = count >= MAX_LENGTH_FOR_BITSET;
+
     for (int run_ix = isRtl ? items.size() - 1 : 0;
          isRtl ? run_ix >= 0 : run_ix < static_cast<int>(items.size());
          isRtl ? --run_ix : ++run_ix) {
@@ -450,7 +455,11 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 mPoints.emplace_back(x + xoff, y + yoff);
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
                 mClusters.push_back(clusterBaseIndex);
-                clusterSet.insert(clusterBaseIndex);
+                if (useLargeSet) {
+                    clusterSetForLarge.insert(clusterBaseIndex);
+                } else {
+                    clusterSet.set(clusterBaseIndex);
+                }
 
                 if (clusterBaseIndex < count) {
                     mAdvances[clusterBaseIndex] += xAdvance;
@@ -475,7 +484,11 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mPoints.shrink_to_fit();
     mClusters.shrink_to_fit();
     mAdvance = x;
-    mClusterCount = clusterSet.size();
+    if (useLargeSet) {
+        mClusterCount = clusterSetForLarge.size();
+    } else {
+        mClusterCount = clusterSet.count();
+    }
 }
 
 // static
