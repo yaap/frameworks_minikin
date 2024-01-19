@@ -182,9 +182,11 @@ private:
         HbFontUniquePtr mBaseFont;
 
         const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+        HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
         mutable std::mutex mMutex;
         mutable std::map<uint16_t, std::shared_ptr<MinikinFont>> mVarTypefaceCache
                 GUARDED_BY(mMutex);
+        mutable std::map<uint16_t, HbFontUniquePtr> mVarFontCache GUARDED_BY(mMutex);
     };
 
     // Use Builder instead.
