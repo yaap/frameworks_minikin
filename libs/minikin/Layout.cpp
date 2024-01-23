@@ -34,6 +34,7 @@
 #include "BidiUtils.h"
 #include "LayoutSplitter.h"
 #include "LayoutUtils.h"
+#include "LetterSpacingUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/Emoji.h"
@@ -44,52 +45,131 @@
 
 namespace minikin {
 
-void adjustGlyphLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
-                                  std::vector<LayoutGlyph>* glyphs) {
+// TODO: Instead of two-pass letter space adjustment, apply letter space after populating from the
+// layout cache
+void adjustGlyphLetterSpacingEdge(const U16StringPiece& textBuf, const MinikinPaint& paint,
+                                  RunFlag runFlag, std::vector<LayoutGlyph>* glyphs) {
+    const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
+    const float letterSpacingHalf = letterSpacing * 0.5f;
+    const uint32_t glyphCount = glyphs->size();
+
     if (runFlag & RunFlag::LEFT_EDGE) {
-        const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
-        const float letterSpacingHalf = letterSpacing * 0.5f;
-        for (uint32_t i = 0; i < glyphs->size(); i++) {
+        uint32_t i;
+        for (i = 0; i < glyphCount; ++i) {
+            const uint32_t cluster = glyphs->at(i).cluster;
+            const uint32_t cp = textBuf.codePointAt(cluster);
+            if (!u_iscntrl(cp)) {
+                break;
+            }
+        }
+
+        for (; i < glyphCount; ++i) {
+            const uint32_t cluster = glyphs->at(i).cluster;
+            const uint32_t cp = textBuf.codePointAt(cluster);
+            if (!isLetterSpacingCapableCodePoint(cp)) {
+                break;
+            }
             glyphs->at(i).x -= letterSpacingHalf;
+        }
+    }
+
+    if (runFlag & RunFlag::RIGHT_EDGE) {
+        uint32_t i;
+        for (i = 0; i < glyphCount; ++i) {
+            const uint32_t cluster = glyphs->at(glyphCount - 1 - i).cluster;
+            const uint32_t cp = textBuf.codePointAt(cluster);
+            if (!u_iscntrl(cp)) {
+                if (!isLetterSpacingCapableCodePoint(cp)) {
+                    i = glyphCount;
+                }
+                break;
+            }
+        }
+
+        if (i < glyphCount) {
+            for (uint32_t j = glyphCount - i; j < glyphCount; ++j) {
+                glyphs->at(j).x -= letterSpacingHalf;
+            }
         }
     }
 }
 
-float adjustAdvanceLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
-                                     uint32_t leftEdgeIndex, uint32_t rightEdgeIndex, float advance,
-                                     float* advances, uint32_t size) {
+// TODO: Instead of two-pass letter space adjustment, apply letter space after populating from the
+// layout cache
+float adjustAdvanceLetterSpacingEdge(const U16StringPiece& textBuf, const Range& range,
+                                     const BidiText& bidiText, const MinikinPaint& paint,
+                                     RunFlag runFlag, float advance, float* advances) {
     const float letterSpacing = paint.letterSpacing * paint.size * paint.scaleX;
     const float letterSpacingHalf = letterSpacing * 0.5f;
-    if (letterSpacing == 0) {
+    if (letterSpacing == 0 || textBuf.length() == 0) {
         return advance;
     }
+    const uint32_t advOffset = range.getStart();
 
     if (runFlag & RunFlag::LEFT_EDGE) {
-        if (advances) {
-            advances[leftEdgeIndex] -= letterSpacingHalf;
-        }
-        advance -= letterSpacingHalf;
-    }
-
-    if (runFlag & RunFlag::RIGHT_EDGE) {
-        if (advances) {
-            uint32_t i;
-            uint32_t remaining = size - rightEdgeIndex + 1;
-            // Skip until the cluster head.
-            for (i = 0; i < remaining; ++i) {
-                if (advances[rightEdgeIndex - i] != 0) {
+        const BidiText::RunInfo lRun = bidiText.getRunInfoAt(0);
+        if (lRun.isRtl) {
+            uint32_t lastNonCtrlCharIndex = static_cast<uint32_t>(-1);
+            for (uint32_t i : lRun.range) {
+                if (!u_iscntrl(textBuf.codePointAt(i)) && advances[i - advOffset] != 0) {
+                    lastNonCtrlCharIndex = i;
+                }
+            }
+            if (lastNonCtrlCharIndex != static_cast<uint32_t>(-1)) {
+                uint32_t cp = textBuf.codePointAt(lastNonCtrlCharIndex);
+                if (isLetterSpacingCapableCodePoint(cp)) {
+                    advances[lastNonCtrlCharIndex - advOffset] -= letterSpacingHalf;
+                    advance -= letterSpacingHalf;
+                }
+            }
+        } else {
+            for (uint32_t i : lRun.range) {
+                uint32_t cp = textBuf.codePointAt(i);
+                if (!u_iscntrl(cp) && advances[i - advOffset] != 0) {
+                    if (isLetterSpacingCapableCodePoint(cp)) {
+                        advances[i - advOffset] -= letterSpacingHalf;
+                        advance -= letterSpacingHalf;
+                    }
                     break;
                 }
             }
-            if (i != remaining) {
-                advances[rightEdgeIndex - i] -= letterSpacingHalf;
+        }
+    }
+
+    if (runFlag & RunFlag::RIGHT_EDGE) {
+        const BidiText::RunInfo rRun = bidiText.getRunInfoAt(bidiText.getRunCount() - 1);
+        if (rRun.isRtl) {
+            for (uint32_t i : rRun.range) {
+                uint32_t cp = textBuf.codePointAt(i);
+                if (!u_iscntrl(cp) && advances[i - advOffset] != 0) {
+                    if (isLetterSpacingCapableCodePoint(cp)) {
+                        advances[i - advOffset] -= letterSpacingHalf;
+                        advance -= letterSpacingHalf;
+                    }
+                    break;
+                }
+            }
+        } else {
+            uint32_t lastNonCtrlCharIndex = static_cast<uint32_t>(-1);
+            for (uint32_t i : rRun.range) {
+                if (!u_iscntrl(textBuf.codePointAt(i)) && advances[i - advOffset] != 0) {
+                    lastNonCtrlCharIndex = i;
+                }
+            }
+            if (lastNonCtrlCharIndex != static_cast<uint32_t>(-1)) {
+                uint32_t cp = textBuf.codePointAt(lastNonCtrlCharIndex);
+                if (isLetterSpacingCapableCodePoint(cp)) {
+                    advances[lastNonCtrlCharIndex - advOffset] -= letterSpacingHalf;
+                    advance -= letterSpacingHalf;
+                }
             }
         }
-        advance -= letterSpacingHalf;
     }
     return advance;
 }
 
+// TODO: Instead of two-pass letter space adjustment, apply letter space after populating from the
+// layout cache
 void adjustBoundsLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
                                    MinikinRect* bounds) {
     if (!bounds) {
@@ -116,26 +196,15 @@ void Layout::doLayout(const U16StringPiece& textBuf, const Range& range, Bidi bi
     const uint32_t count = range.getLength();
     mAdvances.resize(count, 0);
     mGlyphs.reserve(count);
-    uint32_t leftEdgeIndex = range.getStart();
-    uint32_t rightEdgeIndex = range.getEnd();
-    for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
+    const BidiText bidiText(textBuf, range, bidiFlags);
+    for (const BidiText::RunInfo& runInfo : bidiText) {
         doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, range.getStart(),
                           startHyphen, endHyphen, this, nullptr, nullptr, nullptr);
-        if (!runInfo.range.isEmpty()) {
-            if (runInfo.runOffset == 0) {
-                leftEdgeIndex =
-                        runInfo.isRtl ? runInfo.range.getEnd() - 1 : runInfo.range.getStart();
-            }
-            if (runInfo.runOffset == runInfo.runCount - 1) {
-                rightEdgeIndex =
-                        runInfo.isRtl ? runInfo.range.getStart() : runInfo.range.getEnd() - 1;
-            }
-        }
     }
-    adjustGlyphLetterSpacingEdge(paint, runFlag, &mGlyphs);
-    mAdvance = adjustAdvanceLetterSpacingEdge(paint, runFlag, leftEdgeIndex - range.getStart(),
-                                              rightEdgeIndex - range.getStart(), mAdvance,
-                                              mAdvances.data(), mAdvances.size());
+    U16StringPiece substr = textBuf.substr(range);
+    adjustGlyphLetterSpacingEdge(substr, paint, runFlag, &mGlyphs);
+    mAdvance = adjustAdvanceLetterSpacingEdge(textBuf, range, bidiText, paint, runFlag, mAdvance,
+                                              mAdvances.data());
 }
 
 float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlags,
@@ -147,10 +216,16 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
         *clusterCount = 0;
     }
 
+    // To distinguish the control characters and combining character, need per character advances.
+    std::vector<float> tmpAdvances;
+    if (advances == nullptr) {
+        tmpAdvances.resize(range.getLength());
+        advances = tmpAdvances.data();
+    }
+
     MinikinRect tmpBounds;
-    uint32_t leftEdgeIndex = range.getStart();
-    uint32_t rightEdgeIndex = range.getEnd();
-    for (const BidiText::RunInfo& runInfo : BidiText(textBuf, range, bidiFlags)) {
+    const BidiText bidiText(textBuf, range, bidiFlags);
+    for (const BidiText::RunInfo& runInfo : bidiText) {
         const size_t offset = range.toRangeOffset(runInfo.range.getStart());
         float* advancesForRun = advances ? advances + offset : nullptr;
         tmpBounds.setEmpty();
@@ -161,21 +236,10 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
             bounds->join(tmpBounds, advance, 0);
         }
         advance += run_advance;
-        if (!runInfo.range.isEmpty()) {
-            if (runInfo.runOffset == 0) {
-                leftEdgeIndex =
-                        runInfo.isRtl ? runInfo.range.getEnd() - 1 : runInfo.range.getStart();
-            }
-            if (runInfo.runOffset == runInfo.runCount - 1) {
-                rightEdgeIndex =
-                        runInfo.isRtl ? runInfo.range.getStart() : runInfo.range.getEnd() - 1;
-            }
-        }
     }
     adjustBoundsLetterSpacingEdge(paint, runFlag, bounds);
-    return adjustAdvanceLetterSpacingEdge(paint, runFlag, leftEdgeIndex - range.getStart(),
-                                          rightEdgeIndex - range.getStart(), advance, advances,
-                                          range.getLength());
+    return adjustAdvanceLetterSpacingEdge(textBuf, range, bidiText, paint, runFlag, advance,
+                                          advances);
 }
 
 float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& range, bool isRtl,
@@ -278,8 +342,8 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
 
 void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvance) {
     for (size_t i = 0; i < src.glyphCount(); i++) {
-        mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), mAdvance + src.pointAt(i).x,
-                             src.pointAt(i).y);
+        mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
+                             mAdvance + src.pointAt(i).x, src.pointAt(i).y);
     }
     const std::vector<float>& advances = src.advances();
     for (size_t i = 0; i < advances.size(); i++) {
