@@ -36,6 +36,7 @@
 
 #include "BidiUtils.h"
 #include "LayoutUtils.h"
+#include "LetterSpacingUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "ScriptUtils.h"
@@ -138,20 +139,6 @@ hb_font_funcs_t* getFontFuncsForEmoji() {
 static bool isColorBitmapFont(const HbFontUniquePtr& font) {
     HbBlob cbdt(font, HB_TAG('C', 'B', 'D', 'T'));
     return cbdt;
-}
-
-/**
- * Disable certain scripts (mostly those with cursive connection) from having letterspacing
- * applied. See https://github.com/behdad/harfbuzz/issues/64 for more details.
- */
-static bool isScriptOkForLetterspacing(hb_script_t script) {
-    return !(script == HB_SCRIPT_ARABIC || script == HB_SCRIPT_NKO ||
-             script == HB_SCRIPT_PSALTER_PAHLAVI || script == HB_SCRIPT_MANDAIC ||
-             script == HB_SCRIPT_MONGOLIAN || script == HB_SCRIPT_PHAGS_PA ||
-             script == HB_SCRIPT_DEVANAGARI || script == HB_SCRIPT_BENGALI ||
-             script == HB_SCRIPT_GURMUKHI || script == HB_SCRIPT_MODI ||
-             script == HB_SCRIPT_SHARADA || script == HB_SCRIPT_SYLOTI_NAGRI ||
-             script == HB_SCRIPT_TIRHUTA || script == HB_SCRIPT_OGHAM);
 }
 
 static inline hb_codepoint_t determineHyphenChar(hb_codepoint_t preferredHyphen, hb_font_t* font) {
@@ -302,6 +289,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mFontIndices.reserve(count);
     mGlyphIds.reserve(count);
     mPoints.reserve(count);
+    mClusters.reserve(count);
 
     HbBufferUniquePtr buffer(hb_buffer_create());
     U16StringPiece substr = textBuf.substr(range);
@@ -381,7 +369,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
             double letterSpace = 0.0;
             double letterSpaceHalf = 0.0;
 
-            if (paint.letterSpacing != 0.0 && isScriptOkForLetterspacing(script)) {
+            if (paint.letterSpacing != 0.0 && isLetterSpacingCapableScript(script)) {
                 letterSpace = paint.letterSpacing * size * scaleX;
                 letterSpaceHalf = letterSpace * 0.5;
             }
@@ -419,16 +407,38 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
             // mAdvances.
             const ssize_t clusterOffset = clusterStart - scriptRunStart;
 
-            if (numGlyphs) {
-                mAdvances[info[0].cluster - clusterOffset] += letterSpaceHalf;
-                x += letterSpaceHalf;
+            if (numGlyphs && letterSpace != 0) {
+                const uint32_t advIndex = info[0].cluster - clusterOffset;
+                const uint32_t cp = textBuf.codePointAt(advIndex + start);
+                if (!u_iscntrl(cp)) {
+                    mAdvances[advIndex] += letterSpaceHalf;
+                    x += letterSpaceHalf;
+                }
             }
             for (unsigned int i = 0; i < numGlyphs; i++) {
                 const size_t clusterBaseIndex = info[i].cluster - clusterOffset;
-                if (i > 0 && info[i - 1].cluster != info[i].cluster) {
-                    mAdvances[info[i - 1].cluster - clusterOffset] += letterSpaceHalf;
-                    mAdvances[clusterBaseIndex] += letterSpaceHalf;
-                    x += letterSpace;
+                if (letterSpace != 0 && i > 0 && info[i - 1].cluster != info[i].cluster) {
+                    const uint32_t prevAdvIndex = info[i - 1].cluster - clusterOffset;
+                    const uint32_t prevCp = textBuf.codePointAt(prevAdvIndex + start);
+                    const uint32_t cp = textBuf.codePointAt(clusterBaseIndex + start);
+
+                    const bool isCtrl = u_iscntrl(cp);
+                    const bool isPrevCtrl = u_iscntrl(prevCp);
+                    if (!isPrevCtrl) {
+                        mAdvances[prevAdvIndex] += letterSpaceHalf;
+                    }
+
+                    if (!isCtrl) {
+                        mAdvances[clusterBaseIndex] += letterSpaceHalf;
+                    }
+
+                    // To avoid rounding error, add full letter spacing when the both prev and
+                    // current code point are non-control characters.
+                    if (!isCtrl && !isPrevCtrl) {
+                        x += letterSpace;
+                    } else if (!isCtrl || !isPrevCtrl) {
+                        x += letterSpaceHalf;
+                    }
                 }
 
                 hb_codepoint_t glyph_ix = info[i].codepoint;
@@ -439,6 +449,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 mGlyphIds.push_back(glyph_ix);
                 mPoints.emplace_back(x + xoff, y + yoff);
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
+                mClusters.push_back(clusterBaseIndex);
                 clusterSet.insert(clusterBaseIndex);
 
                 if (clusterBaseIndex < count) {
@@ -449,15 +460,20 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 }
                 x += xAdvance;
             }
-            if (numGlyphs) {
-                mAdvances[info[numGlyphs - 1].cluster - clusterOffset] += letterSpaceHalf;
-                x += letterSpaceHalf;
+            if (numGlyphs && letterSpace != 0) {
+                const uint32_t lastAdvIndex = info[numGlyphs - 1].cluster - clusterOffset;
+                const uint32_t lastCp = textBuf.codePointAt(lastAdvIndex + start);
+                if (!u_iscntrl(lastCp)) {
+                    mAdvances[lastAdvIndex] += letterSpaceHalf;
+                    x += letterSpaceHalf;
+                }
             }
         }
     }
     mFontIndices.shrink_to_fit();
     mGlyphIds.shrink_to_fit();
     mPoints.shrink_to_fit();
+    mClusters.shrink_to_fit();
     mAdvance = x;
     mClusterCount = clusterSet.size();
 }

@@ -40,6 +40,9 @@ public:
     ScriptText(const U16StringPiece& textBuf, uint32_t start, uint32_t end)
             : mTextBuf(textBuf), mRange(start, end) {}
 
+    explicit ScriptText(const U16StringPiece& textBuf)
+            : mTextBuf(textBuf), mRange(0, textBuf.size()) {}
+
     class iterator {
     public:
         inline bool operator==(const iterator& o) const {
