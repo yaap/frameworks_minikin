@@ -17,13 +17,15 @@
 #ifndef MINIKIN_LAYOUT_H
 #define MINIKIN_LAYOUT_H
 
+#include <gtest/gtest_prod.h>
+
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
-#include <gtest/gtest_prod.h>
-
 #include "minikin/FontCollection.h"
+#include "minikin/FontFileParser.h"
 #include "minikin/LayoutCore.h"
 #include "minikin/Range.h"
 #include "minikin/U16StringPiece.h"
@@ -34,14 +36,22 @@ class Layout;
 struct LayoutPieces;
 
 struct LayoutGlyph {
-    LayoutGlyph(FakedFont font, uint32_t glyph_id, float x, float y)
-            : font(font), glyph_id(glyph_id), x(x), y(y) {}
+    LayoutGlyph(FakedFont font, uint32_t glyph_id, uint32_t cluster, float x, float y)
+            : font(font), glyph_id(glyph_id), cluster(cluster), x(x), y(y) {}
     FakedFont font;
 
     uint32_t glyph_id;
+    uint32_t cluster;
     float x;
     float y;
 };
+
+// For gtest output
+inline std::ostream& operator<<(std::ostream& os, const LayoutGlyph& g) {
+    std::optional<std::string> psName = FontFileParser(g.font.hbFont()).getPostScriptName();
+    return os << "{ font:" << psName.value_or("{UNKNOWN}") << ", gid:" << g.glyph_id
+              << ", cluster:" << g.cluster << ", pos=(" << g.x << "," << g.y << ") }";
+}
 
 // Must be the same value with Paint.java
 enum class Bidi : uint8_t {
@@ -140,6 +150,28 @@ public:
     // Append another layout (for example, cached value) into this one
     void appendLayout(const LayoutPiece& src, size_t start, float extraAdvance);
 
+    // For gtest output
+    std::string toString() const {
+        std::stringstream ss;
+        ss << "{glyphs: ";
+        for (uint32_t i = 0; i < mGlyphs.size(); ++i) {
+            if (i != 0) {
+                ss << ", ";
+            }
+            ss << mGlyphs[i];
+        }
+        ss << ", totalAdvance: " << mAdvance;
+        ss << ", advances: {";
+        for (uint32_t i = 0; i < mAdvances.size(); ++i) {
+            if (i != 0) {
+                ss << ", ";
+            }
+            ss << mAdvances[i];
+        }
+        ss << "}";
+        return ss.str();
+    }
+
 private:
     FRIEND_TEST(LayoutTest, doLayoutWithPrecomputedPiecesTest);
 
@@ -175,6 +207,10 @@ private:
     float mAdvance;
 };
 
+// For gtest output
+inline std::ostream& operator<<(std::ostream& os, const Layout& l) {
+    return os << l.toString();
+}
 }  // namespace minikin
 
 #endif  // MINIKIN_LAYOUT_H

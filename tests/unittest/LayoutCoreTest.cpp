@@ -33,6 +33,13 @@ static LayoutPiece buildLayout(const std::string& text, const MinikinPaint& pain
                        StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
 }
 
+static LayoutPiece buildLayout(const std::string& text, const Range& range,
+                               const MinikinPaint& paint) {
+    auto utf16 = utf8ToUtf16(text);
+    return LayoutPiece(utf16, range, false /* rtl */, paint, StartHyphenEdit::NO_EDIT,
+                       EndHyphenEdit::NO_EDIT);
+}
+
 static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontCollection> fc) {
     MinikinPaint paint(fc);
     paint.size = 10.0f;  // make 1em = 10px
@@ -332,6 +339,56 @@ TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
         auto [layout, bounds] = buildLayoutAndBounds("dg", fc);
         EXPECT_EQ(2u, layout.glyphCount());
         EXPECT_EQ(MinikinRect(-5, 10, 25, 0), bounds);
+    }
+}
+
+TEST(LayoutPieceTest, doLayoutTest_SubString) {
+    // The LayoutTestFont.ttf has following coverage, extent, width and bbox.
+    // Ascender: 10em, Descender: -2em
+    // U+0020: 10em, (0, 0) - (10, 10)
+    // U+002E (.): 10em, (0, 0) - (10, 10)
+    // U+0043 (C): 100em, (0, 0) - (100, 100)
+    // U+0049 (I): 1em, (0, 0) - (1, 1)
+    // U+004C (L): 50em, (0, 0) - (50, 50)
+    // U+0056 (V): 5em, (0, 0) - (5, 5)
+    // U+0058 (X): 10em, (0, 0) - (10, 10)
+    // U+005F (_): 0em, (0, 0) - (0, 0)
+    // U+FFFD (invalid surrogate will be replaced to this): 7em, (0, 0) - (7, 7)
+    // U+10331 (\uD800\uDF31): 10em, (0, 0) - (10, 10)
+    auto fc = makeFontCollection({"LayoutTestFont.ttf"});
+    MinikinPaint paint(fc);
+    paint.size = 10.0f;  // make 1em = 10px
+    {
+        auto layout = buildLayout("IVX", Range(0, 2), paint);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
+        EXPECT_EQ(1u, layout.fonts().size());
+        EXPECT_TRUE(layout.fontAt(0).font);
+        EXPECT_EQ(2u, layout.advances().size());
+        EXPECT_EQ(10.0f, layout.advances()[0]);
+        EXPECT_EQ(50.0f, layout.advances()[1]);
+        EXPECT_EQ(60.0f, layout.advance());
+    }
+    {
+        auto layout = buildLayout("IVX", Range(1, 3), paint);
+        EXPECT_EQ(2u, layout.glyphCount());
+        EXPECT_EQ(2u, layout.clusterCount());
+        EXPECT_EQ(1u, layout.fonts().size());
+        EXPECT_TRUE(layout.fontAt(0).font);
+        EXPECT_EQ(2u, layout.advances().size());
+        EXPECT_EQ(50.0f, layout.advances()[0]);
+        EXPECT_EQ(100.0f, layout.advances()[1]);
+        EXPECT_EQ(150.0f, layout.advance());
+    }
+    {
+        auto layout = buildLayout("IVX", Range(1, 2), paint);
+        EXPECT_EQ(1u, layout.glyphCount());
+        EXPECT_EQ(1u, layout.clusterCount());
+        EXPECT_EQ(1u, layout.fonts().size());
+        EXPECT_TRUE(layout.fontAt(0).font);
+        EXPECT_EQ(1u, layout.advances().size());
+        EXPECT_EQ(50.0f, layout.advances()[0]);
+        EXPECT_EQ(50.0f, layout.advance());
     }
 }
 

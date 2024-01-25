@@ -78,6 +78,8 @@ public:
     inline iterator begin() const { return iterator(this, 0); }
     inline iterator end() const { return iterator(this, mRunCount); }
 
+    inline uint32_t getRunCount() const { return mRunCount; }
+
 private:
     UBiDiUniquePtr mBidi;  // Maybe null for single run.
     const Range mRange;    // The range in the original buffer. Used for range check.

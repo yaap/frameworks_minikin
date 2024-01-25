@@ -629,6 +629,15 @@ void FontCollection::filterFamilyByLocale(
 
 MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& paint) const {
     uint32_t localeId = paint.localeListId;
+    LocaleExtentKey key = {localeId, paint.size};
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    auto e = mExtentCacheForLocale.get(key);
+
+    if (e.ascent != 0 || e.descent != 0) {
+        return e;
+    }
+
     MinikinExtent result(0, 0);
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
@@ -644,6 +653,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     }
 
     if (localeId == LocaleListCache::kInvalidListId) {
+        mExtentCacheForLocale.put(key, result);
         return result;
     }
 
@@ -688,6 +698,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         font.typeface()->GetFontExtent(&result, paint, font.fakery);
     }
 
+    mExtentCacheForLocale.put(key, result);
     return result;
 }
 
