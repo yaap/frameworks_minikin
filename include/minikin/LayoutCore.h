@@ -79,9 +79,7 @@ private:
 
     float mAdvance;
     MinikinExtent mExtent;
-    uint8_t mClusterCount;
-    static_assert(std::numeric_limits<decltype(mClusterCount)>::max() > CHAR_LIMIT_FOR_CACHE,
-                  "The cluster count should have enough capacity to have the char limit for cache");
+    uint32_t mClusterCount;
 
     std::vector<FakedFont> mFonts;
 };
