@@ -611,6 +611,11 @@ FontCollection::FamilyMatchResult FontCollection::FamilyMatchResult::intersect(
 void FontCollection::filterFamilyByLocale(
         const LocaleList& localeList,
         const std::function<void(const FontFamily& family)>& callback) const {
+    if (localeList.empty()) {
+        return;
+    }
+    // Only use the first family for the default line height.
+    const Locale& locale = localeList[0];
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
 
@@ -619,11 +624,12 @@ void FontCollection::filterFamilyByLocale(
             continue;
         }
         const LocaleList& fontLocaleList = LocaleListCache::getById(fontLocaleId);
-        if (!localeList.atLeastOneScriptMatch(fontLocaleList)) {
-            continue;
+        for (uint32_t i = 0; i < fontLocaleList.size(); ++i) {
+            if (fontLocaleList[i].isEqualScript(locale)) {
+                callback(*family.get());
+                break;
+            }
         }
-
-        callback(*family.get());
     }
 }
 
