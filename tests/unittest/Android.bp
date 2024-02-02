@@ -15,6 +15,7 @@
 // see how_to_run.txt for instructions on running these tests
 
 package {
+    default_team: "trendy_team_java_core_libraries",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
