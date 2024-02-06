@@ -265,7 +265,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     CharProcessor proc(textBuf);
 
     float initialLetterSpacing;
-    if (features::inter_character_justification()) {
+    if (features::letter_spacing_justification()) {
         if (measured.runs.empty()) {
             initialLetterSpacing = 0;
         } else {
@@ -283,7 +283,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
         const bool isRtl = run->isRtl();
         const Range& range = run->getRange();
         const float letterSpacing =
-                features::inter_character_justification() ? run->getLetterSpacingInPx() : 0;
+                features::letter_spacing_justification() ? run->getLetterSpacingInPx() : 0;
 
         // Compute penalty parameters.
         float hyphenPenalty = 0.0f;
