@@ -456,7 +456,7 @@ void GreedyLineBreaker::process(bool forceWordStyleAutoToPhrase) {
     uint32_t nextWordBoundaryOffset = 0;
     for (uint32_t runIndex = 0; runIndex < mMeasuredText.runs.size(); ++runIndex) {
         const std::unique_ptr<Run>& run = mMeasuredText.runs[runIndex];
-        if (features::inter_character_justification()) {
+        if (features::letter_spacing_justification()) {
             mCurrentLetterSpacing = run->getLetterSpacingInPx();
             if (runIndex == 0) {
                 mLineStartLetterSpacing = mCurrentLetterSpacing;
