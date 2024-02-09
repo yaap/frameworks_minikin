@@ -295,4 +295,21 @@ TEST(FontTest, getAdjustedTypefaceTest) {
     }
 }
 
+TEST(FontTest, ChildLazyCreationTest) {
+    FreeTypeMinikinFontForTestFactory::init();
+    // Note: by definition, only BufferReader-based Font can be moved.
+    auto minikinFont =
+            std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath("MultiAxis.ttf"));
+    std::shared_ptr<Font> original = Font::Builder(minikinFont).build();
+
+    // The original font doesn't axes settings.
+    EXPECT_TRUE(original->baseTypeface()->GetAxes().empty());
+
+    std::shared_ptr<Font> overridden = std::make_shared<Font>(
+            original, std::vector<FontVariation>{FontVariation(MakeTag('w', 'g', 'h', 't'), 0)});
+
+    EXPECT_EQ(1u, overridden->baseTypeface()->GetAxes().size());
+    EXPECT_EQ(MakeTag('w', 'g', 'h', 't'), overridden->baseTypeface()->GetAxes()[0].axisTag);
+}
+
 }  // namespace minikin

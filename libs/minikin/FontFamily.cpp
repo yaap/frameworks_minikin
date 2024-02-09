@@ -36,6 +36,12 @@
 
 namespace minikin {
 
+namespace {
+const std::shared_ptr<FontFamily>& getAncestor(const std::shared_ptr<FontFamily>& family) {
+    return !family->getParent() ? family : getAncestor(family->getParent());
+}
+}  // namespace
+
 // static
 std::shared_ptr<FontFamily> FontFamily::create(std::vector<std::shared_ptr<Font>>&& fonts) {
     return create(FamilyVariant::DEFAULT, std::move(fonts));
@@ -59,6 +65,71 @@ std::shared_ptr<FontFamily> FontFamily::create(uint32_t localeListId, FamilyVari
                                                       varFamilyType));
 }
 
+std::shared_ptr<FontFamily> FontFamily::create(const std::shared_ptr<FontFamily>& parent,
+                                               const std::vector<FontVariation>& axes) {
+    if (axes.empty() || parent->getSupportedAxesCount() == 0) {
+        return nullptr;
+    }
+
+    bool hasSupportedAxis = false;
+    for (const auto& axis : axes) {
+        for (uint32_t i = 0; i < parent->getSupportedAxesCount(); ++i) {
+            if (axis.axisTag == parent->getSupportedAxisAt(i)) {
+                hasSupportedAxis = true;
+                break;
+            }
+        }
+    }
+    if (!hasSupportedAxis) {
+        // None of variation axes are suppored by this family.
+        return nullptr;
+    }
+
+    return std::shared_ptr<FontFamily>(new FontFamily(parent, axes));
+}
+
+FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
+                       const std::vector<FontVariation>& axesOverride)
+        : mFonts(),
+          mSupportedAxes(std::make_unique<AxisTag[]>(parent->getSupportedAxesCount())),
+          mCoverage(),
+          mCmapFmt14Coverage(nullptr),
+          mParent(getAncestor(parent)),  // Use ancestor as parent.
+          mVarOverride(axesOverride),
+          mLocaleListId(parent->mLocaleListId),
+          mFontsCount(parent->mFontsCount),
+          mSupportedAxesCount(parent->mSupportedAxesCount),
+          mCmapFmt14CoverageCount(parent->mCmapFmt14CoverageCount),
+          mVariant(parent->mVariant),
+          mIsColorEmoji(parent->mIsColorEmoji),
+          mIsCustomFallback(parent->mIsCustomFallback),
+          mIsDefaultFallback(parent->mIsDefaultFallback),
+          mVarFamilyType(parent->mVarFamilyType) {
+    // Filter only the axis supported font.
+    std::vector<std::shared_ptr<Font>> overriddenFonts;
+    for (uint16_t i = 0; i < mFontsCount; ++i) {
+        const auto& font = parent->mFonts[i];
+        bool isSupported = false;
+        for (const auto& axis : axesOverride) {
+            if (font->isAxisSupported(axis.axisTag)) {
+                isSupported = true;
+                break;
+            }
+        }
+        if (isSupported) {
+            overriddenFonts.emplace_back(std::make_shared<Font>(font, axesOverride));
+        }
+    }
+    mFonts = std::make_unique<std::shared_ptr<Font>[]>(overriddenFonts.size());
+    for (uint16_t i = 0; i < overriddenFonts.size(); ++i) {
+        mFonts[i] = std::move(overriddenFonts[i]);
+    }
+
+    // Copy the supported axes
+    const AxisTag* src = parent->mSupportedAxes.get();
+    std::copy(src, src + mSupportedAxesCount, mSupportedAxes.get());
+}
+
 FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                        std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback,
                        bool isDefaultFallback, VariationFamilyType varFamilyType)
@@ -67,6 +138,8 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
           mSupportedAxes(nullptr),
           mCoverage(),
           mCmapFmt14Coverage(nullptr),
+          mParent(nullptr),
+          mVarOverride(),
           mLocaleListId(localeListId),
           mFontsCount(static_cast<uint32_t>(fonts.size())),
           mSupportedAxesCount(0),
@@ -87,7 +160,7 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
 }
 
 FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& allFonts)
-        : mSupportedAxes(nullptr), mCmapFmt14Coverage(nullptr) {
+        : mSupportedAxes(nullptr), mCmapFmt14Coverage(nullptr), mParent(nullptr), mVarOverride() {
     mLocaleListId = LocaleListCache::readFrom(reader);
     mFontsCount = reader->read<uint32_t>();
     mFonts = std::make_unique<std::shared_ptr<Font>[]>(mFontsCount);
@@ -127,6 +200,7 @@ FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<F
 }
 
 void FontFamily::writeTo(BufferWriter* writer, uint32_t* fontIndex) const {
+    MINIKIN_ASSERT(mParent == nullptr, "Do not serialize variation overridden font families.");
     LocaleListCache::writeTo(writer, mLocaleListId);
     writer->write<uint32_t>(mFontsCount);
     for (size_t i = 0; i < mFontsCount; i++) {
@@ -286,8 +360,11 @@ void FontFamily::computeCoverage() {
 
     std::unordered_set<AxisTag> supportedAxesSet;
     for (size_t i = 0; i < mFontsCount; ++i) {
-        std::unordered_set<AxisTag> supportedAxes = mFonts[i]->getSupportedAxes();
-        supportedAxesSet.insert(supportedAxes.begin(), supportedAxes.end());
+        const uint16_t axesCount = mFonts[i]->getSupportedAxesCount();
+        if (axesCount != 0) {
+            const AxisTag* axesPtr = mFonts[i]->getSupportedAxes();
+            supportedAxesSet.insert(axesPtr, axesPtr + axesCount);
+        }
     }
     MINIKIN_ASSERT(supportedAxesSet.size() <= std::numeric_limits<uint32_t>::max(),
                    "Number of supported axes must be less than 2^16.");
@@ -299,7 +376,7 @@ void FontFamily::computeCoverage() {
 
 bool FontFamily::hasGlyph(uint32_t codepoint, uint32_t variationSelector) const {
     if (variationSelector == 0) {
-        return mCoverage.get(codepoint);
+        return getCoverage().get(codepoint);
     }
 
     if (mCmapFmt14CoverageCount == 0) {
@@ -314,7 +391,7 @@ bool FontFamily::hasGlyph(uint32_t codepoint, uint32_t variationSelector) const 
         return false;
     }
 
-    const SparseBitSet& bitset = mCmapFmt14Coverage[vsIndex];
+    const SparseBitSet& bitset = getCmap14Coverage(vsIndex);
     if (bitset.empty()) {
         return false;
     }
@@ -345,10 +422,9 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
     for (size_t i = 0; i < mFontsCount; i++) {
         const std::shared_ptr<Font>& font = mFonts[i];
         bool supportedVariations = false;
-        std::unordered_set<AxisTag> supportedAxes = font->getSupportedAxes();
-        if (!supportedAxes.empty()) {
+        if (font->getSupportedAxesCount() != 0) {
             for (const FontVariation& variation : variations) {
-                if (supportedAxes.find(variation.axisTag) != supportedAxes.end()) {
+                if (font->isAxisSupported(variation.axisTag)) {
                     supportedVariations = true;
                     break;
                 }
@@ -366,7 +442,7 @@ std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
     }
 
     return create(mLocaleListId, mVariant, std::move(fonts), mIsCustomFallback, mIsDefaultFallback,
-                  VariationFamilyType::None);
+                  mVarFamilyType);
 }
 
 }  // namespace minikin
