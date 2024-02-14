@@ -47,6 +47,10 @@ public:
                                               bool isCustomFallback, bool isDefaultFallback,
                                               VariationFamilyType varFamilyType);
 
+    // Create FontFamily with axes override.
+    static std::shared_ptr<FontFamily> create(const std::shared_ptr<FontFamily>& parent,
+                                              const std::vector<FontVariation>& axesOverride);
+
     FontFamily(FontFamily&&) = default;
     FontFamily& operator=(FontFamily&&) = default;
 
@@ -72,7 +76,23 @@ public:
     bool isDefaultFallback() const { return mIsDefaultFallback; }
 
     // Get Unicode coverage.
-    const SparseBitSet& getCoverage() const { return mCoverage; }
+    const SparseBitSet& getCoverage() const {
+        if (mParent) [[unlikely]] {
+            return mParent->getCoverage();
+        } else {
+            return mCoverage;
+        }
+    }
+
+    const SparseBitSet& getCmap14Coverage(uint16_t vsIndex) const {
+        if (mParent) [[unlikely]] {
+            return mParent->getCmap14Coverage(vsIndex);
+        } else {
+            return mCmapFmt14Coverage[vsIndex];
+        }
+    }
+
+    const std::shared_ptr<FontFamily>& getParent() const { return mParent; }
 
     // Returns true if the font has a glyph for the code point and variation selector pair.
     // Caller should acquire a lock before calling the method.
@@ -90,6 +110,8 @@ private:
     FontFamily(uint32_t localeListId, FamilyVariant variant,
                std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback,
                bool isDefaultFallback, VariationFamilyType varFamilyType);
+    FontFamily(const std::shared_ptr<FontFamily>& parent,
+               const std::vector<FontVariation>& axesOverride);
     explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
 
     void writeTo(BufferWriter* writer, uint32_t* fontIndex) const;
@@ -100,8 +122,12 @@ private:
     std::unique_ptr<std::shared_ptr<Font>[]> mFonts;
     // mSupportedAxes is sorted.
     std::unique_ptr<AxisTag[]> mSupportedAxes;
+    // This field is empty if mParent is set. Use mParent's coverage instead.
     SparseBitSet mCoverage;
+    // This field is empty if mParent is set. Use mParent's coverage instead.
     std::unique_ptr<SparseBitSet[]> mCmapFmt14Coverage;
+    std::shared_ptr<FontFamily> mParent;
+    std::vector<FontVariation> mVarOverride;
     uint32_t mLocaleListId;  // 4 bytes
     uint32_t mFontsCount;    // 4 bytes
     // OpenType supports up to 2^16-1 (uint16) axes.
