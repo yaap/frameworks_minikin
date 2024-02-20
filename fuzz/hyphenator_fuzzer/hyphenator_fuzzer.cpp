@@ -68,20 +68,20 @@ uint16_t specialChars[] = {
 const uint16_t MAX_STR_LEN = 256;
 
 // Function to generate StringPiece from a vector by pushing random valued elements using fdp
-U16StringPiece generateStringPiece(FuzzedDataProvider* fdp) {
+U16StringPiece generateStringPiece(FuzzedDataProvider* fdp, std::vector<uint16_t>* v) {
     uint16_t size = fdp->ConsumeIntegralInRange<uint16_t>(0, (fdp->remaining_bytes() / 3));
 
-    std::vector<uint16_t> v;
+    v->clear();
     for (uint16_t i = 0; i < size; ++i) {
         // To randomize the insertion of special characters
         if (fdp->ConsumeBool()) {
-            v.push_back(fdp->PickValueInArray(specialChars));
+            v->push_back(fdp->PickValueInArray(specialChars));
         } else {
-            v.push_back(fdp->ConsumeIntegral<uint16_t>());
+            v->push_back(fdp->ConsumeIntegral<uint16_t>());
         }
     }
 
-    return U16StringPiece(v);
+    return U16StringPiece(*v);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -92,7 +92,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string locale = fdp.ConsumeRandomLengthString(MAX_STR_LEN);
     std::vector<uint8_t> patternData(fdp.ConsumeIntegralInRange<uint32_t>(0, 256));
 
-    Hyphenator* hyphenator = Hyphenator::loadBinary(&patternData[0], minPrefix, minSuffix, locale);
+    Hyphenator* hyphenator = Hyphenator::loadBinary(&patternData[0], patternData.size(), minPrefix,
+                                                    minSuffix, locale);
 
     // To randomize the API calls
     while (fdp.remaining_bytes() > 0) {
@@ -108,7 +109,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                                    fdp.PickValueInArray(EndHyphenEdits));
                 },
                 [&]() {
-                    auto textBuf = generateStringPiece(&fdp);
+                    std::vector<uint16_t> v;
+                    auto textBuf = generateStringPiece(&fdp, &v);
                     std::vector<HyphenationType> result;
                     result.push_back(fdp.PickValueInArray(HyphenationTypes));
                     hyphenator->hyphenate(textBuf, &result);

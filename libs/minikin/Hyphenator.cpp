@@ -16,13 +16,14 @@
 
 #include "minikin/Hyphenator.h"
 
+#include <log/log.h>
+#include <unicode/uchar.h>
+#include <unicode/uscript.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <unicode/uchar.h>
-#include <unicode/uscript.h>
 
 #include "minikin/Characters.h"
 
@@ -60,14 +61,15 @@ struct Pattern {
     uint32_t version;
     uint32_t n_entries;
     uint32_t pattern_offset;
-    uint32_t pattern_size;
+    uint32_t unused_pattern_size;
     uint32_t data[1];  // actually flexible array, size is known at runtime
 
     // accessors
     static uint32_t len(uint32_t entry) { return entry >> 26; }
     static uint32_t shift(uint32_t entry) { return (entry >> 20) & 0x3f; }
+    uint32_t entryBufferOffset(uint32_t entry) const { return pattern_offset + (entry & 0xfffff); }
     const uint8_t* buf(uint32_t entry) const {
-        return reinterpret_cast<const uint8_t*>(this) + pattern_offset + (entry & 0xfffff);
+        return reinterpret_cast<const uint8_t*>(this) + entryBufferOffset(entry);
     }
 };
 
@@ -94,11 +96,115 @@ struct Header {
     const Pattern* patternTable() const {
         return reinterpret_cast<const Pattern*>(bytes() + pattern_offset);
     }
+    uint32_t patternSize() const { return file_size - pattern_offset; }
 };
 
+bool checkHeader(const uint8_t* patternData, size_t dataSize) {
+    if (sizeof(Header) + sizeof(Trie) + sizeof(Pattern) > dataSize) {
+        ALOGE("Hyphenation pattern data must has header.");
+        return false;
+    }
+    const Header* header = reinterpret_cast<const Header*>(patternData);
+    if (header->magic != 0x62ad7968) {
+        ALOGE("Hyphenation pattern magic number mismatch.");
+        return false;
+    }
+    if (header->version != 0) {  // Only version 0 is supported.
+        ALOGE("Hyphenation pattern header version must be 0.");
+        return false;
+    }
+
+    // The hyb file has alphabet table, trie table, pattern table with this order.
+    if (!((header->alphabet_offset < header->trie_offset) &&
+          (header->trie_offset < header->pattern_offset))) {
+        ALOGE("Hyphenation tables should be in order of Alphabet, Trie then Pattern.");
+        return false;
+    }
+
+    // Check alphabet table header
+    if (dataSize > 4 && header->alphabet_offset > dataSize - 4) {
+        ALOGE("Hyphenation pattern header has incorrect alphabet table size.");
+        return false;
+    }
+    if (header->alphabetVersion() == 0) {
+        // Precondition of subtracting sizeof AlphabetTable0 from the given size. The size has
+        // already checked that it must have enough size for Header/Tire/Pattern which is bigger
+        // than size of AlphabetTable0.
+        static_assert(sizeof(AlphabetTable0) < sizeof(Header) + sizeof(Trie) + sizeof(Pattern));
+        if (header->alphabet_offset > dataSize - sizeof(AlphabetTable0)) {
+            ALOGE("Hyphenation pattern header has incorrect alphabet table 0 size.");
+            return false;
+        }
+        const AlphabetTable0* alphabet = header->alphabetTable0();
+        const uint32_t min_cp = alphabet->min_codepoint;
+        const uint32_t max_cp = alphabet->max_codepoint;
+        if (min_cp >= max_cp) {
+            ALOGE("Hyphenation pattern header has incorrect alphabet table code point range.");
+            return false;
+        }
+        if (min_cp > 0x10FFFF || max_cp > 0x10FFFF) {
+            ALOGE("Hyphenation pattern header has incorrect code point range.");
+            return false;
+        }
+        const uint32_t cp_length = max_cp - min_cp;
+        if (dataSize > cp_length + sizeof(AlphabetTable0) &&
+            header->alphabet_offset > dataSize - sizeof(AlphabetTable0) - cp_length) {
+            ALOGE("Hyphenation pattern header has incorrect alphabet table entry count.");
+            return false;
+        }
+    } else if (header->alphabetVersion() == 1) {
+        // Precondition of subtracting sizeof AlphabetTable1 from the given size. The size has
+        // already checked that it must have enough size for Header/Tire/Pattern which is bigger
+        // than size of AlphabetTable1.
+        static_assert(sizeof(AlphabetTable0) < sizeof(Header) + sizeof(Trie) + sizeof(Pattern));
+        if (header->alphabet_offset > dataSize - sizeof(AlphabetTable1)) {
+            ALOGE("Hyphenation pattern header has incorrect alphabet table 1 size.");
+            return false;
+        }
+        const AlphabetTable1* alphabet = header->alphabetTable1();
+        const size_t nEntry = alphabet->n_entries;
+        if (nEntry * sizeof(uint32_t) > dataSize - sizeof(AlphabetTable1) ||
+            header->alphabet_offset >
+                    dataSize - sizeof(AlphabetTable1) - nEntry * sizeof(uint32_t)) {
+            ALOGE("Hyphenation pattern header has incorrect alphabet table 1 entry count.");
+            return false;
+        }
+    } else {
+        ALOGE("Hyphenation pattern header has unknown alphabet table.");
+        return false;
+    }
+
+    if (header->trie_offset > dataSize) {
+        ALOGE("Hyphenation pattern header has incorrect TRIE offset.");
+        return false;
+    }
+    if (header->trie_offset > dataSize - sizeof(Trie)) {
+        ALOGE("Hyphenation pattern header has incorrect TRIE size.");
+        return false;
+    }
+    // Access to trie is validated at lookup time.
+
+    if (header->pattern_offset > dataSize - sizeof(Pattern)) {
+        ALOGE("Hyphenation pattern header has incorrect pattern size.");
+        return false;
+    }
+    const Pattern* pattern = header->patternTable();
+    if (pattern->pattern_offset > dataSize) {
+        ALOGE("Hyphenation pattern header has incorrect pattern offset.");
+        return false;
+    }
+    // Access to pattern data is validated at lookup time.
+
+    if (header->file_size != dataSize) {
+        ALOGE("Hyphenation pattern header has incorrect file size.");
+        return false;
+    }
+    return true;
+}
+
 // static
-Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-                                   const std::string& locale) {
+Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
+                                   size_t minSuffix, const std::string& locale) {
     HyphenationLocale hyphenLocale = HyphenationLocale::OTHER;
     if (locale == "pl") {
         hyphenLocale = HyphenationLocale::POLISH;
@@ -107,12 +213,17 @@ Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t minPrefix,
     } else if (locale == "sl") {
         hyphenLocale = HyphenationLocale::SLOVENIAN;
     }
-    return new Hyphenator(patternData, minPrefix, minSuffix, hyphenLocale);
+
+    if (patternData != nullptr && !checkHeader(patternData, dataSize)) {
+        return new Hyphenator(nullptr, 0, minPrefix, minSuffix, hyphenLocale);
+    }
+    return new Hyphenator(patternData, dataSize, minPrefix, minSuffix, hyphenLocale);
 }
 
-Hyphenator::Hyphenator(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-                       HyphenationLocale hyphenLocale)
+Hyphenator::Hyphenator(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
+                       size_t minSuffix, HyphenationLocale hyphenLocale)
         : mPatternData(patternData),
+          mDataSize(dataSize),
           mMinPrefix(minPrefix),
           mMinSuffix(minSuffix),
           mHyphenationLocale(hyphenLocale) {}
@@ -275,7 +386,8 @@ void Hyphenator::hyphenateWithNoPatterns(const U16StringPiece& word, Hyphenation
             } else {
                 out[i] = hyphenationTypeBasedOnScript(word[i]);
             }
-        } else if (prevChar == CHAR_MIDDLE_DOT && mMinPrefix < i && i <= word.size() - mMinSuffix &&
+        } else if (prevChar == CHAR_MIDDLE_DOT && i >= 2 && word.size() > mMinSuffix &&
+                   mMinPrefix < i && i <= word.size() - mMinSuffix &&
                    ((word[i - 2] == 'l' && word[i] == 'l') ||
                     (word[i - 2] == 'L' && word[i] == 'L')) &&
                    mHyphenationLocale == HyphenationLocale::CATALAN) {
@@ -292,7 +404,6 @@ HyphenationType Hyphenator::alphabetLookup(uint16_t* alpha_codes,
                                            const U16StringPiece& word) const {
     const Header* header = getHeader();
     HyphenationType result = HyphenationType::BREAK_AND_INSERT_HYPHEN;
-    // TODO: check header magic
     uint32_t alphabetVersion = header->alphabetVersion();
     if (alphabetVersion == 0) {
         const AlphabetTable0* alphabet = header->alphabetTable0();
@@ -365,20 +476,32 @@ void Hyphenator::hyphenateFromCodes(const uint16_t* codes, size_t len, Hyphenati
         uint32_t node = 0;  // index into Trie table
         for (size_t j = i; j < len; j++) {
             uint16_t c = codes[j];
+            if (node + c >= mDataSize) {
+                goto InvalidData;
+            }
             uint32_t entry = trie->data[node + c];
             if ((entry & char_mask) == c) {
                 node = (entry & link_mask) >> link_shift;
             } else {
                 break;
             }
+            if (node >= mDataSize) {
+                goto InvalidData;
+            }
             uint32_t pat_ix = trie->data[node] >> pattern_shift;
             // pat_ix contains a 3-tuple of length, shift (number of trailing zeros), and an offset
             // into the buf pool. This is the pattern for the substring (i..j) we just matched,
             // which we combine (via point-wise max) into the buffer vector.
             if (pat_ix != 0) {
+                if (pat_ix >= mDataSize) {
+                    goto InvalidData;
+                }
                 uint32_t pat_entry = pattern->data[pat_ix];
                 int pat_len = Pattern::len(pat_entry);
                 int pat_shift = Pattern::shift(pat_entry);
+                if (pattern->entryBufferOffset(pat_entry) >= header->patternSize()) {
+                    goto InvalidData;
+                }
                 const uint8_t* pat_buf = pattern->buf(pat_entry);
                 int offset = j + 1 - (pat_len + pat_shift);
                 // offset is the index within buffer that lines up with the start of pat_buf
@@ -395,6 +518,11 @@ void Hyphenator::hyphenateFromCodes(const uint16_t* codes, size_t len, Hyphenati
     for (size_t i = mMinPrefix; i < maxOffset; i++) {
         // Hyphenation opportunities happen when the hyphenation numbers are odd.
         out[i] = (buffer[i] & 1u) ? hyphenValue : HyphenationType::DONT_BREAK;
+    }
+    return;
+InvalidData:
+    for (size_t i = mMinPrefix; i < maxOffset; i++) {
+        out[i] = HyphenationType::DONT_BREAK;
     }
 }
 
