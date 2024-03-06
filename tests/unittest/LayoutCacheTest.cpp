@@ -36,12 +36,18 @@ class LayoutCapture {
 public:
     LayoutCapture() {}
 
-    void operator()(const LayoutPiece& layout, const MinikinPaint& /* dir */) { mLayout = &layout; }
+    void operator()(const LayoutPiece& layout, const MinikinPaint& /* dir */,
+                    const MinikinRect& bounds) {
+        mLayout = &layout;
+        mBounds = bounds;
+    }
 
     const LayoutPiece* get() const { return mLayout; }
+    const MinikinRect& bounds() const { return mBounds; }
 
 private:
     const LayoutPiece* mLayout;
+    MinikinRect mBounds;
 };
 
 TEST(LayoutCacheTest, cacheHitTest) {
@@ -53,11 +59,11 @@ TEST(LayoutCacheTest, cacheHitTest) {
 
     LayoutCapture layout1;
     layoutCache.getOrCreate(text, range, paint, false /* LTR */, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT, layout1);
+                            EndHyphenEdit::NO_EDIT, false, layout1);
 
     LayoutCapture layout2;
     layoutCache.getOrCreate(text, range, paint, false /* LTR */, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT, layout2);
+                            EndHyphenEdit::NO_EDIT, false, layout2);
 
     EXPECT_EQ(layout1.get(), layout2.get());
 }
@@ -75,59 +81,61 @@ TEST(LayoutCacheTest, cacheMissTest) {
     {
         SCOPED_TRACE("Different text");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text2, Range(0, text2.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different range");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text1, Range(1, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different text");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text2, Range(0, text2.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different direction");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, true /* RTL */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different start hyphenation");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::INSERT_HYPHEN, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::INSERT_HYPHEN, EndHyphenEdit::NO_EDIT, false,
+                                layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different end hyphen");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::INSERT_HYPHEN, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::INSERT_HYPHEN, false,
+                                layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different collection");
         MinikinPaint paint1(buildFontCollection("Ascii.ttf"));
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(buildFontCollection("Emoji.ttf"));
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -136,11 +144,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.size = 10.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.size = 20.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -149,11 +157,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.scaleX = 1.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.scaleX = 2.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -162,11 +170,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.skewX = 1.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.skewX = 2.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -175,11 +183,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.letterSpacing = 0.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.letterSpacing = 1.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -188,11 +196,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.wordSpacing = 0.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.wordSpacing = 1.0f;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -201,11 +209,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.fontFlags = 0;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.fontFlags = LinearMetrics_Flag;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -214,11 +222,11 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.localeListId = LocaleListCache::getId("en-US");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.localeListId = LocaleListCache::getId("ja-JP");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
@@ -227,24 +235,24 @@ TEST(LayoutCacheTest, cacheMissTest) {
         MinikinPaint paint1(collection);
         paint1.familyVariant = FamilyVariant::DEFAULT;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
         paint2.familyVariant = FamilyVariant::COMPACT;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
     {
         SCOPED_TRACE("Different font feature settings");
         auto collection = buildFontCollection("Ascii.ttf");
         MinikinPaint paint1(collection);
-        paint1.fontFeatureSettings = "";
+        paint1.fontFeatureSettings = FontFeature::parse("");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint1, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout1);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout1);
         MinikinPaint paint2(collection);
-        paint2.fontFeatureSettings = "'liga' on";
+        paint2.fontFeatureSettings = FontFeature::parse("'liga' on");
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint2, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
         EXPECT_NE(layout1.get(), layout2.get());
     }
 }
@@ -258,18 +266,18 @@ TEST(LayoutCacheTest, cacheOverflowTest) {
 
     LayoutCapture layout1;
     layoutCache.getOrCreate(text, range, paint, false /* LTR */, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT, layout1);
+                            EndHyphenEdit::NO_EDIT, false, layout1);
 
     for (char c = 'a'; c <= 'z'; c++) {
         auto text1 = utf8ToUtf16(std::string(10, c));
         LayoutCapture layout2;
         layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
-                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, layout2);
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, false, layout2);
     }
 
     LayoutCapture layout3;
     layoutCache.getOrCreate(text, range, paint, false /* LTR */, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT, layout3);
+                            EndHyphenEdit::NO_EDIT, false, layout3);
     EXPECT_NE(layout1.get(), layout3.get());
 }
 
@@ -282,9 +290,45 @@ TEST(LayoutCacheTest, cacheLengthLimitTest) {
 
     LayoutCapture layout;
     layoutCache.getOrCreate(text, range, paint, false /* LTR */, StartHyphenEdit::NO_EDIT,
-                            EndHyphenEdit::NO_EDIT, layout);
+                            EndHyphenEdit::NO_EDIT, false, layout);
 
     EXPECT_EQ(layoutCache.getCacheSize(), 0u);
+}
+
+TEST(LayoutCacheTest, boundsCalculation) {
+    auto text1 = utf8ToUtf16("android");
+    MinikinPaint paint(buildFontCollection("Ascii.ttf"));
+
+    TestableLayoutCache layoutCache(10);
+
+    LayoutCapture layout1;
+    LayoutCapture layout2;
+
+    {
+        SCOPED_TRACE("Bounds calculation should be treated different layout cache entry");
+        layoutCache.clear();
+        layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
+                                false /* calculateBounds */, layout1);
+        layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
+                                true /* calculateBounds */, layout2);
+        EXPECT_NE(layout1.get(), layout2.get());
+        EXPECT_FALSE(layout1.bounds().isValid());
+        EXPECT_TRUE(layout2.bounds().isValid());
+    }
+    {
+        SCOPED_TRACE("Bounds calculated entry can be used for the non-bounds request.");
+        layoutCache.clear();
+        layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
+                                true /* calculateBounds */, layout1);
+        layoutCache.getOrCreate(text1, Range(0, text1.size()), paint, false /* LTR */,
+                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
+                                false /* calculateBounds */, layout2);
+        EXPECT_EQ(layout1.get(), layout2.get());
+        EXPECT_TRUE(layout1.bounds().isValid());
+    }
 }
 
 }  // namespace minikin

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "minikin/FontCollection.h"
-
 #include <gtest/gtest.h>
 
 #include "FontTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "MinikinInternal.h"
+#include "minikin/Constants.h"
+#include "minikin/FontCollection.h"
 
 namespace minikin {
 
@@ -139,7 +139,7 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // New instance should be used for supported variation.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -149,8 +149,8 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // New instance should be used for supported variation (multiple variations case).
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('w', 'g', 'h', 't'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('w', 'g', 'h', 't'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -160,14 +160,14 @@ TEST(FontCollectionTest, createWithVariations) {
     }
     {
         // Do not ceate new instance if none of variations are supported.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         EXPECT_EQ(nullptr, multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_EQ(nullptr, noAxisFc->createCollectionWithVariation(variations));
     }
     {
         // At least one axis is supported, should create new instance.
-        std::vector<FontVariation> variations = {{MinikinFont::MakeTag('w', 'd', 't', 'h'), 1.0f},
-                                                 {MinikinFont::MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
+        std::vector<FontVariation> variations = {{MakeTag('w', 'd', 't', 'h'), 1.0f},
+                                                 {MakeTag('Z', 'Z', 'Z', 'Z'), 1.0f}};
         std::shared_ptr<FontCollection> newFc(
                 multiAxisFc->createCollectionWithVariation(variations));
         EXPECT_NE(nullptr, newFc.get());
@@ -242,8 +242,8 @@ TEST(FontCollectionTest, bufferTest) {
         EXPECT_EQ(1u, copied.size());
         ASSERT_EQ(2u, copied[0]->getSupportedAxesCount());
         // mSupportedAxes must be sorted.
-        EXPECT_EQ(MinikinFont::MakeTag('w', 'd', 't', 'h'), copied[0]->getSupportedAxisAt(0));
-        EXPECT_EQ(MinikinFont::MakeTag('w', 'g', 'h', 't'), copied[0]->getSupportedAxisAt(1));
+        EXPECT_EQ(MakeTag('w', 'd', 't', 'h'), copied[0]->getSupportedAxisAt(0));
+        EXPECT_EQ(MakeTag('w', 'g', 'h', 't'), copied[0]->getSupportedAxisAt(1));
         std::vector<uint8_t> newBuffer = writeToBuffer(copied);
         EXPECT_EQ(buffer, newBuffer);
     }

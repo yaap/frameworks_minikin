@@ -28,6 +28,7 @@ cc_test {
         "libminikin-tests-util",
         "libminikin",
         "libxml2",
+        "aconfig_text_flags_c_lib",
     ],
 
     // Shared libraries which are dependencies of minikin; these are not automatically
@@ -40,6 +41,9 @@ cc_test {
         "liblog",
         "libutils",
         "libz",
+        "libcutils",
+        "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
 
     srcs: [

@@ -113,7 +113,7 @@ std::vector<Run> itemize(const std::shared_ptr<FontCollection>& collection, cons
 // Utility function to obtain font path associated with run.
 std::string getFontName(const Run& run) {
     EXPECT_NE(nullptr, run.fakedFont.font.get());
-    return getBasename(run.fakedFont.font.get()->typeface()->GetFontPath());
+    return getBasename(run.fakedFont.typeface()->GetFontPath());
 }
 
 // Utility function to obtain LocaleList from string.
@@ -937,9 +937,10 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
                 std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath(kNoGlyphFont));
         std::vector<std::shared_ptr<Font>> fonts;
         fonts.push_back(Font::Builder(firstFamilyMinikinFont).build());
-        auto firstFamily = FontFamily::create(registerLocaleList("und"), FamilyVariant::DEFAULT,
-                                              std::move(fonts), false /* isCustomFallback */,
-                                              false /* isDefaultFallback */);
+        auto firstFamily =
+                FontFamily::create(registerLocaleList("und"), FamilyVariant::DEFAULT,
+                                   std::move(fonts), false /* isCustomFallback */,
+                                   false /* isDefaultFallback */, VariationFamilyType::None);
         families.push_back(firstFamily);
 
         // Prepare font families
@@ -954,7 +955,8 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
             fonts.push_back(Font::Builder(minikinFont).build());
             auto family = FontFamily::create(
                     registerLocaleList(testCase.fontLocales[i]), FamilyVariant::DEFAULT,
-                    std::move(fonts), false /* isCustomFallback */, false /* isDefaultFallback */);
+                    std::move(fonts), false /* isCustomFallback */, false /* isDefaultFallback */,
+                    VariationFamilyType::None);
             families.push_back(family);
             fontLocaleIdxMap.insert(std::make_pair(minikinFont.get(), i));
         }
@@ -966,11 +968,10 @@ TEST(FontCollectionItemizeTest, itemize_LocaleScore) {
 
         // First family doesn't support U+9AA8 and others support it, so the first font should not
         // be selected.
-        EXPECT_NE(firstFamilyMinikinFont.get(), runs[0].fakedFont.font.get()->typeface().get());
+        EXPECT_NE(firstFamilyMinikinFont.get(), runs[0].fakedFont.typeface().get());
 
         // Lookup used font family by MinikinFont*.
-        const int usedLocaleIndex =
-                fontLocaleIdxMap[runs[0].fakedFont.font.get()->typeface().get()];
+        const int usedLocaleIndex = fontLocaleIdxMap[runs[0].fakedFont.typeface().get()];
         EXPECT_EQ(testCase.selectedFontIndex, usedLocaleIndex);
     }
 }
@@ -1648,7 +1649,7 @@ std::vector<ItemizeResult> itemizeEmojiAndFontPostScriptNames(const std::string&
 
     std::vector<ItemizeResult> out;
     for (const auto& run : runs) {
-        auto psName = FontFileParser(run.fakedFont.font->baseFont()).getPostScriptName().value();
+        auto psName = FontFileParser(run.fakedFont.hbFont()).getPostScriptName().value();
         out.push_back({run.start, run.end, psName});
     }
     return out;

@@ -17,15 +17,16 @@
 #ifndef MINIKIN_LAYOUT_CORE_H
 #define MINIKIN_LAYOUT_CORE_H
 
-#include <vector>
-
 #include <gtest/gtest_prod.h>
+
+#include <vector>
 
 #include "minikin/FontFamily.h"
 #include "minikin/Hyphenator.h"
 #include "minikin/MinikinExtent.h"
 #include "minikin/MinikinFont.h"
 #include "minikin/MinikinRect.h"
+#include "minikin/Point.h"
 #include "minikin/Range.h"
 #include "minikin/U16StringPiece.h"
 
@@ -33,19 +34,12 @@ namespace minikin {
 
 struct MinikinPaint;
 
-struct Point {
-    Point() : x(0), y(0) {}
-    Point(float x, float y) : x(x), y(y) {}
-    bool operator==(const Point& o) const { return x == o.x && y == o.y; }
-    float x;
-    float y;
-};
-
 // Immutable, recycle-able layout result.
 class LayoutPiece {
 public:
     LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                 const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen);
+    ~LayoutPiece();
 
     // Low level accessors.
     const std::vector<uint8_t>& fontIndices() const { return mFontIndices; }
@@ -68,12 +62,14 @@ public:
                sizeof(MinikinRect) + sizeof(MinikinExtent);
     }
 
+    static MinikinRect calculateBounds(const LayoutPiece& layout, const MinikinPaint& paint);
+
 private:
     FRIEND_TEST(LayoutTest, doLayoutWithPrecomputedPiecesTest);
 
-    std::vector<uint8_t> mFontIndices;  // per glyph
-    std::vector<uint32_t> mGlyphIds;    // per glyph
-    std::vector<Point> mPoints;         // per glyph
+    std::vector<uint8_t> mFontIndices;      // per glyph
+    std::vector<uint32_t> mGlyphIds;        // per glyph
+    std::vector<Point> mPoints;             // per glyph
 
     std::vector<float> mAdvances;  // per code units
 
@@ -83,10 +79,6 @@ private:
     std::vector<FakedFont> mFonts;
 };
 
-// For gtest output
-inline std::ostream& operator<<(std::ostream& os, const Point& p) {
-    return os << "(" << p.x << ", " << p.y << ")";
-}
 }  // namespace minikin
 
 #endif  // MINIKIN_LAYOUT_CORE_H
