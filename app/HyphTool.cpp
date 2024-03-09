@@ -31,7 +31,7 @@ Hyphenator* loadHybFile(const char* fn, int minPrefix, int minSuffix, const char
         delete[] buf;
         return nullptr;
     }
-    return Hyphenator::loadBinary(buf, minPrefix, minSuffix, language);
+    return Hyphenator::loadBinary(buf, size, minPrefix, minSuffix, language);
 }
 
 int main(int argc, char** argv) {
