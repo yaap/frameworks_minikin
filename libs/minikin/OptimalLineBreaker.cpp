@@ -99,6 +99,8 @@ struct OptimizeContext {
 
     bool retryWithPhraseWordBreak = false;
 
+    float maxCharWidth = 0.0f;
+
     // Append desperate break point to the candidates.
     inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
                               uint32_t spaceCount, bool isRtl, float letterSpacing) {
@@ -337,6 +339,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     }
     result.spaceWidth = proc.spaceWidth;
     result.retryWithPhraseWordBreak = proc.retryWithPhraseWordBreak;
+    result.maxCharWidth = proc.maxCharWidth;
     return result;
 }
 
@@ -422,6 +425,7 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
     breaksData.reserve(nCand);
     breaksData.push_back({0.0, 0, 0});  // The first candidate is always at the first line.
 
+    const float deltaMax = context.maxCharWidth * 2;
     // "i" iterates through candidates for the end of the line.
     for (uint32_t i = 1; i < nCand; i++) {
         const bool atEnd = i == nCand - 1;
@@ -450,19 +454,22 @@ LineBreakResult LineBreakOptimizer::computeBreaks(const OptimizeContext& context
             if (jScore + bestHope >= best) continue;
             float delta = candidates[j].preBreak - leftEdge;
 
-            if (useBoundsForWidth) {
+            // The bounds calculation is for preventing horizontal clipping.
+            // So, if the delta is negative, i.e. overshoot is happening with advance width, we can
+            // skip the bounds calculation. Also we skip the bounds calculation if the delta is
+            // larger than twice of max character widdth. This is a heuristic that the twice of max
+            // character width should be good enough space for keeping overshoot.
+            if (useBoundsForWidth && 0 <= delta && delta < deltaMax) {
                 // FIXME: Support bounds based line break for hyphenated break point.
                 if (candidates[i].hyphenType == HyphenationType::DONT_BREAK &&
                     candidates[j].hyphenType == HyphenationType::DONT_BREAK) {
-                    if (delta >= 0) {
-                        Range range = Range(candidates[j].offset, candidates[i].offset);
-                        Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
-                        if (!actualRange.isEmpty() && measured.hasOverhang(range)) {
-                            float boundsDelta =
-                                    width - measured.getBounds(textBuf, actualRange).width();
-                            if (boundsDelta < 0) {
-                                delta = boundsDelta;
-                            }
+                    Range range = Range(candidates[j].offset, candidates[i].offset);
+                    Range actualRange = trimTrailingLineEndSpaces(textBuf, range);
+                    if (!actualRange.isEmpty() && measured.hasOverhang(range)) {
+                        float boundsDelta =
+                                width - measured.getBounds(textBuf, actualRange).width();
+                        if (boundsDelta < 0) {
+                            delta = boundsDelta;
                         }
                     }
                 }
