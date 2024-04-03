@@ -202,8 +202,8 @@ public:
     // This class doesn't copy or take ownership of patternData. Caller must keep the data valid
     // until this instance is deleted.
     // Note: nullptr is valid input, in which case the hyphenator only processes soft hyphens.
-    static Hyphenator* loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
-                                  size_t minSuffix, const std::string& locale);
+    static Hyphenator* loadBinary(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
+                                  const std::string& locale);
 
 private:
     enum class HyphenationLocale : uint8_t {
@@ -214,7 +214,7 @@ private:
     };
 
     // Use Hyphenator::loadBinary instead.
-    Hyphenator(const uint8_t* patternData, size_t dataSize, size_t minPrefix, size_t minSuffix,
+    Hyphenator(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
                HyphenationLocale hyphenLocale);
 
     // apply various hyphenation rules including hard and soft hyphens, ignoring patterns
@@ -236,7 +236,6 @@ private:
     static const size_t MAX_HYPHENATED_SIZE = 64;
 
     const uint8_t* mPatternData;
-    const size_t mDataSize;
     const size_t mMinPrefix, mMinSuffix;
     const HyphenationLocale mHyphenationLocale;
 
