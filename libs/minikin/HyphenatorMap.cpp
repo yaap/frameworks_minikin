@@ -43,7 +43,7 @@ void addHyphenatorAlias(const std::string& fromLocaleStr, const std::string& toL
 
 HyphenatorMap::HyphenatorMap()
         : mSoftHyphenOnlyHyphenator(
-                  Hyphenator::loadBinary(nullptr, 0, DEFAULT_MIN_PREFIX, DEFAULT_MAX_PREFIX, "")) {}
+                  Hyphenator::loadBinary(nullptr, DEFAULT_MIN_PREFIX, DEFAULT_MAX_PREFIX, "")) {}
 
 void HyphenatorMap::addInternal(const std::string& localeStr, const Hyphenator* hyphenator) {
     const Locale locale(localeStr);
