@@ -17,10 +17,11 @@
  *****************************************************************************
  */
 package {
+    default_team: "trendy_team_java_core_libraries",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
- cc_fuzz {
+cc_fuzz {
     name: "locale_fuzzer",
     srcs: [
         "locale_fuzzer.cpp",
