@@ -52,5 +52,8 @@ cc_test {
         "MultithreadTest.cpp",
     ],
 
-    defaults: ["libminikin_defaults"],
+    defaults: [
+        "aconfig_lib_cc_static_link.defaults",
+        "libminikin_defaults",
+    ],
 }
