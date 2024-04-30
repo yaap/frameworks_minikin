@@ -22,7 +22,10 @@ package {
 cc_benchmark {
     name: "minikin_perftests",
     test_suites: ["device-tests"],
-    defaults: ["libminikin_defaults"],
+    defaults: [
+        "aconfig_lib_cc_static_link.defaults",
+        "libminikin_defaults",
+    ],
     srcs: [
         "FontCollection.cpp",
         "FontLanguage.cpp",
