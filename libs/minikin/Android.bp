@@ -114,4 +114,6 @@ cc_library {
             ],
         },
     },
+
+    afdo: true,
 }
