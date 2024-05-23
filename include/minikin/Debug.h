@@ -18,6 +18,7 @@
 #define MINIKIN_DEBUG_H
 
 #include <string>
+#include <vector>
 
 namespace minikin {
 
