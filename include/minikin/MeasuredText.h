@@ -114,6 +114,15 @@ public:
 
     inline const Range& getRange() const { return mRange; }
 
+    inline float getLetterSpacingInPx() const {
+        const MinikinPaint* paint = getPaint();
+        if (paint == nullptr) {
+            return 0;
+        } else {
+            return paint->getLetterSpacingInPx();
+        }
+    }
+
 protected:
     const Range mRange;
 };
