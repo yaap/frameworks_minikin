@@ -78,10 +78,10 @@ TEST(MeasuredTextTest, getBoundsTest) {
                             nullptr /* no hint */);
 
     EXPECT_EQ(MinikinRect(0.0f, 0.0f, 0.0f, 0.0f), mt->getBounds(text, Range(0, 0)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 20.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(1, 2)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 130.0f, 0.0f), mt->getBounds(text, Range(0, text.size())));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 20.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(1, 2)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 130.0f, 0.0f), mt->getBounds(text, Range(0, text.size())));
 }
 
 TEST(MeasuredTextTest, getBoundsTest_LTR) {
@@ -99,7 +99,7 @@ TEST(MeasuredTextTest, getBoundsTest_LTR) {
                             false /* computeBounds */, false /* ignore kerning */,
                             nullptr /* no hint */);
 
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
 }
 
 TEST(MeasuredTextTest, getBoundsTest_RTL) {
@@ -117,7 +117,7 @@ TEST(MeasuredTextTest, getBoundsTest_RTL) {
                             false /* computeBounds */, false /* ignore kerning */,
                             nullptr /* no hint */);
 
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 30.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 30.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
 }
 
 TEST(MeasuredTextTest, getBoundsTest_multiStyle) {
@@ -140,14 +140,22 @@ TEST(MeasuredTextTest, getBoundsTest_multiStyle) {
                             false /* computeBounds */, false /* ignore kerning */,
                             nullptr /* no hint */);
 
+    // In this example, the glyph shape is as wollows.
+    // (y axis, em unit)
+    // -2               ┌───┬───┬───┬───┬───┬───┐
+    //                  │   │   │   │   │   │   │
+    // -1 ┌─┬─┬─┬─┬─┬─┬─┤ W │ o │ r │ l │ d │ ! │
+    //    │H│e│l│l│o│,│ │   │   │   │   │   │   │
+    //  0 └─┴─┴─┴─┴─┴─┴─┴───┴───┴───┴───┴───┴───┘
+    //    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9  (x axis, em unit)
     EXPECT_EQ(MinikinRect(0.0f, 0.0f, 0.0f, 0.0f), mt->getBounds(text, Range(0, 0)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 20.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(1, 2)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(0, 1)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 20.0f, 0.0f), mt->getBounds(text, Range(0, 2)));
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), mt->getBounds(text, Range(1, 2)));
     EXPECT_EQ(MinikinRect(0.0f, 0.0f, 0.0f, 0.0f), mt->getBounds(text, Range(7, 7)));
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 20.0f, 0.0f), mt->getBounds(text, Range(7, 8)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 30.0f, 0.0f), mt->getBounds(text, Range(6, 8)));
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 190.0f, 0.0f), mt->getBounds(text, Range(0, text.size())));
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 20.0f, 0.0f), mt->getBounds(text, Range(7, 8)));
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 30.0f, 0.0f), mt->getBounds(text, Range(6, 8)));
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 190.0f, 0.0f), mt->getBounds(text, Range(0, text.size())));
 }
 
 TEST(MeasuredTextTest, getExtentTest) {
@@ -238,7 +246,7 @@ TEST(MeasuredTextTest, buildLayoutTest) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(0, 1), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, 2), fullContext, samePaint, StartHyphenEdit::NO_EDIT,
                              EndHyphenEdit::NO_EDIT);
@@ -254,7 +262,7 @@ TEST(MeasuredTextTest, buildLayoutTest) {
     EXPECT_EQ(2u, layout.getAdvances().size());
     getBounds(text, Range(0, 2), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 20.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 20.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(1, 2), fullContext, samePaint, StartHyphenEdit::NO_EDIT,
                              EndHyphenEdit::NO_EDIT);
@@ -267,7 +275,7 @@ TEST(MeasuredTextTest, buildLayoutTest) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(1, 2), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, text.size()), fullContext, samePaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -283,7 +291,7 @@ TEST(MeasuredTextTest, buildLayoutTest) {
     EXPECT_EQ(text.size(), layout.getAdvances().size());
     getBounds(text, Range(0, text.size()), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 130.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 130.0f, 0.0f), rect);
 }
 
 TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
@@ -326,7 +334,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(0, 1), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, 2), fullContext, samePaint, StartHyphenEdit::NO_EDIT,
                              EndHyphenEdit::NO_EDIT);
@@ -342,7 +350,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
     EXPECT_EQ(2u, layout.getAdvances().size());
     getBounds(text, Range(0, 2), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 20.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 20.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(1, 2), fullContext, samePaint, StartHyphenEdit::NO_EDIT,
                              EndHyphenEdit::NO_EDIT);
@@ -355,7 +363,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(1, 2), Bidi::LTR, samePaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 10.0f, 10.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -10.0f, 10.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(7, 7), fullContext, samePaint, StartHyphenEdit::NO_EDIT,
                              EndHyphenEdit::NO_EDIT);
@@ -374,7 +382,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(7, 8), Bidi::LTR, samePaint2, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 20.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 20.0f, 0.0f), rect);
 }
 
 TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
@@ -412,7 +420,7 @@ TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(0, 1), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 20.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 20.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, 2), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -428,7 +436,7 @@ TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
     EXPECT_EQ(2u, layout.getAdvances().size());
     getBounds(text, Range(0, 2), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 40.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 40.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(1, 2), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -441,7 +449,7 @@ TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(1, 2), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 20.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 20.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, text.size()), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -457,7 +465,7 @@ TEST(MeasuredTextTest, buildLayoutTest_differentPaint) {
     EXPECT_EQ(text.size(), layout.getAdvances().size());
     getBounds(text, Range(0, text.size()), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 20.0f, 260.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -20.0f, 260.0f, 0.0f), rect);
 }
 
 TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
@@ -500,7 +508,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(0, 1), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 30.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 30.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, 2), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -516,7 +524,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(2u, layout.getAdvances().size());
     getBounds(text, Range(0, 2), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 60.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 60.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(1, 2), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -529,7 +537,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(1, 2), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 30.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 30.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(7, 7), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -546,7 +554,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(1u, layout.getAdvances().size());
     getBounds(text, Range(7, 8), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 30.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 30.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(6, 8), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -562,7 +570,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(2u, layout.getAdvances().size());
     getBounds(text, Range(6, 8), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 60.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 60.0f, 0.0f), rect);
 
     layout = mt->buildLayout(text, Range(0, text.size()), fullContext, differentPaint,
                              StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
@@ -578,7 +586,7 @@ TEST(MeasuredTextTest, buildLayoutTest_multiStyle_differentPaint) {
     EXPECT_EQ(text.size(), layout.getAdvances().size());
     getBounds(text, Range(0, text.size()), Bidi::LTR, differentPaint, StartHyphenEdit::NO_EDIT,
               EndHyphenEdit::NO_EDIT, &rect);
-    EXPECT_EQ(MinikinRect(0.0f, 30.0f, 390.0f, 0.0f), rect);
+    EXPECT_EQ(MinikinRect(0.0f, -30.0f, 390.0f, 0.0f), rect);
 }
 
 TEST(MeasuredTextTest, testLineBreakStyle_from_builder) {

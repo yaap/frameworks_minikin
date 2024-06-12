@@ -1996,7 +1996,7 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_trailing) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 205, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -2012,8 +2012,8 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_trailing) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -2034,10 +2034,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_trailing) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[3]);
     }
 }
 
@@ -2067,7 +2067,7 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 190, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -2083,8 +2083,8 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -2105,10 +2105,10 @@ TEST_F(OptimalLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[3]);
     }
 }
 
