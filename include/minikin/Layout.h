@@ -17,13 +17,15 @@
 #ifndef MINIKIN_LAYOUT_H
 #define MINIKIN_LAYOUT_H
 
+#include <gtest/gtest_prod.h>
+
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
-#include <gtest/gtest_prod.h>
-
 #include "minikin/FontCollection.h"
+#include "minikin/FontFileParser.h"
 #include "minikin/LayoutCore.h"
 #include "minikin/Range.h"
 #include "minikin/U16StringPiece.h"
@@ -34,14 +36,22 @@ class Layout;
 struct LayoutPieces;
 
 struct LayoutGlyph {
-    LayoutGlyph(FakedFont font, uint32_t glyph_id, float x, float y)
-            : font(font), glyph_id(glyph_id), x(x), y(y) {}
+    LayoutGlyph(FakedFont font, uint32_t glyph_id, uint32_t cluster, float x, float y)
+            : font(font), glyph_id(glyph_id), cluster(cluster), x(x), y(y) {}
     FakedFont font;
 
     uint32_t glyph_id;
+    uint32_t cluster;
     float x;
     float y;
 };
+
+// For gtest output
+inline std::ostream& operator<<(std::ostream& os, const LayoutGlyph& g) {
+    std::optional<std::string> psName = FontFileParser(g.font.hbFont()).getPostScriptName();
+    return os << "{ font:" << psName.value_or("{UNKNOWN}") << ", gid:" << g.glyph_id
+              << ", cluster:" << g.cluster << ", pos=(" << g.x << "," << g.y << ") }";
+}
 
 // Must be the same value with Paint.java
 enum class Bidi : uint8_t {
@@ -60,15 +70,34 @@ inline bool isOverride(Bidi bidi) {
     return static_cast<uint8_t>(bidi) & 0b0100;
 }
 
+enum RunFlag : uint8_t {
+    // The run is in the middle of the line. Neither left or right edge.
+    NONE = 0,
+    // The run is located at the most visually left of the line.
+    LEFT_EDGE = 1,
+    // The run is located at the most visually right of the line.
+    RIGHT_EDGE = 2,
+    // The run is both most visually left and most visually right, i.e. the run covers entire line.
+    WHOLE_LINE = LEFT_EDGE | RIGHT_EDGE,
+};
+
 // Lifecycle and threading assumptions for Layout:
 // The object is assumed to be owned by a single thread; multiple threads
 // may not mutate it at the same time.
 class Layout {
 public:
     Layout(const U16StringPiece& str, const Range& range, Bidi bidiFlags, const MinikinPaint& paint,
+           StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, uint32_t runFlag)
+            : mAdvance(0) {
+        doLayout(str, range, bidiFlags, paint, startHyphen, endHyphen,
+                 static_cast<RunFlag>(runFlag));
+    }
+
+    // TODO(nona): Remove once the HWUI start calling new API.
+    Layout(const U16StringPiece& str, const Range& range, Bidi bidiFlags, const MinikinPaint& paint,
            StartHyphenEdit startHyphen, EndHyphenEdit endHyphen)
             : mAdvance(0) {
-        doLayout(str, range, bidiFlags, paint, startHyphen, endHyphen);
+        doLayout(str, range, bidiFlags, paint, startHyphen, endHyphen, RunFlag::NONE);
     }
 
     Layout(uint32_t count) : mAdvance(0) {
@@ -79,12 +108,23 @@ public:
     static float measureText(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
                              const MinikinPaint& paint, StartHyphenEdit startHyphen,
                              EndHyphenEdit endHyphen, float* advances) {
-        return measureText(str, range, bidiFlags, paint, startHyphen, endHyphen, advances, nullptr);
+        return measureText(str, range, bidiFlags, paint, startHyphen, endHyphen, advances, nullptr,
+                           nullptr, RunFlag::NONE);
+    }
+
+    // TODO(nona): Remove once the HWUI start calling new API.
+    static float measureText(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
+                             const MinikinPaint& paint, StartHyphenEdit startHyphen,
+                             EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds,
+                             uint32_t* clusterCount) {
+        return measureText(str, range, bidiFlags, paint, startHyphen, endHyphen, advances, bounds,
+                           clusterCount, RunFlag::NONE);
     }
 
     static float measureText(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
                              const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                             EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds);
+                             EndHyphenEdit endHyphen, float* advances, MinikinRect* bounds,
+                             uint32_t* clusterCount, RunFlag runFlag);
 
     const std::vector<float>& advances() const { return mAdvances; }
 
@@ -110,11 +150,34 @@ public:
     // Append another layout (for example, cached value) into this one
     void appendLayout(const LayoutPiece& src, size_t start, float extraAdvance);
 
+    // For gtest output
+    std::string toString() const {
+        std::stringstream ss;
+        ss << "{glyphs: ";
+        for (uint32_t i = 0; i < mGlyphs.size(); ++i) {
+            if (i != 0) {
+                ss << ", ";
+            }
+            ss << mGlyphs[i];
+        }
+        ss << ", totalAdvance: " << mAdvance;
+        ss << ", advances: {";
+        for (uint32_t i = 0; i < mAdvances.size(); ++i) {
+            if (i != 0) {
+                ss << ", ";
+            }
+            ss << mAdvances[i];
+        }
+        ss << "}";
+        return ss.str();
+    }
+
 private:
     FRIEND_TEST(LayoutTest, doLayoutWithPrecomputedPiecesTest);
 
     void doLayout(const U16StringPiece& str, const Range& range, Bidi bidiFlags,
-                  const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen);
+                  const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
+                  RunFlag runFlag);
 
     // Lay out a single bidi run
     // When layout is not null, layout info will be stored in the object.
@@ -122,18 +185,19 @@ private:
     static float doLayoutRunCached(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                                    const MinikinPaint& paint, size_t dstStart,
                                    StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                                   Layout* layout, float* advances, MinikinRect* bounds);
+                                   Layout* layout, float* advances, MinikinRect* bounds,
+                                   uint32_t* clusterCount);
 
     // Lay out a single word
     static float doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                               bool isRtl, const MinikinPaint& paint, size_t bufStart,
                               StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                              float* advances, MinikinRect* bounds);
+                              float* advances, MinikinRect* bounds, uint32_t* clusterCount);
 
     // Lay out a single bidi run
     void doLayoutRun(const uint16_t* buf, size_t start, size_t count, size_t bufSize, bool isRtl,
                      const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                     EndHyphenEdit endHyphen, MinikinRect* bounds);
+                     EndHyphenEdit endHyphen, MinikinRect* bounds, uint32_t* clusterCount);
 
     std::vector<LayoutGlyph> mGlyphs;
 
@@ -143,6 +207,10 @@ private:
     float mAdvance;
 };
 
+// For gtest output
+inline std::ostream& operator<<(std::ostream& os, const Layout& l) {
+    return os << l.toString();
+}
 }  // namespace minikin
 
 #endif  // MINIKIN_LAYOUT_H

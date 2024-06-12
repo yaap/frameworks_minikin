@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include "minikin/Constants.h"
 #include "minikin/FontFamily.h"
 #include "minikin/Hyphenator.h"
 #include "minikin/MinikinExtent.h"
@@ -49,12 +50,14 @@ public:
     float advance() const { return mAdvance; }
     const MinikinExtent& extent() const { return mExtent; }
     const std::vector<FakedFont>& fonts() const { return mFonts; }
+    uint32_t clusterCount() const { return mClusterCount; }
 
     // Helper accessors
     uint32_t glyphCount() const { return mGlyphIds.size(); }
     const FakedFont& fontAt(int glyphPos) const { return mFonts[mFontIndices[glyphPos]]; }
     uint32_t glyphIdAt(int glyphPos) const { return mGlyphIds[glyphPos]; }
     const Point& pointAt(int glyphPos) const { return mPoints[glyphPos]; }
+    uint16_t clusterAt(int glyphPos) const { return mClusters[glyphPos]; }
 
     uint32_t getMemoryUsage() const {
         return sizeof(uint8_t) * mFontIndices.size() + sizeof(uint32_t) * mGlyphIds.size() +
@@ -70,11 +73,13 @@ private:
     std::vector<uint8_t> mFontIndices;      // per glyph
     std::vector<uint32_t> mGlyphIds;        // per glyph
     std::vector<Point> mPoints;             // per glyph
+    std::vector<uint8_t> mClusters;         // per glyph
 
     std::vector<float> mAdvances;  // per code units
 
     float mAdvance;
     MinikinExtent mExtent;
+    uint32_t mClusterCount;
 
     std::vector<FakedFont> mFonts;
 };

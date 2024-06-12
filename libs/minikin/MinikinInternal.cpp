@@ -49,7 +49,7 @@ bool isVariationSelector(uint32_t codePoint) {
 }
 
 bool MinikinPaint::skipCache() const {
-    if (features::inter_character_justification()) {
+    if (features::letter_spacing_justification()) {
         return false;  // if the flag is on, do not skip the cache.
     } else {
         return !fontFeatureSettings.empty();

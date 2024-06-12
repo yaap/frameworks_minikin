@@ -17,14 +17,14 @@
 #ifndef MINIKIN_LAYOUT_CACHE_H
 #define MINIKIN_LAYOUT_CACHE_H
 
-#include "minikin/LayoutCore.h"
+#include <utils/LruCache.h>
 
 #include <mutex>
 
-#include <utils/LruCache.h>
-
+#include "minikin/Constants.h"
 #include "minikin/FontCollection.h"
 #include "minikin/Hasher.h"
+#include "minikin/LayoutCore.h"
 #include "minikin/MinikinPaint.h"
 
 #ifdef _WIN32
@@ -32,7 +32,6 @@
 #endif
 
 namespace minikin {
-const uint32_t LENGTH_LIMIT_CACHE = 128;
 // Layout cache datatypes
 class LayoutCacheKey {
 public:
@@ -163,7 +162,7 @@ public:
                      bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
                      bool boundsCalculation, F& f) {
         LayoutCacheKey key(text, range, paint, dir, startHyphen, endHyphen);
-        if (paint.skipCache() || range.getLength() >= LENGTH_LIMIT_CACHE) {
+        if (paint.skipCache() || range.getLength() >= CHAR_LIMIT_FOR_CACHE) {
             LayoutPiece piece(text, range, dir, paint, startHyphen, endHyphen);
             if (boundsCalculation) {
                 f(piece, paint, LayoutPiece::calculateBounds(piece, paint));

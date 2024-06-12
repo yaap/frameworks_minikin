@@ -82,6 +82,8 @@ struct MinikinPaint {
     MinikinPaint(MinikinPaint&&) = default;
     MinikinPaint& operator=(MinikinPaint&&) = default;
 
+    float getLetterSpacingInPx() const { return letterSpacing * size * scaleX; }
+
     inline bool operator==(const MinikinPaint& paint) const {
         return size == paint.size && scaleX == paint.scaleX && skewX == paint.skewX &&
                letterSpacing == paint.letterSpacing && wordSpacing == paint.wordSpacing &&

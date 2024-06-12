@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include "FeatureFlags.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
@@ -611,6 +612,11 @@ FontCollection::FamilyMatchResult FontCollection::FamilyMatchResult::intersect(
 void FontCollection::filterFamilyByLocale(
         const LocaleList& localeList,
         const std::function<void(const FontFamily& family)>& callback) const {
+    if (localeList.empty()) {
+        return;
+    }
+    // Only use the first family for the default line height.
+    const Locale& locale = localeList[0];
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
 
@@ -619,16 +625,26 @@ void FontCollection::filterFamilyByLocale(
             continue;
         }
         const LocaleList& fontLocaleList = LocaleListCache::getById(fontLocaleId);
-        if (!localeList.atLeastOneScriptMatch(fontLocaleList)) {
-            continue;
+        for (uint32_t i = 0; i < fontLocaleList.size(); ++i) {
+            if (fontLocaleList[i].isEqualScript(locale)) {
+                callback(*family.get());
+                break;
+            }
         }
-
-        callback(*family.get());
     }
 }
 
 MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& paint) const {
     uint32_t localeId = paint.localeListId;
+    LocaleExtentKey key = {localeId, paint.size};
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    auto e = mExtentCacheForLocale.get(key);
+
+    if (e.ascent != 0 || e.descent != 0) {
+        return e;
+    }
+
     MinikinExtent result(0, 0);
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
@@ -644,6 +660,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     }
 
     if (localeId == LocaleListCache::kInvalidListId) {
+        mExtentCacheForLocale.put(key, result);
         return result;
     }
 
@@ -688,6 +705,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         font.typeface()->GetFontExtent(&result, paint, font.fakery);
     }
 
+    mExtentCacheForLocale.put(key, result);
     return result;
 }
 
@@ -891,7 +909,9 @@ std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
     std::vector<std::shared_ptr<FontFamily>> families;
     for (size_t i = 0; i < getFamilyCount(); ++i) {
         const std::shared_ptr<FontFamily>& family = getFamilyAt(i);
-        std::shared_ptr<FontFamily> newFamily = family->createFamilyWithVariation(variations);
+        std::shared_ptr<FontFamily> newFamily =
+                features::lazy_variation_instance() ? FontFamily::create(family, variations)
+                                                    : family->createFamilyWithVariation(variations);
         if (newFamily) {
             families.push_back(newFamily);
         } else {
