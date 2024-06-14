@@ -92,7 +92,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string locale = fdp.ConsumeRandomLengthString(MAX_STR_LEN);
     std::vector<uint8_t> patternData(fdp.ConsumeIntegralInRange<uint32_t>(0, 256));
 
-    Hyphenator* hyphenator = Hyphenator::loadBinary(&patternData[0], minPrefix, minSuffix, locale);
+    Hyphenator* hyphenator = Hyphenator::loadBinary(&patternData[0], patternData.size(), minPrefix,
+                                                    minSuffix, locale);
 
     // To randomize the API calls
     while (fdp.remaining_bytes() > 0) {

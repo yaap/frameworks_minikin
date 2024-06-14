@@ -62,10 +62,11 @@ public:
 
     virtual void SetUp() override {
         mHyphenationPattern = readWholeFile("/system/usr/hyphen-data/hyph-en-us.hyb");
-        Hyphenator* hyphenator = Hyphenator::loadBinary(
-                mHyphenationPattern.data(), 2 /* min prefix */, 2 /* min suffix */, "en-US");
+        Hyphenator* hyphenator =
+                Hyphenator::loadBinary(mHyphenationPattern.data(), mHyphenationPattern.size(),
+                                       2 /* min prefix */, 2 /* min suffix */, "en-US");
         HyphenatorMap::add("en-US", hyphenator);
-        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, "pl"));
+        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, 0, "pl"));
     }
 
     virtual void TearDown() override { HyphenatorMap::clear(); }

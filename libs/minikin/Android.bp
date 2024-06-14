@@ -23,6 +23,36 @@ cc_library_headers {
     export_shared_lib_headers: ["libharfbuzz_ng"],
 }
 
+cc_library_static {
+    name: "libminikin_from_rust_to_cpp",
+    cpp_std: "c++20",
+    host_supported: true,
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+    srcs: [
+        "ffi/IcuBridge.cpp",
+    ],
+    generated_headers: [
+        "cxx-bridge-header",
+        "libminikin_cxx_bridge_header",
+    ],
+    generated_sources: [
+        "libminikin_cxx_bridge_code",
+    ],
+    lto: {
+        never: true,
+    },
+    shared_libs: [
+        "libicu",
+    ],
+    export_shared_lib_headers: [
+        "libicu",
+    ],
+}
+
 cc_library {
     name: "libminikin",
     host_supported: true,
@@ -72,7 +102,7 @@ cc_library {
             srcs: [
                 "Debug.cpp",
             ],
-            cppflags: [ "-DENABLE_ASSERTION" ],
+            cppflags: ["-DENABLE_ASSERTION"],
         },
     },
     shared_libs: [
@@ -96,6 +126,13 @@ cc_library {
             export_shared_lib_headers: [
                 "libicu",
             ],
+            generated_headers: [
+                "cxx-bridge-header",
+                "libminikin_cxx_bridge_header",
+            ],
+            whole_static_libs: [
+                "libminikin_rust_ffi",
+            ],
         },
         host: {
             shared_libs: [
@@ -105,6 +142,15 @@ cc_library {
             export_shared_lib_headers: [
                 "libicui18n",
                 "libicuuc",
+            ],
+            generated_headers: [
+                "cxx-bridge-header",
+                "libminikin_cxx_bridge_header",
+            ],
+        },
+        not_windows: {
+            whole_static_libs: [
+                "libminikin_rust_ffi",
             ],
         },
         windows: {
@@ -117,4 +163,5 @@ cc_library {
     },
 
     afdo: true,
+
 }
