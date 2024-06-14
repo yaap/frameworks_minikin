@@ -20,6 +20,7 @@
 #include <gtest/gtest_prod.h>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -149,6 +150,9 @@ public:
     explicit Font(BufferReader* reader);
     void writeTo(BufferWriter* writer) const;
 
+    // Create font instance with axes override.
+    Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes);
+
     Font(Font&& o) noexcept;
     Font& operator=(Font&& o) noexcept;
     ~Font();
@@ -167,7 +171,9 @@ public:
 
     BufferReader typefaceMetadataReader() const { return mTypefaceMetadataReader; }
 
-    std::unordered_set<AxisTag> getSupportedAxes() const;
+    uint16_t getSupportedAxesCount() const { return mSupportedAxesCount; }
+    const AxisTag* getSupportedAxes() const { return mSupportedAxes.get(); }
+    bool isAxisSupported(uint32_t tag) const;
 
 private:
     // ExternalRefs holds references to objects provided by external libraries.
@@ -182,18 +188,23 @@ private:
         HbFontUniquePtr mBaseFont;
 
         const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+        HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
         mutable std::mutex mMutex;
         mutable std::map<uint16_t, std::shared_ptr<MinikinFont>> mVarTypefaceCache
                 GUARDED_BY(mMutex);
+        mutable std::map<uint16_t, HbFontUniquePtr> mVarFontCache GUARDED_BY(mMutex);
     };
 
     // Use Builder instead.
     Font(std::shared_ptr<MinikinFont>&& typeface, FontStyle style, HbFontUniquePtr&& baseFont,
          uint32_t localeListId)
             : mExternalRefsHolder(new ExternalRefs(std::move(typeface), std::move(baseFont))),
+              mExternalRefsBuilder(nullptr),
               mStyle(style),
               mLocaleListId(localeListId),
-              mTypefaceMetadataReader(nullptr) {}
+              mTypefaceMetadataReader(nullptr) {
+        calculateSupportedAxes();
+    }
 
     void resetExternalRefs(ExternalRefs* refs);
 
@@ -205,8 +216,13 @@ private:
 
     // Lazy-initialized if created by readFrom().
     mutable std::atomic<ExternalRefs*> mExternalRefsHolder;
+    std::function<ExternalRefs*()> mExternalRefsBuilder;
     FontStyle mStyle;
     uint32_t mLocaleListId;
+    std::unique_ptr<AxisTag[]> mSupportedAxes;
+    uint16_t mSupportedAxesCount;
+
+    void calculateSupportedAxes();
 
     // Non-null if created by readFrom().
     BufferReader mTypefaceMetadataReader;

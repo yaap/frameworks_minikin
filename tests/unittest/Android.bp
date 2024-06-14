@@ -72,6 +72,7 @@ cc_test {
         "LayoutSplitterTest.cpp",
         "LayoutTest.cpp",
         "LayoutUtilsTest.cpp",
+        "LayoutLetterSpacingTest.cpp",
         "LocaleListTest.cpp",
         "MeasuredTextTest.cpp",
         "MeasurementTests.cpp",

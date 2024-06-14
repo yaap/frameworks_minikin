@@ -158,7 +158,7 @@ protected:
 
 TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagEnabled,
                   REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      inter_character_justification))) {
+                                                      letter_spacing_justification))) {
     auto paint = MinikinPaint(font);
     paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
     EXPECT_FALSE(paint.skipCache());
@@ -166,7 +166,7 @@ TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagEnabled,
 
 TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagDisabled,
                   REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                       inter_character_justification))) {
+                                                       letter_spacing_justification))) {
     auto paint = MinikinPaint(font);
     paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
     EXPECT_TRUE(paint.skipCache());

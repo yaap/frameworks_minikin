@@ -101,29 +101,48 @@ struct OptimizeContext {
 
     // Append desperate break point to the candidates.
     inline void pushDesperate(uint32_t offset, ParaWidth sumOfCharWidths, float score,
-                              uint32_t spaceCount, bool isRtl) {
-        candidates.emplace_back(offset, sumOfCharWidths, sumOfCharWidths, score, spaceCount,
-                                spaceCount, HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl);
+                              uint32_t spaceCount, bool isRtl, float letterSpacing) {
+        pushBreakCandidate(offset, sumOfCharWidths, sumOfCharWidths, score, spaceCount, spaceCount,
+                           HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, isRtl, letterSpacing);
     }
 
     // Append hyphenation break point to the candidates.
     inline void pushHyphenation(uint32_t offset, ParaWidth preBreak, ParaWidth postBreak,
                                 float penalty, uint32_t spaceCount, HyphenationType type,
-                                bool isRtl) {
-        candidates.emplace_back(offset, preBreak, postBreak, penalty, spaceCount, spaceCount, type,
-                                isRtl);
+                                bool isRtl, float letterSpacing) {
+        pushBreakCandidate(offset, preBreak, postBreak, penalty, spaceCount, spaceCount, type,
+                           isRtl, letterSpacing);
     }
 
     // Append word break point to the candidates.
     inline void pushWordBreak(uint32_t offset, ParaWidth preBreak, ParaWidth postBreak,
                               float penalty, uint32_t preSpaceCount, uint32_t postSpaceCount,
-                              bool isRtl) {
-        candidates.emplace_back(offset, preBreak, postBreak, penalty, preSpaceCount, postSpaceCount,
-                                HyphenationType::DONT_BREAK, isRtl);
+                              bool isRtl, float letterSpacing) {
+        pushBreakCandidate(offset, preBreak, postBreak, penalty, preSpaceCount, postSpaceCount,
+                           HyphenationType::DONT_BREAK, isRtl, letterSpacing);
     }
 
-    OptimizeContext() {
-        candidates.emplace_back(0, 0.0f, 0.0f, 0.0f, 0, 0, HyphenationType::DONT_BREAK, false);
+    OptimizeContext(float firstLetterSpacing) {
+        pushWordBreak(0, 0, 0, 0, 0, 0, false, firstLetterSpacing);
+    }
+
+private:
+    void pushBreakCandidate(uint32_t offset, ParaWidth preBreak, ParaWidth postBreak, float penalty,
+                            uint32_t preSpaceCount, uint32_t postSpaceCount, HyphenationType type,
+                            bool isRtl, float letterSpacing) {
+        // Adjust the letter spacing amount. To remove the letter spacing of left and right edge,
+        // adjust the preBreak and postBreak values. Adding half to preBreak and removing half from
+        // postBreak, the letter space amount is subtracted from the line.
+        //
+        // This calculation assumes the letter spacing of starting edge is the same to the line
+        // start offset and letter spacing of ending edge is the same to the line end offset.
+        // Ideally, we should do the BiDi reordering for identifying the run of the left edge and
+        // right edge but it makes the candidate population to O(n^2). To avoid performance
+        // regression, use the letter spacing of the line start offset and letter spacing of the
+        // line end offset.
+        const float letterSpacingHalf = letterSpacing * 0.5;
+        candidates.emplace_back(offset, preBreak + letterSpacingHalf, postBreak - letterSpacingHalf,
+                                penalty, preSpaceCount, postSpaceCount, type, isRtl);
     }
 };
 
@@ -220,19 +239,19 @@ std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBu
 void appendWithMerging(std::vector<HyphenBreak>::const_iterator hyIter,
                        std::vector<HyphenBreak>::const_iterator endHyIter,
                        const std::vector<DesperateBreak>& desperates, const CharProcessor& proc,
-                       float hyphenPenalty, bool isRtl, OptimizeContext* out) {
+                       float hyphenPenalty, bool isRtl, float letterSpacing, OptimizeContext* out) {
     auto d = desperates.begin();
     while (hyIter != endHyIter || d != desperates.end()) {
         // If both hyphen breaks and desperate breaks point to the same offset, push desperate
         // breaks first.
         if (d != desperates.end() && (hyIter == endHyIter || d->offset <= hyIter->offset)) {
             out->pushDesperate(d->offset, proc.sumOfCharWidthsAtPrevWordBreak + d->sumOfChars,
-                               d->score, proc.effectiveSpaceCount, isRtl);
+                               d->score, proc.effectiveSpaceCount, isRtl, letterSpacing);
             d++;
         } else {
             out->pushHyphenation(hyIter->offset, proc.sumOfCharWidths - hyIter->second,
                                  proc.sumOfCharWidthsAtPrevWordBreak + hyIter->first, hyphenPenalty,
-                                 proc.effectiveSpaceCount, hyIter->type, isRtl);
+                                 proc.effectiveSpaceCount, hyIter->type, isRtl, letterSpacing);
             hyIter++;
         }
     }
@@ -245,7 +264,17 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     const ParaWidth minLineWidth = lineWidth.getMin();
     CharProcessor proc(textBuf);
 
-    OptimizeContext result;
+    float initialLetterSpacing;
+    if (features::letter_spacing_justification()) {
+        if (measured.runs.empty()) {
+            initialLetterSpacing = 0;
+        } else {
+            initialLetterSpacing = measured.runs[0]->getLetterSpacingInPx();
+        }
+    } else {
+        initialLetterSpacing = 0;
+    }
+    OptimizeContext result(initialLetterSpacing);
 
     const bool doHyphenation = frequency != HyphenationFrequency::None;
     auto hyIter = std::begin(measured.hyphenBreaks);
@@ -253,6 +282,8 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     for (const auto& run : measured.runs) {
         const bool isRtl = run->isRtl();
         const Range& range = run->getRange();
+        const float letterSpacing =
+                features::letter_spacing_justification() ? run->getLetterSpacingInPx() : 0;
 
         // Compute penalty parameters.
         float hyphenPenalty = 0.0f;
@@ -290,15 +321,17 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
                 desperateBreaks = populateDesperatePoints(textBuf, measured, contextRange, *run);
             }
             const bool doHyphenationRun = doHyphenation && run->canHyphenate();
+
             appendWithMerging(beginHyIter, doHyphenationRun ? hyIter : beginHyIter, desperateBreaks,
-                              proc, hyphenPenalty, isRtl, &result);
+                              proc, hyphenPenalty, isRtl, letterSpacing, &result);
 
             // We skip breaks for zero-width characters inside replacement spans.
             if (run->getPaint() != nullptr || nextCharOffset == range.getEnd() ||
                 measured.widths[nextCharOffset] > 0) {
                 const float penalty = hyphenPenalty * proc.wordBreakPenalty();
                 result.pushWordBreak(nextCharOffset, proc.sumOfCharWidths, proc.effectiveWidth,
-                                     penalty, proc.rawSpaceCount, proc.effectiveSpaceCount, isRtl);
+                                     penalty, proc.rawSpaceCount, proc.effectiveSpaceCount, isRtl,
+                                     letterSpacing);
             }
         }
     }
