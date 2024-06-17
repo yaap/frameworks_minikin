@@ -74,7 +74,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -93,7 +93,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(90.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -112,7 +112,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(160.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -131,7 +131,7 @@ TEST_F(LayoutTest, doLayoutTest) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(110.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -162,7 +162,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -181,7 +181,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(95.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -201,7 +201,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(170.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -222,7 +222,7 @@ TEST_F(LayoutTest, doLayoutTest_wordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(120.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -256,7 +256,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(70.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -275,7 +275,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(85.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -295,7 +295,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(140.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
@@ -316,7 +316,7 @@ TEST_F(LayoutTest, doLayoutTest_negativeWordSpacing) {
 
         getBounds(text, Bidi::LTR, paint, &rect);
         EXPECT_EQ(0.0f, rect.mLeft);
-        EXPECT_EQ(10.0f, rect.mTop);
+        EXPECT_EQ(-10.0f, rect.mTop);
         EXPECT_EQ(100.0f, rect.mRight);
         EXPECT_EQ(0.0f, rect.mBottom);
         expectedValues.resize(text.size());
