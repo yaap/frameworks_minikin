@@ -21,11 +21,15 @@ package {
 cc_binary_host {
     name: "hyphtool",
 
-    static_libs: ["libminikin"],
+    static_libs: [
+        "libminikin",
+        "libminikin_rust_ffi",
+    ],
 
     // Shared libraries which are dependencies of minikin; these are not automatically
     // pulled in by the build system (and thus sadly must be repeated).
     shared_libs: [
+        "libicu",
         "libicui18n",
         "libicuuc",
         "liblog",

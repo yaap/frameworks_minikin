@@ -67,10 +67,11 @@ public:
 
     virtual void SetUp() override {
         mHyphenationPattern = readWholeFile("/system/usr/hyphen-data/hyph-en-us.hyb");
-        Hyphenator* hyphenator = Hyphenator::loadBinary(
-                mHyphenationPattern.data(), 2 /* min prefix */, 2 /* min suffix */, "en-US");
+        Hyphenator* hyphenator =
+                Hyphenator::loadBinary(mHyphenationPattern.data(), mHyphenationPattern.size(),
+                                       2 /* min prefix */, 2 /* min suffix */, "en-US");
         HyphenatorMap::add("en-US", hyphenator);
-        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, "pl"));
+        HyphenatorMap::add("pl", Hyphenator::loadBinary(nullptr, 0, 0, 0, "pl"));
     }
 
     virtual void TearDown() override { HyphenatorMap::clear(); }
@@ -1759,7 +1760,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 205, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 205, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -1774,8 +1775,8 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 105, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 105, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -1795,10 +1796,10 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_trail) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(0, 10, 55, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(0, -10, 55, 0), actual.bounds[3]);
     }
 }
 
@@ -1829,7 +1830,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 190, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 190, 0), actual.bounds[0]);
     }
     {
         constexpr float LINE_WIDTH = 110;
@@ -1844,8 +1845,8 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 90, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 90, 0), actual.bounds[1]);
     }
     {
         constexpr float LINE_WIDTH = 100;
@@ -1865,10 +1866,10 @@ TEST_F(GreedyLineBreakerTest, testBreakWithoutBounds_preceding) {
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[0]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[1]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[2]);
-        EXPECT_EQ(MinikinRect(-15, 10, 40, 0), actual.bounds[3]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[0]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[1]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[2]);
+        EXPECT_EQ(MinikinRect(-15, -10, 40, 0), actual.bounds[3]);
     }
 }
 

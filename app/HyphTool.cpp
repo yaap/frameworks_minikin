@@ -1,14 +1,16 @@
 #include <string.h>
 #include <sys/stat.h>
-#include <cstdio>
-#include <vector>
-
 #include <utils/Log.h>
+
+#include <cstdio>
+#include <fstream>
+#include <vector>
 
 #include "minikin/Hyphenator.h"
 
 using minikin::HyphenationType;
 using minikin::Hyphenator;
+using minikin::HyphenatorCXX;
 
 Hyphenator* loadHybFile(const char* fn, int minPrefix, int minSuffix, const char* language) {
     struct stat statbuf;
@@ -31,34 +33,39 @@ Hyphenator* loadHybFile(const char* fn, int minPrefix, int minSuffix, const char
         delete[] buf;
         return nullptr;
     }
-    return Hyphenator::loadBinary(buf, minPrefix, minSuffix, language);
+    return HyphenatorCXX::loadBinary(buf, size, minPrefix, minSuffix, language);
 }
 
 int main(int argc, char** argv) {
-    Hyphenator* hyph = loadHybFile("/tmp/en.hyb", 2, 3, "en");  // should also be configurable
+    Hyphenator* hyph = loadHybFile(argv[1], 2, 3, "fr");  // should also be configurable
     std::vector<HyphenationType> result;
     std::vector<uint16_t> word;
     if (argc < 2) {
         fprintf(stderr, "usage: hyphtool word\n");
         return 1;
     }
-    char* asciiword = argv[1];
-    size_t len = strlen(asciiword);
-    for (size_t i = 0; i < len; i++) {
-        uint32_t c = asciiword[i];
-        if (c == '-') {
-            c = 0x00AD;
+    std::ifstream infile(argv[2]);
+    std::string asciiword;
+    while (std::getline(infile, asciiword)) {
+        word.clear();
+        result.clear();
+        size_t len = asciiword.size();
+        for (size_t i = 0; i < len; i++) {
+            uint32_t c = asciiword[i];
+            if (c == '-') {
+                c = 0x00AD;
+            }
+            // ASCII (or possibly ISO Latin 1), but kinda painful to do utf conversion :(
+            word.push_back(c);
         }
-        // ASCII (or possibly ISO Latin 1), but kinda painful to do utf conversion :(
-        word.push_back(c);
-    }
-    hyph->hyphenate(word, &result);
-    for (size_t i = 0; i < len; i++) {
-        if (result[i] != HyphenationType::DONT_BREAK) {
-            printf("-");
+        hyph->hyphenate(word, &result);
+        for (size_t i = 0; i < len; i++) {
+            if (result[i] != HyphenationType::DONT_BREAK) {
+                printf("-");
+            }
+            printf("%c", word[i]);
         }
-        printf("%c", word[i]);
+        printf("\n");
     }
-    printf("\n");
     return 0;
 }

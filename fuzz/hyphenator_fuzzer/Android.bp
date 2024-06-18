@@ -29,6 +29,7 @@ cc_fuzz {
     static_libs: [
         "libminikin",
         "libminikin-tests-util",
+        "libminikin_rust_ffi",
     ],
     shared_libs: [
         "liblog",
@@ -36,6 +37,7 @@ cc_fuzz {
         "libft2",
         "libicu",
         "libutils",
+        "aconfig_text_flags_c_lib",
     ],
     header_libs: [
         "libminikin_headers",

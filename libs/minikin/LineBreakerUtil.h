@@ -222,6 +222,8 @@ struct CharProcessor {
 
     bool retryWithPhraseWordBreak = false;
 
+    float maxCharWidth = 0.0f;
+
     // Retrieve the current word range.
     inline Range wordRange() const { return breaker.wordRange(); }
 
@@ -268,6 +270,7 @@ struct CharProcessor {
             spaceWidth = w;
         }
         sumOfCharWidths += w;
+        maxCharWidth = std::max(maxCharWidth, w);
         if (isLineEndSpace(c)) {
             // If we break a line on a line-ending space, that space goes away. So postBreak
             // and postSpaceCount, which keep the width and number of spaces if we decide to
