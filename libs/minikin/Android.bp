@@ -45,12 +45,26 @@ cc_library_static {
     lto: {
         never: true,
     },
-    shared_libs: [
-        "libicu",
-    ],
-    export_shared_lib_headers: [
-        "libicu",
-    ],
+    target: {
+        android: {
+            shared_libs: [
+                "libicu",
+            ],
+            export_shared_lib_headers: [
+                "libicu",
+            ],
+        },
+        host: {
+            shared_libs: [
+                "libicui18n",
+                "libicuuc",
+            ],
+            export_shared_lib_headers: [
+                "libicui18n",
+                "libicuuc",
+            ],
+        },
+    },
 }
 
 cc_library {
