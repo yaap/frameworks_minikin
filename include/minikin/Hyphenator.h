@@ -217,6 +217,7 @@ protected:
         CATALAN = 1,
         POLISH = 2,
         SLOVENIAN = 3,
+        PORTUGUESE = 4,
     };
 };
 
@@ -262,7 +263,7 @@ private:
 
     // calculate hyphenation from patterns, assuming alphabet lookup has already been done
     void hyphenateFromCodes(const uint16_t* codes, size_t len, HyphenationType hyphenValue,
-                            HyphenationType* out) const;
+                            const U16StringPiece& word, HyphenationType* out) const;
 
     // See also LONGEST_HYPHENATED_WORD in LineBreaker.cpp. Here the constant is used so
     // that temporary buffers can be stack-allocated without waste, which is a slightly

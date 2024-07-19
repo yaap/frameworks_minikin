@@ -159,6 +159,8 @@ Hyphenator* HyphenatorCXX::loadBinary(const uint8_t* patternData, size_t, size_t
         hyphenLocale = HyphenationLocale::CATALAN;
     } else if (locale == "sl") {
         hyphenLocale = HyphenationLocale::SLOVENIAN;
+    } else if (locale == "pt") {
+        hyphenLocale = HyphenationLocale::PORTUGUESE;
     }
     return new HyphenatorCXX(patternData, minPrefix, minSuffix, hyphenLocale);
 }
@@ -179,7 +181,7 @@ void HyphenatorCXX::hyphenate(const U16StringPiece& word, HyphenationType* out) 
         const HyphenationType hyphenValue = alphabetLookup(alpha_codes, word);
 
         if (hyphenValue != HyphenationType::DONT_BREAK) {
-            hyphenateFromCodes(alpha_codes, paddedLen, hyphenValue, out);
+            hyphenateFromCodes(alpha_codes, paddedLen, hyphenValue, word, out);
             return;
         }
         // TODO: try NFC normalization
@@ -403,7 +405,8 @@ HyphenationType HyphenatorCXX::alphabetLookup(uint16_t* alpha_codes,
  * Note: len here is the padded length including 0 codes at start and end.
  **/
 void HyphenatorCXX::hyphenateFromCodes(const uint16_t* codes, size_t len,
-                                       HyphenationType hyphenValue, HyphenationType* out) const {
+                                       HyphenationType hyphenValue, const U16StringPiece& word,
+                                       HyphenationType* out) const {
     static_assert(sizeof(HyphenationType) == sizeof(uint8_t), "HyphnationType must be uint8_t.");
     // Reuse the result array as a buffer for calculating intermediate hyphenation numbers.
     uint8_t* buffer = reinterpret_cast<uint8_t*>(out);
@@ -450,6 +453,24 @@ void HyphenatorCXX::hyphenateFromCodes(const uint16_t* codes, size_t len,
     for (size_t i = mMinPrefix; i < maxOffset; i++) {
         // Hyphenation opportunities happen when the hyphenation numbers are odd.
         out[i] = (buffer[i] & 1u) ? hyphenValue : HyphenationType::DONT_BREAK;
+        if (features::portuguese_hyphenator()) {
+            if (i > 0 && isLineBreakingHyphen(word[i - 1])) {
+                if (mHyphenationLocale == HyphenationLocale::PORTUGUESE) {
+                    // In Portuguese, prefer to break before the hyphen, i.e. the line start with
+                    // the hyphen. If we see hyphenation break point after the hyphen character,
+                    // prefer to break before the hyphen.
+                    out[i - 1] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
+                    out[i] = HyphenationType::DONT_BREAK;  // Not prefer to break here because
+                                                           // this character is just after the
+                                                           // hyphen character.
+                } else {
+                    // If we see hyphen character just before this character, add hyphenation break
+                    // point and don't break here.
+                    out[i - 1] = HyphenationType::DONT_BREAK;
+                    out[i] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
+                }
+            }
+        }
     }
 }
 

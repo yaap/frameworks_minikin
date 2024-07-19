@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "minikin/Hyphenator.h"
-
 #include <gtest/gtest.h>
 
+#include "FeatureFlags.h"
 #include "FileUtils.h"
+#include "minikin/Hyphenator.h"
 
 #ifndef NELEM
 #define NELEM(x) ((sizeof(x) / sizeof((x)[0])))
@@ -27,6 +27,7 @@
 namespace minikin {
 
 const char* usHyph = "/system/usr/hyphen-data/hyph-en-us.hyb";
+const char* ptHyph = "/system/usr/hyphen-data/hyph-pt.hyb";
 const char* malayalamHyph = "/system/usr/hyphen-data/hyph-ml.hyb";
 
 const uint16_t HYPHEN_MINUS = 0x002D;
@@ -49,7 +50,7 @@ typedef std::function<Hyphenator*(const uint8_t*, size_t, size_t, size_t, const 
 class HyphenatorTest : public testing::TestWithParam<Generator> {};
 
 INSTANTIATE_TEST_SUITE_P(HyphenatorInstantiation, HyphenatorTest,
-                         testing::Values(Hyphenator::loadBinary, Hyphenator::loadBinaryForRust),
+                         testing::Values(HyphenatorCXX::loadBinary, Hyphenator::loadBinaryForRust),
                          [](const testing::TestParamInfo<HyphenatorTest::ParamType>& info) {
                              switch (info.index) {
                                  case 0:
@@ -354,6 +355,31 @@ TEST_P(HyphenatorTest, startingHyphenMinus) {
     EXPECT_EQ((size_t)2, result.size());
     EXPECT_EQ(HyphenationType::DONT_BREAK, result[0]);
     EXPECT_EQ(HyphenationType::DONT_BREAK, result[1]);
+}
+
+TEST_P(HyphenatorTest, hyphenationWithHyphen) {
+    // TEST_P_WITH_TEST is not yet available. Therefore, treat the test as pass if the flag is off.
+    if (!features::portuguese_hyphenator()) {
+        return;
+    }
+    std::vector<uint8_t> patternData = readWholeFile(ptHyph);
+    Hyphenator* hyphenator = GetParam()(patternData.data(), patternData.size(), 2, 3, "pt");
+    const uint16_t word[] = {'b', 'o', 'a', 's', '-', 'v', 'i', 'n', 'd', 'a', 's'};
+    std::vector<HyphenationType> result;
+    hyphenator->hyphenate(word, &result);
+    EXPECT_EQ((size_t)11, result.size());
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[0]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[1]);
+    EXPECT_EQ(HyphenationType::BREAK_AND_INSERT_HYPHEN, result[2]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[3]);
+    EXPECT_EQ(HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN, result[4]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[5]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[6]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[7]);
+    EXPECT_EQ(HyphenationType::BREAK_AND_INSERT_HYPHEN, result[8]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[9]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[10]);
+    EXPECT_EQ(HyphenationType::DONT_BREAK, result[11]);
 }
 
 }  // namespace minikin

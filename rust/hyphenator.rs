@@ -107,6 +107,16 @@ const USCRIPT_CANADIAN_ABORIGINAL: u8 = 7;
 use crate::ffi::getJoiningType;
 use crate::ffi::getScript;
 
+#[cfg(target_os = "android")]
+fn portuguese_hyphenator() -> bool {
+    android_text_flags::portuguese_hyphenator()
+}
+
+#[cfg(not(target_os = "android"))]
+fn portuguese_hyphenator() -> bool {
+    true
+}
+
 /// Hyphenation types
 /// The following values must be equal to the ones in
 /// frameworks/minikin/include/minikin/Hyphenator.h
@@ -149,6 +159,8 @@ pub enum HyphenationLocale {
     Polish = 2,
     /// Slovenian
     Slovenian = 3,
+    /// Portuguese
+    Portuguese = 4,
 }
 
 const MAX_HYPHEN_SIZE: u32 = 64;
@@ -565,6 +577,8 @@ impl Hyphenator {
                 HyphenationLocale::Catalan
             } else if locale == "sl" {
                 HyphenationLocale::Slovenian
+            } else if locale == "pt" {
+                HyphenationLocale::Portuguese
             } else {
                 HyphenationLocale::Other
             },
@@ -588,7 +602,7 @@ impl Hyphenator {
             };
 
             if hyphen_value != HyphenationType::DontBreak {
-                self.hyphenate_from_codes(alpha_codes, padded_len, hyphen_value, out);
+                self.hyphenate_from_codes(alpha_codes, padded_len, hyphen_value, word, out);
                 return;
             }
             // TODO: try NFC normalization
@@ -713,6 +727,7 @@ impl Hyphenator {
         codes: [u16; MAX_HYPHEN_SIZE as usize],
         len: u32,
         hyphen_value: HyphenationType,
+        word: &[u16],
         out: &mut [u8],
     ) {
         let header = Header::new(self.data);
@@ -759,8 +774,33 @@ impl Hyphenator {
 
         // Since the above calculation does not modify values outside
         // [mMinPrefix, len - mMinSuffix], they are left as 0 = DONT_BREAK.
-        for r in out.iter_mut().take(max_offset as usize).skip(self.min_prefix as usize) {
-            *r = if *r & 1 != 0 { hyphen_value as u8 } else { HyphenationType::DontBreak as u8 };
+        for i in self.min_prefix as usize..max_offset as usize {
+            if out[i] & 1 == 0 {
+                out[i] = HyphenationType::DontBreak as u8;
+                continue;
+            }
+
+            if i == 0 || !Self::is_line_breaking_hyphen(word[i - 1]) {
+                out[i] = hyphen_value as u8;
+                continue;
+            }
+
+            if portuguese_hyphenator() {
+                if self.locale == HyphenationLocale::Portuguese {
+                    // In Portuguese, prefer to break before the hyphen, i.e. the line start with
+                    // the hyphen. If we see hyphenation break point after the hyphen character,
+                    // prefer to break before the hyphen.
+                    out[i - 1] = HyphenationType::BreakAndDontInsertHyphen as u8;
+                    out[i] = HyphenationType::DontBreak as u8; // Not prefer to break here because
+                                                               // this character is just after the
+                                                               // hyphen character.
+                } else {
+                    // If we see hyphen character just before this character, add hyphenation break
+                    // point and don't break here.
+                    out[i - 1] = HyphenationType::DontBreak as u8;
+                    out[i] = HyphenationType::BreakAndDontInsertHyphen as u8;
+                }
+            }
         }
     }
 
