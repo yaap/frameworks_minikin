@@ -38,6 +38,7 @@ cc_fuzz {
         "libicu",
         "libutils",
         "aconfig_text_flags_c_lib",
+        "server_configurable_flags",
     ],
     header_libs: [
         "libminikin_headers",

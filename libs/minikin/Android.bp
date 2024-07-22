@@ -136,6 +136,7 @@ cc_library {
             shared_libs: [
                 "libicu",
                 "aconfig_text_flags_c_lib",
+                "server_configurable_flags",
             ],
             export_shared_lib_headers: [
                 "libicu",
@@ -146,6 +147,7 @@ cc_library {
             ],
             whole_static_libs: [
                 "libminikin_rust_ffi",
+                "libflags_rust_cpp_bridge",
             ],
         },
         host: {
