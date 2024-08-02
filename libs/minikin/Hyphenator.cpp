@@ -28,9 +28,9 @@
 #include "MinikinInternal.h"
 #include "minikin/Characters.h"
 
-#ifndef _WIN32
+#ifdef __linux__
 #include "minikin_cxx_bridge.rs.h"
-#endif  // _WIN32
+#endif  // __linux__
 
 namespace minikin {
 
@@ -102,7 +102,7 @@ struct Header {
     }
 };
 
-#ifndef _WIN32
+#ifdef __linux__
 class HyphenatorRust : public Hyphenator {
 public:
     HyphenatorRust(const uint8_t* patternData, size_t dataSize, size_t minPrefix, size_t minSuffix,
@@ -120,35 +120,33 @@ public:
 private:
     ::rust::Box<rust::Hyphenator> mHyphenator;
 };
-#endif  // _WIN32
+#endif  // __linux__
 
 // static
 Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
                                    size_t minSuffix, const std::string& locale) {
-#ifdef _WIN32
-    return HyphenatorCXX::loadBinary(patternData, dataSize, minPrefix, minSuffix, locale);
-#else   // _WIN32
+#ifdef __linux__
     if (features::rust_hyphenator()) {
         return new HyphenatorRust(patternData, dataSize, minPrefix, minSuffix, locale);
-    } else {
-        return HyphenatorCXX::loadBinary(patternData, dataSize, minPrefix, minSuffix, locale);
     }
-#endif  // _WIN32
+#endif  // __linux__
+    return HyphenatorCXX::loadBinary(patternData, dataSize, minPrefix, minSuffix, locale);
 }
 
-#ifdef _WIN32
-Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* /*patternData*/, size_t /*dataSize*/,
-                                          size_t /*minPrefix*/, size_t /*minSuffix*/,
-                                          const std::string& /*locale*/) {
-    MINIKIN_NOT_REACHED("Rust implementation is not available on Win32");
-}
-#else   // _WIN32
+#ifdef __linux__
 Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* patternData, size_t dataSize,
                                           size_t minPrefix, size_t minSuffix,
                                           const std::string& locale) {
     return new HyphenatorRust(patternData, dataSize, minPrefix, minSuffix, locale);
 }
-#endif  // _WIN32
+#else   // __linux__
+Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* /*patternData*/, size_t /*dataSize*/,
+                                          size_t /*minPrefix*/, size_t /*minSuffix*/,
+                                          const std::string& /*locale*/) {
+    MINIKIN_NOT_REACHED("Rust implementation is only available on linux/Android");
+}
+#endif  // __linux__
+
 // static
 Hyphenator* HyphenatorCXX::loadBinary(const uint8_t* patternData, size_t, size_t minPrefix,
                                       size_t minSuffix, const std::string& locale) {
