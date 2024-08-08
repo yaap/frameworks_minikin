@@ -43,4 +43,16 @@ cc_fuzz {
         "libminikin-headers-for-tests",
     ],
     dictionary: "locale.dict",
+    fuzz_config: {
+        cc: [
+            "android-text@google.com",
+            "nona@google.com",
+        ],
+        componentid: 25699,
+        description: "The fuzzer targets the APIs of libminikin",
+        vector: "remote",
+        service_privilege: "privileged",
+        users: "multi_user",
+        fuzzed_code_usage: "shipped",
+    },
 }
