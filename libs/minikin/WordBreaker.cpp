@@ -16,18 +16,18 @@
 
 #include "WordBreaker.h"
 
+#include <list>
+#include <map>
+
 #include <unicode/ubrk.h>
 #include <unicode/uchar.h>
 #include <unicode/utf16.h>
 
-#include <list>
-#include <map>
-
-#include "FeatureFlags.h"
-#include "Locale.h"
-#include "MinikinInternal.h"
 #include "minikin/Emoji.h"
 #include "minikin/Hyphenator.h"
+
+#include "Locale.h"
+#include "MinikinInternal.h"
 
 namespace minikin {
 
@@ -230,12 +230,6 @@ enum ScanState {
 };
 
 void WordBreaker::detectEmailOrUrl() {
-    if (features::dont_break_email_in_nobreak_tag()) {
-        if (mIcuBreaker.lbStyle == LineBreakStyle::NoBreak) {
-            mInEmailOrUrl = false;
-            return;
-        }
-    }
     // scan forward from current ICU position for email address or URL
     if (mLast >= mScanOffset) {
         ScanState state = START;
