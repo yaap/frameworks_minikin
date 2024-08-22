@@ -164,7 +164,7 @@ cc_library {
                 "libminikin_cxx_bridge_header",
             ],
         },
-        not_windows: {
+        linux: {
             whole_static_libs: [
                 "libminikin_rust_ffi",
             ],
