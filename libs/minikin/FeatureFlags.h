@@ -43,6 +43,7 @@ DEFINE_FEATURE_FLAG_ACCESSOROR(lazy_variation_instance)
 DEFINE_FEATURE_FLAG_ACCESSOROR(rust_hyphenator);
 DEFINE_FEATURE_FLAG_ACCESSOROR(portuguese_hyphenator);
 DEFINE_FEATURE_FLAG_ACCESSOROR(dont_break_email_in_nobreak_tag);
+DEFINE_FEATURE_FLAG_ACCESSOROR(typeface_redesign);
 
 }  // namespace features
 
