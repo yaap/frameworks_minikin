@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "GreedyLineBreak"
-
 #include "FeatureFlags.h"
 #include "HyphenatorMap.h"
 #include "LineBreakerUtil.h"

@@ -9,6 +9,7 @@ cc_defaults {
         "-Werror",
         "-Wextra",
         "-Wthread-safety",
+        "-DLOG_TAG=\"Minikin\"",
     ],
 }
 

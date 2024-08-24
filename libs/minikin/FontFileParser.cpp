@@ -16,8 +16,6 @@
 
 #include "minikin/FontFileParser.h"
 
-#define LOG_TAG "Minikin"
-
 #include <hb-ot.h>
 #include <hb.h>
 
