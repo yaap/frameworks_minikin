@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "BidiUtils.h"
+#include "FeatureFlags.h"
 #include "LayoutSplitter.h"
 #include "LayoutUtils.h"
 #include "LetterSpacingUtils.h"
@@ -341,9 +342,36 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
 }
 
 void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvance) {
-    for (size_t i = 0; i < src.glyphCount(); i++) {
-        mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
-                             mAdvance + src.pointAt(i).x, src.pointAt(i).y);
+    if (features::typeface_redesign()) {
+        if (src.glyphCount() == 0) {
+            return;
+        }
+        if (mFonts.empty()) {
+            mFonts.push_back(src.fontAt(0));
+            mEnds.push_back(1);
+        }
+        FakedFont* lastFont = &mFonts.back();
+
+        for (size_t i = 0; i < src.glyphCount(); i++) {
+            const FakedFont& font = src.fontAt(i);
+
+            if (font != *lastFont) {
+                mEnds.back() = mGlyphs.size();
+                mFonts.push_back(font);
+                mEnds.push_back(mGlyphs.size() + 1);
+                lastFont = &mFonts.back();
+            } else if (i == src.glyphCount() - 1) {
+                mEnds.back() = mGlyphs.size() + 1;
+            }
+
+            mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
+                                 mAdvance + src.pointAt(i).x, src.pointAt(i).y);
+        }
+    } else {
+        for (size_t i = 0; i < src.glyphCount(); i++) {
+            mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
+                                 mAdvance + src.pointAt(i).x, src.pointAt(i).y);
+        }
     }
     const std::vector<float>& advances = src.advances();
     for (size_t i = 0; i < advances.size(); i++) {
