@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
 #include "minikin/MeasuredText.h"
 
 #include "BidiUtils.h"

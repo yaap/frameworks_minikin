@@ -17,8 +17,6 @@
 #ifndef MINIKIN_LAYOUT_SPLITTER_H
 #define MINIKIN_LAYOUT_SPLITTER_H
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/Layout.h"
 
 #include <memory>

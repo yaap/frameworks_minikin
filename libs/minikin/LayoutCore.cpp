@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
 #define ATRACE_TAG ATRACE_TAG_VIEW
 
 #include "minikin/LayoutCore.h"

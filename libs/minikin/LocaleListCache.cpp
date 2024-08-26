@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "LocaleListCache.h"
 
 #include <unordered_set>

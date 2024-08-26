@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/Font.h"
 
 #include <hb-ot.h>
@@ -160,6 +158,11 @@ bool Font::isAxisSupported(uint32_t tag) const {
 
 Font::~Font() {
     resetExternalRefs(nullptr);
+
+    FVarTable* fvarTable = mFVarTableHolder.exchange(nullptr);
+    if (fvarTable != nullptr) {
+        delete fvarTable;
+    }
 }
 
 void Font::resetExternalRefs(ExternalRefs* refs) {
@@ -207,6 +210,24 @@ const Font::ExternalRefs* Font::getExternalRefs() const {
         // compare_exchange_strong writes the stored value into 'expected'
         // when comparison fails.
         return expected;
+    }
+}
+
+const FVarTable& Font::getFVarTable() const {
+    FVarTable* fvarTable = mFVarTableHolder.load();
+    if (fvarTable) return *fvarTable;
+
+    FVarTable* newFvar = new FVarTable();
+    HbBlob fvarBlob(baseFont(), TAG_fvar);
+    if (fvarBlob) {
+        readFVarTable(fvarBlob.get(), fvarBlob.size(), newFvar);
+    }
+    FVarTable* expected = nullptr;
+    if (mFVarTableHolder.compare_exchange_strong(expected, newFvar)) {
+        return *newFvar;
+    } else {
+        delete newFvar;
+        return *expected;
     }
 }
 

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "ScriptUtils.h"
 
 #include <unicode/ubidi.h>

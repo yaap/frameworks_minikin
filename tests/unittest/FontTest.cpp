@@ -312,4 +312,29 @@ TEST(FontTest, ChildLazyCreationTest) {
     EXPECT_EQ(MakeTag('w', 'g', 'h', 't'), overridden->baseTypeface()->GetAxes()[0].axisTag);
 }
 
+TEST(FontTest, FVarTableTest) {
+    FreeTypeMinikinFontForTestFactory::init();
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    uint32_t wght = MakeTag('w', 'g', 'h', 't');
+    uint32_t ital = MakeTag('i', 't', 'a', 'l');
+
+    const FVarTable& fvar = font->getFVarTable();
+    EXPECT_TRUE(fvar.contains(wght));
+    EXPECT_TRUE(fvar.contains(ital));
+    EXPECT_FALSE(fvar.contains(MakeTag('w', 'd', 't', 'h')));
+
+    const FVarEntry& wghtTable = fvar.find(wght)->second;
+    EXPECT_EQ(0, wghtTable.minValue);
+    EXPECT_EQ(400, wghtTable.defValue);
+    EXPECT_EQ(1000, wghtTable.maxValue);
+
+    const FVarEntry& italTable = fvar.find(ital)->second;
+    EXPECT_EQ(0, italTable.minValue);
+    EXPECT_EQ(0, italTable.defValue);
+    EXPECT_EQ(1, italTable.maxValue);
+}
+
 }  // namespace minikin
