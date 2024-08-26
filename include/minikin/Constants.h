@@ -31,6 +31,8 @@ constexpr uint32_t MakeTag(char c1, char c2, char c3, char c4) {
     return ((uint32_t)c1 << 24) | ((uint32_t)c2 << 16) | ((uint32_t)c3 << 8) | (uint32_t)c4;
 }
 
+const uint32_t TAG_fvar = MakeTag('f', 'v', 'a', 'r');
+
 // Axis tags
 const uint32_t TAG_wght = MakeTag('w', 'g', 'h', 't');
 const uint32_t TAG_ital = MakeTag('i', 't', 'a', 'l');

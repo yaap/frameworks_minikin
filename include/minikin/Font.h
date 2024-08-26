@@ -27,6 +27,7 @@
 #include <unordered_set>
 
 #include "minikin/Buffer.h"
+#include "minikin/FVarTable.h"
 #include "minikin/FontStyle.h"
 #include "minikin/FontVariation.h"
 #include "minikin/HbUtils.h"
@@ -175,6 +176,8 @@ public:
     const AxisTag* getSupportedAxes() const { return mSupportedAxes.get(); }
     bool isAxisSupported(uint32_t tag) const;
 
+    const FVarTable& getFVarTable() const;
+
 private:
     // ExternalRefs holds references to objects provided by external libraries.
     // Because creating these external objects is costly,
@@ -223,6 +226,8 @@ private:
     uint16_t mSupportedAxesCount;
 
     void calculateSupportedAxes();
+
+    mutable std::atomic<FVarTable*> mFVarTableHolder;
 
     // Non-null if created by readFrom().
     BufferReader mTypefaceMetadataReader;
