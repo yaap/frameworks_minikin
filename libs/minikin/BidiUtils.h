@@ -17,8 +17,6 @@
 #ifndef MINIKIN_BIDI_UTILS_H
 #define MINIKIN_BIDI_UTILS_H
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/Layout.h"
 
 #include <memory>

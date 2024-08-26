@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/Layout.h"
 
 #include <hb-icu.h>
