@@ -17,6 +17,8 @@
 #ifndef MINIKIN_SORTED_VECTOR_H
 #define MINIKIN_SORTED_VECTOR_H
 
+#include <algorithm>
+
 #include "minikin/PackedVector.h"
 
 namespace minikin {
