@@ -79,6 +79,7 @@ cc_test {
         "OptimalLineBreakerTest.cpp",
         "PackedVectorTest.cpp",
         "ScriptUtilsTest.cpp",
+        "SortedPackedVectorTest.cpp",
         "SparseBitSetTest.cpp",
         "StringPieceTest.cpp",
         "SystemFontsTest.cpp",
