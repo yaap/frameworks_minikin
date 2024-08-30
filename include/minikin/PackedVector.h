@@ -19,8 +19,6 @@
 
 #include <log/log.h>
 
-#include <type_traits>
-
 namespace minikin {
 
 // PackedVector optimize short term allocations for small size objects.
