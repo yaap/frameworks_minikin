@@ -19,43 +19,16 @@
 
 #include <cstdint>
 
-#include "minikin/SortedPackedVector.h"
-
 namespace minikin {
 
 typedef uint32_t AxisTag;
 
 struct FontVariation {
+    FontVariation() = default;
+    FontVariation(AxisTag axisTag, float value) : axisTag(axisTag), value(value) {}
     AxisTag axisTag;
     float value;
 };
-
-constexpr bool operator==(const FontVariation& l, const FontVariation& r) {
-    return l.axisTag == r.axisTag && l.value == r.value;
-}
-
-constexpr bool operator!=(const FontVariation& l, const FontVariation& r) {
-    return !(l == r);
-}
-
-constexpr bool operator<(const FontVariation& l, const FontVariation& r) {
-    return l.axisTag < r.axisTag;
-}
-
-constexpr bool operator>(const FontVariation& l, const FontVariation& r) {
-    return l.axisTag > r.axisTag;
-}
-
-constexpr bool operator<=(const FontVariation& l, const FontVariation& r) {
-    return l.axisTag <= r.axisTag;
-}
-
-constexpr bool operator>=(const FontVariation& l, const FontVariation& r) {
-    return l.axisTag >= r.axisTag;
-}
-
-// Immutable variation settings
-using VariationSettings = SortedPackedVector<FontVariation>;
 
 }  // namespace minikin
 

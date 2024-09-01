@@ -21,9 +21,7 @@
 #include <string>
 
 #include "minikin/FontFeature.h"
-#include "minikin/FontVariation.h"
 #include "minikin/Macros.h"
-#include "minikin/SortedPackedVector.h"
 
 namespace minikin {
 
@@ -99,22 +97,6 @@ public:
             data |= ((size & 3) > 1) ? ((uint32_t)str[i + 1] << 8) : 0;
             data |= ((size & 3) > 2) ? ((uint32_t)str[i + 2] << 16) : 0;
             update(data);
-        }
-        return *this;
-    }
-
-    inline Hasher& update(const FontVariation& var) {
-        update(static_cast<uint32_t>(var.axisTag));
-        update(static_cast<float>(var.value));
-        return *this;
-    }
-
-    template <typename T, size_t ARRAYSIZE>
-    inline Hasher& update(const SortedPackedVector<T, ARRAYSIZE>& vec) {
-        uint32_t size = vec.size();
-        update(size);
-        for (uint32_t i = 0; i < size; ++i) {
-            update(vec[i]);
         }
         return *this;
     }
