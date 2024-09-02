@@ -76,6 +76,7 @@ cc_test {
         "LocaleListTest.cpp",
         "MeasuredTextTest.cpp",
         "MeasurementTests.cpp",
+        "MinikinPaintTest.cpp",
         "OptimalLineBreakerTest.cpp",
         "PackedVectorTest.cpp",
         "ScriptUtilsTest.cpp",
