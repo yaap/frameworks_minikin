@@ -16,15 +16,21 @@
 
 #include "minikin/Hyphenator.h"
 
+#include <unicode/uchar.h>
+#include <unicode/uscript.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <unicode/uchar.h>
-#include <unicode/uscript.h>
-
+#include "FeatureFlags.h"
+#include "MinikinInternal.h"
 #include "minikin/Characters.h"
+
+#ifndef _WIN32
+#include "minikin_cxx_bridge.rs.h"
+#endif  // _WIN32
 
 namespace minikin {
 
@@ -96,9 +102,56 @@ struct Header {
     }
 };
 
+#ifndef _WIN32
+class HyphenatorRust : public Hyphenator {
+public:
+    HyphenatorRust(const uint8_t* patternData, size_t dataSize, size_t minPrefix, size_t minSuffix,
+                   const std::string& locale)
+            : mHyphenator(rust::load_hyphenator(::rust::cxxbridge1::Slice(patternData, dataSize),
+                                                minPrefix, minSuffix, locale)) {}
+
+    virtual void hyphenate(const U16StringPiece& word, HyphenationType* out) const override {
+        static_assert(sizeof(HyphenationType) == sizeof(uint8_t),
+                      "HyphnationType must be uint8_t.");
+        rust::hyphenate(*mHyphenator, ::rust::cxxbridge1::Slice(word.data(), word.size()),
+                        ::rust::cxxbridge1::Slice(reinterpret_cast<uint8_t*>(out), word.size()));
+    }
+
+private:
+    ::rust::Box<rust::Hyphenator> mHyphenator;
+};
+#endif  // _WIN32
+
 // static
-Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-                                   const std::string& locale) {
+Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
+                                   size_t minSuffix, const std::string& locale) {
+#ifdef _WIN32
+    return HyphenatorCXX::loadBinary(patternData, dataSize, minPrefix, minSuffix, locale);
+#else   // _WIN32
+    if (features::rust_hyphenator()) {
+        return new HyphenatorRust(patternData, dataSize, minPrefix, minSuffix, locale);
+    } else {
+        return HyphenatorCXX::loadBinary(patternData, dataSize, minPrefix, minSuffix, locale);
+    }
+#endif  // _WIN32
+}
+
+#ifdef _WIN32
+Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* /*patternData*/, size_t /*dataSize*/,
+                                          size_t /*minPrefix*/, size_t /*minSuffix*/,
+                                          const std::string& /*locale*/) {
+    MINIKIN_NOT_REACHED("Rust implementation is not available on Win32");
+}
+#else   // _WIN32
+Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* patternData, size_t dataSize,
+                                          size_t minPrefix, size_t minSuffix,
+                                          const std::string& locale) {
+    return new HyphenatorRust(patternData, dataSize, minPrefix, minSuffix, locale);
+}
+#endif  // _WIN32
+// static
+Hyphenator* HyphenatorCXX::loadBinary(const uint8_t* patternData, size_t, size_t minPrefix,
+                                      size_t minSuffix, const std::string& locale) {
     HyphenationLocale hyphenLocale = HyphenationLocale::OTHER;
     if (locale == "pl") {
         hyphenLocale = HyphenationLocale::POLISH;
@@ -107,23 +160,24 @@ Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData, size_t minPrefix,
     } else if (locale == "sl") {
         hyphenLocale = HyphenationLocale::SLOVENIAN;
     }
-    return new Hyphenator(patternData, minPrefix, minSuffix, hyphenLocale);
+    return new HyphenatorCXX(patternData, minPrefix, minSuffix, hyphenLocale);
 }
 
-Hyphenator::Hyphenator(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
-                       HyphenationLocale hyphenLocale)
+HyphenatorCXX::HyphenatorCXX(const uint8_t* patternData, size_t minPrefix, size_t minSuffix,
+                             HyphenationLocale hyphenLocale)
         : mPatternData(patternData),
           mMinPrefix(minPrefix),
           mMinSuffix(minSuffix),
           mHyphenationLocale(hyphenLocale) {}
 
-void Hyphenator::hyphenate(const U16StringPiece& word, HyphenationType* out) const {
+void HyphenatorCXX::hyphenate(const U16StringPiece& word, HyphenationType* out) const {
     const size_t len = word.size();
     const size_t paddedLen = len + 2;  // start and stop code each count for 1
     if (mPatternData != nullptr && len >= mMinPrefix + mMinSuffix &&
         paddedLen <= MAX_HYPHENATED_SIZE) {
         uint16_t alpha_codes[MAX_HYPHENATED_SIZE];
         const HyphenationType hyphenValue = alphabetLookup(alpha_codes, word);
+
         if (hyphenValue != HyphenationType::DONT_BREAK) {
             hyphenateFromCodes(alpha_codes, paddedLen, hyphenValue, out);
             return;
@@ -247,7 +301,8 @@ static inline HyphenationType getHyphTypeForArabic(const U16StringPiece& word, s
 // Use various recommendations of UAX #14 Unicode Line Breaking Algorithm for hyphenating words
 // that didn't match patterns, especially words that contain hyphens or soft hyphens (See sections
 // 5.3, Use of Hyphen, and 5.4, Use of Soft Hyphen).
-void Hyphenator::hyphenateWithNoPatterns(const U16StringPiece& word, HyphenationType* out) const {
+void HyphenatorCXX::hyphenateWithNoPatterns(const U16StringPiece& word,
+                                            HyphenationType* out) const {
     out[0] = HyphenationType::DONT_BREAK;
     for (size_t i = 1; i < word.size(); i++) {
         const uint16_t prevChar = word[i - 1];
@@ -288,8 +343,8 @@ void Hyphenator::hyphenateWithNoPatterns(const U16StringPiece& word, Hyphenation
     }
 }
 
-HyphenationType Hyphenator::alphabetLookup(uint16_t* alpha_codes,
-                                           const U16StringPiece& word) const {
+HyphenationType HyphenatorCXX::alphabetLookup(uint16_t* alpha_codes,
+                                              const U16StringPiece& word) const {
     const Header* header = getHeader();
     HyphenationType result = HyphenationType::BREAK_AND_INSERT_HYPHEN;
     // TODO: check header magic
@@ -347,8 +402,8 @@ HyphenationType Hyphenator::alphabetLookup(uint16_t* alpha_codes,
  * has been done by now, and all characters have been found in the alphabet.
  * Note: len here is the padded length including 0 codes at start and end.
  **/
-void Hyphenator::hyphenateFromCodes(const uint16_t* codes, size_t len, HyphenationType hyphenValue,
-                                    HyphenationType* out) const {
+void HyphenatorCXX::hyphenateFromCodes(const uint16_t* codes, size_t len,
+                                       HyphenationType hyphenValue, HyphenationType* out) const {
     static_assert(sizeof(HyphenationType) == sizeof(uint8_t), "HyphnationType must be uint8_t.");
     // Reuse the result array as a buffer for calculating intermediate hyphenation numbers.
     uint8_t* buffer = reinterpret_cast<uint8_t*>(out);

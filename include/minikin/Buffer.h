@@ -59,11 +59,11 @@ public:
     //
     // If T is a large struct or class, you would need to specify 'align'
     // template parameter manually.
-    template <typename T, size_t align = sizeof(T)>
+    template <typename T, size_t AlignT = sizeof(T)>
     static const uint8_t* align(const uint8_t* p) {
-        static_assert(align <= kMaxAlignment);
-        static_assert(__builtin_popcount(align) == 1, "align must be a power of 2");
-        constexpr size_t mask = align - 1;
+        static_assert(AlignT <= kMaxAlignment);
+        static_assert(__builtin_popcount(AlignT) == 1, "align must be a power of 2");
+        constexpr size_t mask = AlignT - 1;
         intptr_t i = reinterpret_cast<intptr_t>(p);
         intptr_t aligned = (i + mask) & ~mask;
         return reinterpret_cast<const uint8_t*>(aligned);
@@ -196,9 +196,9 @@ private:
     uint8_t* mData;
     size_t mPos;
 
-    template <typename T, size_t align>
+    template <typename T, size_t AlignT>
     size_t align(size_t pos) const {
-        return BufferReader::align<T, align>(mData + pos) - mData;
+        return BufferReader::align<T, AlignT>(mData + pos) - mData;
     }
 
     // Forbid copy and assign.

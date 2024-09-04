@@ -17,6 +17,7 @@
  *****************************************************************************
  */
 package {
+    default_team: "trendy_team_java_core_libraries",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -28,6 +29,7 @@ cc_fuzz {
     static_libs: [
         "libminikin",
         "libminikin-tests-util",
+        "libminikin_rust_ffi",
     ],
     shared_libs: [
         "liblog",
@@ -35,6 +37,7 @@ cc_fuzz {
         "libft2",
         "libicu",
         "libutils",
+        "aconfig_text_flags_c_lib",
     ],
     header_libs: [
         "libminikin_headers",
