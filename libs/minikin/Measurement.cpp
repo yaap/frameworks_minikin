@@ -156,7 +156,8 @@ size_t getOffsetForAdvance(const float* advances, const uint16_t* buf, size_t st
                            float advance) {
     float x = 0.0f, xLastClusterStart = 0.0f, xSearchStart = 0.0f;
     size_t lastClusterStart = start, searchStart = start;
-    for (size_t i = start; i < start + count; i++) {
+    size_t max = start + count;
+    for (size_t i = start; i < max; i++) {
         if (GraphemeBreak::isGraphemeBreak(advances, buf, start, count, i)) {
             searchStart = lastClusterStart;
             xSearchStart = xLastClusterStart;
@@ -173,10 +174,10 @@ size_t getOffsetForAdvance(const float* advances, const uint16_t* buf, size_t st
     }
     size_t best = searchStart;
     float bestDist = FLT_MAX;
-    for (size_t i = searchStart; i <= start + count; i++) {
+    for (size_t i = searchStart; i <= max; i++) {
         if (GraphemeBreak::isGraphemeBreak(advances, buf, start, count, i)) {
             // "getRunAdvance(layout, buf, start, count, i) - advance" but more efficient
-            float delta = getRunAdvance(advances, buf, start, searchStart, count - searchStart, i)
+            float delta = getRunAdvance(advances, buf, start, searchStart, max - searchStart, i)
 
                           + xSearchStart - advance;
             if (std::abs(delta) < bestDist) {

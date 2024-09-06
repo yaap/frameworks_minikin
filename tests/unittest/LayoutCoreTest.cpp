@@ -293,52 +293,52 @@ TEST(LayoutPieceTest, doLayoutTest_Overshoot) {
     {
         auto [layout, bounds] = buildLayoutAndBounds("a", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, -10, 10, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("b", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 15, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, -10, 15, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("c", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, -10, 20, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("d", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(0, 10, 25, 0), bounds);
+        EXPECT_EQ(MinikinRect(0, -10, 25, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("e", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-5, -10, 10, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("f", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-10, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-10, -10, 10, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("g", fc);
         EXPECT_EQ(1u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-15, 10, 10, 0), bounds);
+        EXPECT_EQ(MinikinRect(-15, -10, 10, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("ag", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(-5, -10, 20, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("ga", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-15, 10, 20, 0), bounds);
+        EXPECT_EQ(MinikinRect(-15, -10, 20, 0), bounds);
     }
     {
         auto [layout, bounds] = buildLayoutAndBounds("dg", fc);
         EXPECT_EQ(2u, layout.glyphCount());
-        EXPECT_EQ(MinikinRect(-5, 10, 25, 0), bounds);
+        EXPECT_EQ(MinikinRect(-5, -10, 25, 0), bounds);
     }
 }
 
