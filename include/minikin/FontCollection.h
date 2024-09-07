@@ -246,7 +246,7 @@ private:
     bool isPrimaryFamily(const std::shared_ptr<FontFamily>& fontFamily) const;
 
     void filterFamilyByLocale(const LocaleList& localeList,
-                              const std::function<void(const FontFamily& family)>& callback) const;
+                              const std::function<bool(const FontFamily& family)>& callback) const;
 
     static uint32_t calcLocaleMatchingScore(uint32_t userLocaleListId,
                                             const FontFamily& fontFamily);

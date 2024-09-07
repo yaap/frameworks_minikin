@@ -36,7 +36,6 @@ namespace features {
     }
 #endif  //  __ANDROID__
 
-DEFINE_FEATURE_FLAG_ACCESSOROR(phrase_strict_fallback)
 DEFINE_FEATURE_FLAG_ACCESSOROR(word_style_auto)
 DEFINE_FEATURE_FLAG_ACCESSOROR(letter_spacing_justification)
 DEFINE_FEATURE_FLAG_ACCESSOROR(lazy_variation_instance)
