@@ -2494,9 +2494,7 @@ TEST_F(OptimalLineBreakerTest, testPhraseBreakAuto) {
     }
 }
 
-TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testBreakLetterSpacing,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
+TEST_F(OptimalLineBreakerTest, testBreakLetterSpacing) {
     constexpr BreakStrategy HIGH_QUALITY = BreakStrategy::HighQuality;
     constexpr HyphenationFrequency NO_HYPHEN = HyphenationFrequency::None;
     const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");

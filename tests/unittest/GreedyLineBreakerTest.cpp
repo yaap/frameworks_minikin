@@ -2319,9 +2319,7 @@ TEST_F(GreedyLineBreakerTest, testPhraseBreak_Korean) {
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testBreakWithLetterSpacing,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
+TEST_F(GreedyLineBreakerTest, testBreakWithLetterSpacing) {
     const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");
 
     constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;
