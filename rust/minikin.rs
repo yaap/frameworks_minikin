@@ -20,7 +20,6 @@ mod hyphenator;
 
 pub use hyphenator::Hyphenator;
 
-#[allow(clippy::needless_maybe_sized)]
 #[cxx::bridge(namespace = "minikin::rust")]
 mod ffi {
     #[namespace = "minikin::rust"]
