@@ -554,10 +554,6 @@ LineBreakResult breakLineGreedy(const U16StringPiece& textBuf, const MeasuredTex
     lineBreaker.process(false);
     LineBreakResult res = lineBreaker.getResult();
 
-    if (!features::word_style_auto()) {
-        return res;
-    }
-
     // The line breaker says that retry with phrase based word break because of the auto option and
     // given locales.
     if (!lineBreaker.retryWithPhraseWordBreak) {

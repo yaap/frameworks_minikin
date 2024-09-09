@@ -522,10 +522,6 @@ LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredTe
     LineBreakResult res = optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy,
                                                   justified, useBoundsForWidth);
 
-    if (!features::word_style_auto()) {
-        return res;
-    }
-
     // The line breaker says that retry with phrase based word break because of the auto option and
     // given locales.
     if (!context.retryWithPhraseWordBreak) {
