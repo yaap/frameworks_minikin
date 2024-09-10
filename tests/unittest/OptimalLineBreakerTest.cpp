@@ -2155,9 +2155,7 @@ TEST_F(OptimalLineBreakerTest, testBreakWithHyphenation_NoHyphenSpan) {
     }
 }
 
-TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakNone,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(OptimalLineBreakerTest, testPhraseBreakNone) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2269,9 +2267,7 @@ TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakNone,
     }
 }
 
-TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakPhrase,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(OptimalLineBreakerTest, testPhraseBreakPhrase) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2385,9 +2381,7 @@ TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakPhrase,
     }
 }
 
-TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakAuto,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(OptimalLineBreakerTest, testPhraseBreakAuto) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2500,9 +2494,7 @@ TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testPhraseBreakAuto,
     }
 }
 
-TEST_F_WITH_FLAGS(OptimalLineBreakerTest, testBreakLetterSpacing,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
+TEST_F(OptimalLineBreakerTest, testBreakLetterSpacing) {
     constexpr BreakStrategy HIGH_QUALITY = BreakStrategy::HighQuality;
     constexpr HyphenationFrequency NO_HYPHEN = HyphenationFrequency::None;
     const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");

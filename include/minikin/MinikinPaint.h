@@ -60,8 +60,6 @@ struct MinikinPaint {
               fontFeatureSettings(),
               font(font) {}
 
-    bool skipCache() const;
-
     float size;
     float scaleX;
     float skewX;
