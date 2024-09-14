@@ -451,14 +451,9 @@ void GreedyLineBreaker::process(bool forceWordStyleAutoToPhrase) {
     uint32_t nextWordBoundaryOffset = 0;
     for (uint32_t runIndex = 0; runIndex < mMeasuredText.runs.size(); ++runIndex) {
         const std::unique_ptr<Run>& run = mMeasuredText.runs[runIndex];
-        if (features::letter_spacing_justification()) {
-            mCurrentLetterSpacing = run->getLetterSpacingInPx();
-            if (runIndex == 0) {
-                mLineStartLetterSpacing = mCurrentLetterSpacing;
-            }
-        } else {
-            mCurrentLetterSpacing = 0;
-            mLineStartLetterSpacing = 0;
+        mCurrentLetterSpacing = run->getLetterSpacingInPx();
+        if (runIndex == 0) {
+            mLineStartLetterSpacing = mCurrentLetterSpacing;
         }
         const Range range = run->getRange();
 
@@ -553,10 +548,6 @@ LineBreakResult breakLineGreedy(const U16StringPiece& textBuf, const MeasuredTex
                                   useBoundsForWidth);
     lineBreaker.process(false);
     LineBreakResult res = lineBreaker.getResult();
-
-    if (!features::word_style_auto()) {
-        return res;
-    }
 
     // The line breaker says that retry with phrase based word break because of the auto option and
     // given locales.

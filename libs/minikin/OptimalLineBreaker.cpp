@@ -254,14 +254,10 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     CharProcessor proc(textBuf);
 
     float initialLetterSpacing;
-    if (features::letter_spacing_justification()) {
-        if (measured.runs.empty()) {
-            initialLetterSpacing = 0;
-        } else {
-            initialLetterSpacing = measured.runs[0]->getLetterSpacingInPx();
-        }
-    } else {
+    if (measured.runs.empty()) {
         initialLetterSpacing = 0;
+    } else {
+        initialLetterSpacing = measured.runs[0]->getLetterSpacingInPx();
     }
     OptimizeContext result(initialLetterSpacing);
 
@@ -271,8 +267,7 @@ OptimizeContext populateCandidates(const U16StringPiece& textBuf, const Measured
     for (const auto& run : measured.runs) {
         const bool isRtl = run->isRtl();
         const Range& range = run->getRange();
-        const float letterSpacing =
-                features::letter_spacing_justification() ? run->getLetterSpacingInPx() : 0;
+        const float letterSpacing = run->getLetterSpacingInPx();
 
         // Compute penalty parameters.
         float hyphenPenalty = 0.0f;
@@ -521,10 +516,6 @@ LineBreakResult breakLineOptimal(const U16StringPiece& textBuf, const MeasuredTe
     LineBreakOptimizer optimizer;
     LineBreakResult res = optimizer.computeBreaks(context, textBuf, measured, lineWidth, strategy,
                                                   justified, useBoundsForWidth);
-
-    if (!features::word_style_auto()) {
-        return res;
-    }
 
     // The line breaker says that retry with phrase based word break because of the auto option and
     // given locales.

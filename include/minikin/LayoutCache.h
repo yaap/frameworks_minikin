@@ -162,7 +162,7 @@ public:
                      bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
                      bool boundsCalculation, F& f) {
         LayoutCacheKey key(text, range, paint, dir, startHyphen, endHyphen);
-        if (paint.skipCache() || range.getLength() >= CHAR_LIMIT_FOR_CACHE) {
+        if (range.getLength() >= CHAR_LIMIT_FOR_CACHE) {
             LayoutPiece piece(text, range, dir, paint, startHyphen, endHyphen);
             if (boundsCalculation) {
                 f(piece, paint, LayoutPiece::calculateBounds(piece, paint));
