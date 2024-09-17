@@ -611,7 +611,7 @@ FontCollection::FamilyMatchResult FontCollection::FamilyMatchResult::intersect(
 
 void FontCollection::filterFamilyByLocale(
         const LocaleList& localeList,
-        const std::function<void(const FontFamily& family)>& callback) const {
+        const std::function<bool(const FontFamily& family)>& callback) const {
     if (localeList.empty()) {
         return;
     }
@@ -627,8 +627,12 @@ void FontCollection::filterFamilyByLocale(
         const LocaleList& fontLocaleList = LocaleListCache::getById(fontLocaleId);
         for (uint32_t i = 0; i < fontLocaleList.size(); ++i) {
             if (fontLocaleList[i].isEqualScript(locale)) {
-                callback(*family.get());
-                break;
+                bool cont = callback(*family.get());
+                if (cont) {
+                    break;
+                } else {
+                    return;
+                }
             }
         }
     }
@@ -646,6 +650,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     }
 
     MinikinExtent result(0, 0);
+    // Reserve the custom font's extent.
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
         if (!family->isCustomFallback()) {
@@ -677,7 +682,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
                                                     : family.variant();
 
         if (familyVariant != requestVariant) {
-            return;
+            return true;  // continue other families
         }
 
         MinikinExtent extent(0, 0);
@@ -686,6 +691,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         result.extendBy(extent);
 
         familyFound = true;
+        return false;  // We found it, stop searching.
     });
 
     // If nothing matches, try non-variant match cases since it is used for fallback.
@@ -697,6 +703,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         result.extendBy(extent);
 
         familyFound = true;
+        return false;  // We found it. stop searching.
     });
 
     // If nothing matches, use default font.
