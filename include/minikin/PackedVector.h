@@ -20,6 +20,7 @@
 #include <log/log.h>
 
 #include <type_traits>
+#include <vector>
 
 namespace minikin {
 
