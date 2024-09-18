@@ -107,16 +107,6 @@ const USCRIPT_CANADIAN_ABORIGINAL: u8 = 7;
 use crate::ffi::getJoiningType;
 use crate::ffi::getScript;
 
-#[cfg(target_os = "android")]
-fn portuguese_hyphenator() -> bool {
-    android_text_flags::portuguese_hyphenator()
-}
-
-#[cfg(not(target_os = "android"))]
-fn portuguese_hyphenator() -> bool {
-    true
-}
-
 /// Hyphenation types
 /// The following values must be equal to the ones in
 /// frameworks/minikin/include/minikin/Hyphenator.h
@@ -785,21 +775,19 @@ impl Hyphenator {
                 continue;
             }
 
-            if portuguese_hyphenator() {
-                if self.locale == HyphenationLocale::Portuguese {
-                    // In Portuguese, prefer to break before the hyphen, i.e. the line start with
-                    // the hyphen. If we see hyphenation break point after the hyphen character,
-                    // prefer to break before the hyphen.
-                    out[i - 1] = HyphenationType::BreakAndDontInsertHyphen as u8;
-                    out[i] = HyphenationType::DontBreak as u8; // Not prefer to break here because
-                                                               // this character is just after the
-                                                               // hyphen character.
-                } else {
-                    // If we see hyphen character just before this character, add hyphenation break
-                    // point and don't break here.
-                    out[i - 1] = HyphenationType::DontBreak as u8;
-                    out[i] = HyphenationType::BreakAndDontInsertHyphen as u8;
-                }
+            if self.locale == HyphenationLocale::Portuguese {
+                // In Portuguese, prefer to break before the hyphen, i.e. the line start with
+                // the hyphen. If we see hyphenation break point after the hyphen character,
+                // prefer to break before the hyphen.
+                out[i - 1] = HyphenationType::BreakAndDontInsertHyphen as u8;
+                out[i] = HyphenationType::DontBreak as u8; // Not prefer to break here because
+                                                           // this character is just after the
+                                                           // hyphen character.
+            } else {
+                // If we see hyphen character just before this character, add hyphenation break
+                // point and don't break here.
+                out[i - 1] = HyphenationType::DontBreak as u8;
+                out[i] = HyphenationType::BreakAndDontInsertHyphen as u8;
             }
         }
     }
