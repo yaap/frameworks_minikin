@@ -17,19 +17,29 @@
 #ifndef MINIKIN_FONT_FAKERY_H
 #define MINIKIN_FONT_FAKERY_H
 
+#include "minikin/FontVariation.h"
+
 namespace minikin {
 
 // attributes representing transforms (fake bold, fake italic) to match styles
 class FontFakery {
 public:
-    FontFakery() : FontFakery(false, false, -1, -1) {}
-    FontFakery(bool fakeBold, bool fakeItalic) : FontFakery(fakeBold, fakeItalic, -1, -1) {}
+    FontFakery() : FontFakery(false, false, -1, -1, VariationSettings()) {}
+    FontFakery(bool fakeBold, bool fakeItalic)
+            : FontFakery(fakeBold, fakeItalic, -1, -1, VariationSettings()) {}
     FontFakery(bool fakeBold, bool fakeItalic, int16_t wghtAdjustment, int8_t italAdjustment)
-            : mBits(pack(fakeBold, fakeItalic, wghtAdjustment, italAdjustment)) {}
+            : FontFakery(fakeBold, fakeItalic, wghtAdjustment, italAdjustment,
+                         VariationSettings()) {}
+    FontFakery(bool fakeBold, bool fakeItalic, VariationSettings&& variationSettings)
+            : FontFakery(fakeBold, fakeItalic, -1, -1, std::move(variationSettings)) {}
+    FontFakery(bool fakeBold, bool fakeItalic, int16_t wghtAdjustment, int8_t italAdjustment,
+               VariationSettings&& variationSettings)
+            : mBits(pack(fakeBold, fakeItalic, wghtAdjustment, italAdjustment)),
+              mVariationSettings(std::move(variationSettings)) {}
 
     // TODO: want to support graded fake bolding
-    bool isFakeBold() { return (mBits & MASK_FAKE_BOLD) != 0; }
-    bool isFakeItalic() { return (mBits & MASK_FAKE_ITALIC) != 0; }
+    bool isFakeBold() const { return (mBits & MASK_FAKE_BOLD) != 0; }
+    bool isFakeItalic() const { return (mBits & MASK_FAKE_ITALIC) != 0; }
     bool hasAdjustment() const { return hasWghtAdjustment() || hasItalAdjustment(); }
     bool hasWghtAdjustment() const { return (mBits & MASK_HAS_WGHT_ADJUSTMENT) != 0; }
     bool hasItalAdjustment() const { return (mBits & MASK_HAS_ITAL_ADJUSTMENT) != 0; }
@@ -51,7 +61,11 @@ public:
 
     uint16_t bits() const { return mBits; }
 
-    inline bool operator==(const FontFakery& o) const { return mBits == o.mBits; }
+    const VariationSettings& variationSettings() const { return mVariationSettings; }
+
+    inline bool operator==(const FontFakery& o) const {
+        return mBits == o.mBits && mVariationSettings == o.mVariationSettings;
+    }
     inline bool operator!=(const FontFakery& o) const { return !(*this == o); }
 
 private:
@@ -81,6 +95,7 @@ private:
     }
 
     const uint16_t mBits;
+    const VariationSettings mVariationSettings;
 };
 
 }  // namespace minikin
