@@ -451,22 +451,20 @@ void HyphenatorCXX::hyphenateFromCodes(const uint16_t* codes, size_t len,
     for (size_t i = mMinPrefix; i < maxOffset; i++) {
         // Hyphenation opportunities happen when the hyphenation numbers are odd.
         out[i] = (buffer[i] & 1u) ? hyphenValue : HyphenationType::DONT_BREAK;
-        if (features::portuguese_hyphenator()) {
-            if (i > 0 && isLineBreakingHyphen(word[i - 1])) {
-                if (mHyphenationLocale == HyphenationLocale::PORTUGUESE) {
-                    // In Portuguese, prefer to break before the hyphen, i.e. the line start with
-                    // the hyphen. If we see hyphenation break point after the hyphen character,
-                    // prefer to break before the hyphen.
-                    out[i - 1] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
-                    out[i] = HyphenationType::DONT_BREAK;  // Not prefer to break here because
-                                                           // this character is just after the
-                                                           // hyphen character.
-                } else {
-                    // If we see hyphen character just before this character, add hyphenation break
-                    // point and don't break here.
-                    out[i - 1] = HyphenationType::DONT_BREAK;
-                    out[i] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
-                }
+        if (i > 0 && isLineBreakingHyphen(word[i - 1])) {
+            if (mHyphenationLocale == HyphenationLocale::PORTUGUESE) {
+                // In Portuguese, prefer to break before the hyphen, i.e. the line start with
+                // the hyphen. If we see hyphenation break point after the hyphen character,
+                // prefer to break before the hyphen.
+                out[i - 1] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
+                out[i] = HyphenationType::DONT_BREAK;  // Not prefer to break here because
+                                                       // this character is just after the
+                                                       // hyphen character.
+            } else {
+                // If we see hyphen character just before this character, add hyphenation break
+                // point and don't break here.
+                out[i - 1] = HyphenationType::DONT_BREAK;
+                out[i] = HyphenationType::BREAK_AND_DONT_INSERT_HYPHEN;
             }
         }
     }

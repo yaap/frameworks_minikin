@@ -230,11 +230,9 @@ enum ScanState {
 };
 
 void WordBreaker::detectEmailOrUrl() {
-    if (features::dont_break_email_in_nobreak_tag()) {
-        if (mIcuBreaker.lbStyle == LineBreakStyle::NoBreak) {
-            mInEmailOrUrl = false;
-            return;
-        }
+    if (mIcuBreaker.lbStyle == LineBreakStyle::NoBreak) {
+        mInEmailOrUrl = false;
+        return;
     }
     // scan forward from current ICU position for email address or URL
     if (mLast >= mScanOffset) {

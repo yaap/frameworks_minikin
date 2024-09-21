@@ -358,10 +358,6 @@ TEST_P(HyphenatorTest, startingHyphenMinus) {
 }
 
 TEST_P(HyphenatorTest, hyphenationWithHyphen) {
-    // TEST_P_WITH_TEST is not yet available. Therefore, treat the test as pass if the flag is off.
-    if (!features::portuguese_hyphenator()) {
-        return;
-    }
     std::vector<uint8_t> patternData = readWholeFile(ptHyph);
     Hyphenator* hyphenator = GetParam()(patternData.data(), patternData.size(), 2, 3, "pt");
     const uint16_t word[] = {'b', 'o', 'a', 's', '-', 'v', 'i', 'n', 'd', 'a', 's'};

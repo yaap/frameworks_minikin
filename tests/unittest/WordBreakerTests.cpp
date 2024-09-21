@@ -728,9 +728,7 @@ TEST(WordBreakerTest, LineBreakerPool_exceeds_pool_size) {
     }
 }
 
-TEST_WITH_FLAGS(WordBreakerTest, noBreak_urlNoHyphenBreak,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    dont_break_email_in_nobreak_tag))) {
+TEST(WordBreakerTest, noBreak_urlNoHyphenBreak) {
     uint16_t buf[] = {'h', 't', 't', 'p', ':', '/', '/', 'a', '-', '/', 'b'};
     auto lbStyle = LineBreakStyle::NoBreak;
     auto lbWordStyle = LineBreakWordStyle::None;
@@ -743,9 +741,7 @@ TEST_WITH_FLAGS(WordBreakerTest, noBreak_urlNoHyphenBreak,
     EXPECT_EQ(11, breaker.next());
 }
 
-TEST_WITH_FLAGS(WordBreakerTest, noBreak_urlEndsWithSlash,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    dont_break_email_in_nobreak_tag))) {
+TEST(WordBreakerTest, noBreak_urlEndsWithSlash) {
     uint16_t buf[] = {'h', 't', 't', 'p', ':', '/', '/', 'a', '/'};
     auto lbStyle = LineBreakStyle::NoBreak;
     auto lbWordStyle = LineBreakWordStyle::None;
@@ -757,9 +753,7 @@ TEST_WITH_FLAGS(WordBreakerTest, noBreak_urlEndsWithSlash,
     EXPECT_EQ(9, breaker.next());
 }
 
-TEST_WITH_FLAGS(WordBreakerTest, noBreak_setLocaleInsideUrl,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    dont_break_email_in_nobreak_tag))) {
+TEST(WordBreakerTest, noBreak_setLocaleInsideUrl) {
     std::vector<uint16_t> buf = utf8ToUtf16("Hello http://abc/d.html World");
     auto lbStyle = LineBreakStyle::NoBreak;
     auto lbWordStyle = LineBreakWordStyle::None;
