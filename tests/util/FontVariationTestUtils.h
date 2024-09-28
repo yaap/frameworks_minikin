@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef MINIKIN_CONST_H
-#define MINIKIN_CONST_H
-
-#include <cstdint>
-#include <memory>
-#include <vector>
+#ifndef MINIKIN_FONT_VARIATION_TEST_UTILS_H
+#define MINIKIN_FONT_VARIATION_TEST_UTILS_H
 
 #include "minikin/FontVariation.h"
 
 namespace minikin {
 
-constexpr uint32_t CHAR_LIMIT_FOR_CACHE = 128;
-
-constexpr uint32_t MakeTag(char c1, char c2, char c3, char c4) {
-    return ((uint32_t)c1 << 24) | ((uint32_t)c2 << 16) | ((uint32_t)c3 << 8) | (uint32_t)c4;
-}
-
-const uint32_t TAG_fvar = MakeTag('f', 'v', 'a', 'r');
-
-// Axis tags
-const uint32_t TAG_wght = MakeTag('w', 'g', 'h', 't');
-const uint32_t TAG_ital = MakeTag('i', 't', 'a', 'l');
-const uint32_t TAG_slnt = MakeTag('s', 'l', 'n', 't');
+VariationSettings parseVariationSettings(const std::string& varSettings);
 
 }  // namespace minikin
-
-#endif  // MINIKIN_CONST_H
+#endif  // MINIKIN_FONT_VARIATION_TEST_UTILS_H

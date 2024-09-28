@@ -17,6 +17,8 @@
 #ifndef MINIKIN_FONT_FAKERY_H
 #define MINIKIN_FONT_FAKERY_H
 
+#include "minikin/FVarTable.h"
+#include "minikin/FontStyle.h"
 #include "minikin/FontVariation.h"
 
 namespace minikin {
@@ -97,6 +99,29 @@ private:
     const uint16_t mBits;
     const VariationSettings mVariationSettings;
 };
+
+// Merge font variation settings along with font style and returns FontFakery.
+//
+// The param baseVS is a base variation settings. It comes from font instance.
+// The param targetVS is a target variation settings. It is came from Paint settings.
+// The param baseStyle is a base font style. It is came from font instance.
+// The param targetStyle is a target font style. It is came from Paint settings.
+//
+// The basic concept of the merge strategy is use target variation settings as the first priority,
+// then use the target style second, then use the base variation settings finally.
+//
+// It works like as follows:
+// Step 1. The target font style is translated to the variation settings based on the axis
+//         availability. For example, if the font support `wght` axis, the 700 of the font weight
+//         in the target font style is translated to `wght` 700.
+// Step 2. Merge the derived variation settings and target variation settings. If there is a common
+//         tag, the value of the target variation settings is used.
+// Step 3. Merge the base variation settings and the derived variation settings in Step 2. If there
+//         is a common tag, the value of the target variation settings is used.
+//
+// The fake bold and fake italic of the FontFakery is resolved based on the font capabilities.
+FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
+                 const VariationSettings& targetVS, FontStyle baseStyle, FontStyle targetStyle);
 
 }  // namespace minikin
 

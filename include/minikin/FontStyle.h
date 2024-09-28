@@ -62,6 +62,7 @@ public:
 
     constexpr uint16_t weight() const { return mWeight; }
     constexpr Slant slant() const { return mSlant; }
+    bool isItalic() const { return mSlant == Slant::ITALIC; }
 
     constexpr uint32_t identifier() const {
         return (static_cast<uint32_t>(weight()) << 16) | static_cast<uint32_t>(slant());

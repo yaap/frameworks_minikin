@@ -7,6 +7,7 @@ cc_library_static {
     srcs: [
         "FileUtils.cpp",
         "FontTestUtils.cpp",
+        "FontVariationTestUtils.cpp",
         "FreeTypeMinikinFontForTest.cpp",
         "PathUtils.cpp",
         "UnicodeUtils.cpp",
