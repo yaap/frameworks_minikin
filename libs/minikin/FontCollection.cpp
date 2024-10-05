@@ -893,7 +893,7 @@ FakedFont FontCollection::baseFontFaked(FontStyle style) {
 }
 
 std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
-        const std::vector<FontVariation>& variations) {
+        const VariationSettings& variations) {
     if (variations.empty() || mSupportedAxesCount == 0) {
         return nullptr;
     }

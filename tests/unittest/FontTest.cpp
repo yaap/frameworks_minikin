@@ -276,10 +276,10 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
-        EXPECT_EQ(TAG_wght, axes[0].axisTag);
-        EXPECT_EQ(TAG_ital, axes[1].axisTag);
-        EXPECT_EQ(400, axes[0].value);
-        EXPECT_EQ(1, axes[1].value);
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(TAG_wght, axes[1].axisTag);
+        EXPECT_EQ(1, axes[0].value);
+        EXPECT_EQ(400, axes[1].value);
     }
     {
         // Override existing ital axis.
@@ -288,10 +288,10 @@ TEST(FontTest, getAdjustedTypefaceTest) {
         EXPECT_NE(minikinFontBase.get(), font->baseTypeface().get());
         auto axes = minikinFontBase->GetAxes();
         ASSERT_EQ(2u, axes.size());
-        EXPECT_EQ(TAG_wght, axes[0].axisTag);
-        EXPECT_EQ(TAG_ital, axes[1].axisTag);
-        EXPECT_EQ(700, axes[0].value);
-        EXPECT_EQ(1, axes[1].value);
+        EXPECT_EQ(TAG_ital, axes[0].axisTag);
+        EXPECT_EQ(TAG_wght, axes[1].axisTag);
+        EXPECT_EQ(1, axes[0].value);
+        EXPECT_EQ(700, axes[1].value);
     }
 }
 

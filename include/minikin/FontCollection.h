@@ -180,7 +180,7 @@ public:
     // Creates new FontCollection based on this collection while applying font variations. Returns
     // nullptr if none of variations apply to this collection.
     std::shared_ptr<FontCollection> createCollectionWithVariation(
-            const std::vector<FontVariation>& variations);
+            const VariationSettings& variations);
     // Creates new FontCollection that uses the specified families as top families and
     // families from this FontCollection as fallback.
     std::shared_ptr<FontCollection> createCollectionWithFamilies(

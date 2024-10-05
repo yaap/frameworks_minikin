@@ -89,7 +89,7 @@ public:
     void writeTo(BufferWriter* writer) const;
 
     // Create font instance with axes override.
-    Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes);
+    Font(const std::shared_ptr<Font>& parent, const VariationSettings& axes);
 
     Font(Font&& o) noexcept;
     Font& operator=(Font&& o) noexcept;

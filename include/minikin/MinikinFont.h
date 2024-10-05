@@ -69,10 +69,9 @@ public:
 
     virtual int GetSourceId() const { return 0; }
 
-    virtual const std::vector<minikin::FontVariation>& GetAxes() const = 0;
+    virtual const VariationSettings& GetAxes() const = 0;
 
-    virtual std::shared_ptr<MinikinFont> createFontWithVariation(
-            const std::vector<FontVariation>&) const {
+    virtual std::shared_ptr<MinikinFont> createFontWithVariation(const VariationSettings&) const {
         return nullptr;
     }
 };

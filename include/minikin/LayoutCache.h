@@ -55,6 +55,7 @@ public:
               mEndHyphen(endHyphen),
               mIsRtl(dir),
               mFontFeatureSettings(paint.fontFeatureSettings),
+              mVariationSettings(paint.fontVariationSettings),
               mHash(computeHash()) {}
 
     bool operator==(const LayoutCacheKey& o) const {
@@ -65,6 +66,7 @@ public:
                mFamilyVariant == o.mFamilyVariant && mStartHyphen == o.mStartHyphen &&
                mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl && mNchars == o.mNchars &&
                mFontFeatureSettings == o.mFontFeatureSettings &&
+               mVariationSettings == o.mVariationSettings &&
                !memcmp(mChars, o.mChars, mNchars * sizeof(uint16_t));
     }
 
@@ -102,6 +104,7 @@ private:
     EndHyphenEdit mEndHyphen;
     bool mIsRtl;
     std::vector<FontFeature> mFontFeatureSettings;
+    VariationSettings mVariationSettings;
     // Note: any fields added to MinikinPaint must also be reflected here.
     // TODO: language matching (possibly integrate into style)
     android::hash_t mHash;
@@ -124,6 +127,7 @@ private:
                 .update(mIsRtl)
                 .updateShorts(mChars, mNchars)
                 .update(mFontFeatureSettings)
+                .update(mVariationSettings)
                 .hash();
     }
 };

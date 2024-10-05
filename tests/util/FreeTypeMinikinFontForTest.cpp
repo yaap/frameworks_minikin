@@ -58,7 +58,7 @@ void loadGlyphOrDie(uint32_t glyphId, float size, FT_Face face) {
 }  // namespace
 
 FreeTypeMinikinFontForTest::FreeTypeMinikinFontForTest(const std::string& font_path, int index,
-                                                       const std::vector<FontVariation>& axes)
+                                                       const VariationSettings& axes)
         : mFontPath(font_path), mFontIndex(index), mAxes(axes) {
     int fd = open(font_path.c_str(), O_RDONLY);
     LOG_ALWAYS_FATAL_IF(fd == -1, "Open failed: %s", font_path.c_str());
@@ -135,7 +135,7 @@ void FreeTypeMinikinFontForTestFactory::skip(BufferReader* reader) const {
 }
 
 std::shared_ptr<MinikinFont> FreeTypeMinikinFontForTest::createFontWithVariation(
-        const std::vector<FontVariation>& axes) const {
+        const VariationSettings& axes) const {
     return std::make_shared<FreeTypeMinikinFontForTest>(mFontPath, mFontIndex, axes);
 }
 

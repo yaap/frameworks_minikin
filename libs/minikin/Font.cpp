@@ -93,7 +93,7 @@ Font::Font(BufferReader* reader)
     MinikinFontFactory::getInstance().skip(reader);
 }
 
-Font::Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes)
+Font::Font(const std::shared_ptr<Font>& parent, const VariationSettings& axes)
         : mExternalRefsHolder(nullptr), mTypefaceMetadataReader(nullptr) {
     mStyle = parent->style();
     mLocaleListId = parent->getLocaleListId();

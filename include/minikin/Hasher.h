@@ -74,6 +74,15 @@ public:
         return *this;
     }
 
+    inline Hasher& update(const VariationSettings& vars) {
+        update(vars.size());
+        for (const FontVariation& var : vars) {
+            update(var.axisTag);
+            update(var.value);
+        }
+        return *this;
+    }
+
     inline Hasher& updateShorts(const uint16_t* data, uint32_t length) {
         update(length);
         uint32_t i;
