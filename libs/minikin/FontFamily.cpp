@@ -22,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "FeatureFlags.h"
 #include "FontUtils.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
@@ -300,7 +301,25 @@ static FontFakery computeFakery(FontStyle wanted, FontStyle actual) {
     return FontFakery(isFakeBold, isFakeItalic);
 }
 
-FakedFont FontFamily::getClosestMatch(FontStyle style) const {
+FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& axes) const {
+    if (features::typeface_redesign()) {
+        int bestIndex = 0;
+        Font* bestFont = mFonts[bestIndex].get();
+        int bestMatch = computeMatch(bestFont->style(), style);
+        for (size_t i = 1; i < mFontsCount; i++) {
+            Font* font = mFonts[i].get();
+            int match = computeMatch(font->style(), style);
+            if (i == 0 || match < bestMatch) {
+                bestFont = font;
+                bestIndex = i;
+                bestMatch = match;
+            }
+        }
+        FontFakery fakery = merge(bestFont->getFVarTable(), bestFont->baseTypeface()->GetAxes(),
+                                  axes, bestFont->style(), style);
+        return FakedFont(mFonts[bestIndex], fakery);
+    }
+
     if (mVarFamilyType != VariationFamilyType::None) {
         return getVariationFamilyAdjustment(style);
     }
@@ -334,7 +353,7 @@ FakedFont FontFamily::getVariationFamilyAdjustment(FontStyle style) const {
 }
 
 void FontFamily::computeCoverage() {
-    const std::shared_ptr<Font>& font = getClosestMatch(FontStyle()).font;
+    const std::shared_ptr<Font>& font = getClosestMatch(FontStyle(), VariationSettings()).font;
     HbBlob cmapTable(font->baseFont(), MakeTag('c', 'm', 'a', 'p'));
     if (cmapTable.get() == nullptr) {
         ALOGE("Could not get cmap table size!\n");
@@ -398,7 +417,7 @@ bool FontFamily::hasGlyph(uint32_t codepoint, uint32_t variationSelector) const 
 }
 
 std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
-        const std::vector<FontVariation>& variations) const {
+        const VariationSettings& variations) const {
     if (variations.empty() || mSupportedAxesCount == 0) {
         return nullptr;
     }

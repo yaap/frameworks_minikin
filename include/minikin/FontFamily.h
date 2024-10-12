@@ -58,7 +58,10 @@ public:
     static void writeVector(BufferWriter* writer,
                             const std::vector<std::shared_ptr<FontFamily>>& families);
 
-    FakedFont getClosestMatch(FontStyle style) const;
+    FakedFont getClosestMatch(FontStyle style, const VariationSettings& axes) const;
+    FakedFont getClosestMatch(FontStyle style) const {
+        return getClosestMatch(style, VariationSettings());
+    }
     FakedFont getVariationFamilyAdjustment(FontStyle style) const;
 
     uint32_t localeListId() const { return mLocaleListId; }
@@ -104,7 +107,7 @@ public:
     // Creates new FontFamily based on this family while applying font variations. Returns nullptr
     // if none of variations apply to this family.
     std::shared_ptr<FontFamily> createFamilyWithVariation(
-            const std::vector<FontVariation>& variations) const;
+            const VariationSettings& variations) const;
 
 private:
     FontFamily(uint32_t localeListId, FamilyVariant variant,

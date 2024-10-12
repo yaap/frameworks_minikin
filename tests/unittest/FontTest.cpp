@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 #include <minikin/Constants.h>
 
 #include "BufferUtils.h"
 #include "FontTestUtils.h"
+#include "FontVariationTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "minikin/Font.h"
 
@@ -335,6 +338,46 @@ TEST(FontTest, FVarTableTest) {
     EXPECT_EQ(0, italTable.minValue);
     EXPECT_EQ(0, italTable.defValue);
     EXPECT_EQ(1, italTable.maxValue);
+}
+
+FakedFont fakedFont(const std::shared_ptr<Font>& font, const std::string& varSettings) {
+    return {font, FontFakery(false, false, parseVariationSettings(varSettings))};
+}
+
+TEST_WITH_FLAGS(FontTest, FakedFont_cached_hbFont,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    typeface_redesign))) {
+    FreeTypeMinikinFontForTestFactory::init();
+
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    FakedFont faked300 = fakedFont(font, "'wght' 300");
+    FakedFont faked400 = fakedFont(font, "'wght' 400");
+    FakedFont faked300_2 = fakedFont(font, "'wght' 300");
+
+    EXPECT_EQ(faked300.hbFont().get(), faked300.hbFont().get());
+    EXPECT_EQ(faked300.hbFont().get(), faked300_2.hbFont().get());
+    EXPECT_NE(faked300.hbFont().get(), faked400.hbFont().get());
+}
+
+TEST_WITH_FLAGS(FontTest, FakedFont_cached_typeface,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    typeface_redesign))) {
+    FreeTypeMinikinFontForTestFactory::init();
+
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    std::shared_ptr<Font> font = Font::Builder(minikinFont).build();
+
+    FakedFont faked300 = fakedFont(font, "'wght' 300");
+    FakedFont faked400 = fakedFont(font, "'wght' 400");
+    FakedFont faked300_2 = fakedFont(font, "'wght' 300");
+
+    EXPECT_EQ(faked300.typeface(), faked300.typeface());
+    EXPECT_EQ(faked300.typeface(), faked300_2.typeface());
+    EXPECT_NE(faked300.typeface(), faked400.typeface());
 }
 
 }  // namespace minikin

@@ -301,7 +301,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     double size = paint.size;
     double scaleX = paint.scaleX;
 
-    std::unordered_map<const MinikinFont*, uint32_t> fontMap;
+    std::unordered_map<std::shared_ptr<MinikinFont>, uint32_t> fontMap;
 
     float x = 0;
     float y = 0;
@@ -315,22 +315,23 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
          isRtl ? run_ix >= 0 : run_ix < static_cast<int>(items.size());
          isRtl ? --run_ix : ++run_ix) {
         FontCollection::Run& run = items[run_ix];
-        FakedFont fakedFont = paint.font->getBestFont(substr, run, paint.fontStyle);
-        const std::shared_ptr<MinikinFont>& typeface = fakedFont.typeface();
-        auto it = fontMap.find(typeface.get());
+        FakedFont fakedFont =
+                paint.font->getBestFont(substr, run, paint.fontStyle, paint.fontVariationSettings);
+        std::shared_ptr<MinikinFont> typeface = fakedFont.typeface();
+        auto it = fontMap.find(typeface);
         uint8_t font_ix;
         if (it == fontMap.end()) {
             // First time to see this font.
             font_ix = mFonts.size();
             mFonts.push_back(fakedFont);
-            fontMap.insert(std::make_pair(typeface.get(), font_ix));
+            fontMap.insert(std::make_pair(typeface, font_ix));
 
             // We override some functions which are not thread safe.
             HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.hbFont().get()));
-            hb_font_set_funcs(
-                    font.get(), isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
-                    new SkiaArguments({fakedFont.typeface().get(), &paint, fakedFont.fakery}),
-                    [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
+            hb_font_set_funcs(font.get(),
+                              isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
+                              new SkiaArguments({typeface.get(), &paint, fakedFont.fakery}),
+                              [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
             hbFonts.push_back(std::move(font));
         } else {
             font_ix = it->second;

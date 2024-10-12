@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 
 #include "FontTestUtils.h"
+#include "FontVariationTestUtils.h"
 #include "FreeTypeMinikinFontForTest.h"
 #include "MinikinInternal.h"
 #include "minikin/Constants.h"
@@ -330,6 +333,46 @@ TEST(FontCollectionTest, FamilyMatchResultTest_intersect) {
     EXPECT_EQ(Builder().add(1).add(3).build(),
               FontCollection::FamilyMatchResult::intersect(Builder().add(1).add(2).add(3).build(),
                                                            Builder().add(1).add(3).add(5).build()));
+}
+
+TEST_WITH_FLAGS(FontCollectionTest, getBestFont,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    typeface_redesign))) {
+    FreeTypeMinikinFontForTestFactory::init();
+
+    const uint32_t localeListId = registerLocaleList("en-US");
+
+    auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
+            getTestFontPath("WeightEqualsEmVariableFont.ttf"));
+    auto font = Font::Builder(minikinFont).build();
+    auto family = FontFamily::create({font});
+    auto fc = FontCollection::create({family});
+
+    auto getBestFont = [&](FontStyle style, const VariationSettings& varSettings) -> FakedFont {
+        std::vector<uint16_t> text = {'a'};
+        auto runs = fc->itemize(text, style, localeListId, FamilyVariant::DEFAULT, 1);
+        EXPECT_EQ(1u, runs.size());
+        return fc->getBestFont(text, runs[0], style, varSettings);
+    };
+
+    EXPECT_EQ(parseVariationSettings(""),
+              getBestFont(FontStyle(), VariationSettings()).fakery.variationSettings());
+    EXPECT_EQ(parseVariationSettings("'wght' 700"),
+              getBestFont(FontStyle(FontStyle::Weight::BOLD), VariationSettings())
+                      .fakery.variationSettings());
+    EXPECT_EQ(parseVariationSettings("'wght' 700"),
+              getBestFont(FontStyle(), parseVariationSettings("'wght' 700"))
+                      .fakery.variationSettings());
+    EXPECT_EQ(parseVariationSettings("'ital' 1"),
+              getBestFont(FontStyle(FontStyle::Slant::ITALIC), VariationSettings())
+                      .fakery.variationSettings());
+    EXPECT_EQ(parseVariationSettings("'ital' 1, 'wght' 500"),
+              getBestFont(FontStyle(FontStyle::Weight::MEDIUM, FontStyle::Slant::ITALIC),
+                          VariationSettings())
+                      .fakery.variationSettings());
+    EXPECT_EQ(parseVariationSettings("'ital' 1, 'wght' 500"),
+              getBestFont(FontStyle(FontStyle::Slant::ITALIC), parseVariationSettings("'wght' 500"))
+                      .fakery.variationSettings());
 }
 
 }  // namespace minikin

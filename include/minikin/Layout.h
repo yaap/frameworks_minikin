@@ -133,7 +133,7 @@ public:
     const Font* getFont(int i) const { return mGlyphs[i].font.font.get(); }
     const std::shared_ptr<Font>& getFontRef(int i) const { return mGlyphs[i].font.font; }
     FontFakery getFakery(int i) const { return mGlyphs[i].font.fakery; }
-    const std::shared_ptr<MinikinFont>& typeface(int i) const { return mGlyphs[i].font.typeface(); }
+    std::shared_ptr<MinikinFont> typeface(int i) const { return mGlyphs[i].font.typeface(); }
     unsigned int getGlyphId(int i) const { return mGlyphs[i].glyph_id; }
     float getX(int i) const { return mGlyphs[i].x; }
     float getY(int i) const { return mGlyphs[i].y; }

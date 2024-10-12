@@ -16,6 +16,10 @@
 
 #include "minikin/FontFakery.h"
 
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif  // __ANDROID__
+
 #include "minikin/Constants.h"
 #include "minikin/FVarTable.h"
 #include "minikin/FontStyle.h"
@@ -85,7 +89,13 @@ FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
             } else if (styleTag == baseTag) {
                 // style == base < target: process base and style. style is used.
                 tag = styleTag;
+#ifdef __ANDROID__
+                value = android_get_application_target_sdk_version() > 35
+                                ? styleVars[styleIdx].value
+                                : baseVS[baseIdx].value;
+#else
                 value = styleVars[styleIdx].value;
+#endif  // __ANDROID__
                 baseIdx++;
                 styleIdx++;
             } else {

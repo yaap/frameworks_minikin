@@ -155,7 +155,11 @@ public:
         int end;
     };
 
-    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style);
+    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style,
+                          const VariationSettings& variationSettings);
+    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style) {
+        return getBestFont(textBuf, run, style, VariationSettings());
+    }
 
     // Perform the itemization until given max runs.
     std::vector<Run> itemize(U16StringPiece text, FontStyle style, uint32_t localeListId,
