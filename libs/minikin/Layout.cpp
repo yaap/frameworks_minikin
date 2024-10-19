@@ -289,8 +289,7 @@ public:
             mLayout->appendLayout(layoutPiece, mOutOffset, mWordSpacing);
         }
         if (mAdvances) {
-            const std::vector<float>& advances = layoutPiece.advances();
-            std::copy(advances.begin(), advances.end(), mAdvances);
+            std::copy(layoutPiece.advances().begin(), layoutPiece.advances().end(), mAdvances);
         }
         if (mBounds) {
             mBounds->join(bounds, mTotalAdvance, 0);
@@ -371,7 +370,7 @@ void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvan
                                  mAdvance + src.pointAt(i).x, src.pointAt(i).y);
         }
     }
-    const std::vector<float>& advances = src.advances();
+    const AdvanceVector& advances = src.advances();
     for (size_t i = 0; i < advances.size(); i++) {
         mAdvances[i + start] = advances[i];
         if (i == 0) {

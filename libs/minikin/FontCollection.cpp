@@ -151,7 +151,7 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
     std::unordered_set<AxisTag> supportedAxesSet;
     for (size_t i = 0; i < nTypefaces; i++) {
         const std::shared_ptr<FontFamily>& family = typefaces[i];
-        if (family->getClosestMatch(defaultStyle).font == nullptr) {
+        if (family->getNumFonts() == 0) {
             continue;
         }
         const SparseBitSet& coverage = family->getCoverage();

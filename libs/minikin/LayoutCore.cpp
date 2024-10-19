@@ -452,7 +452,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 xoff += yoff * paint.skewX;
                 mFontIndices.push_back(font_ix);
                 mGlyphIds.push_back(glyph_ix);
-                mPoints.emplace_back(x + xoff, y + yoff);
+                mPoints.push_back({x + xoff, y + yoff});
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
                 mClusters.push_back(clusterBaseIndex);
                 if (useLargeSet) {
