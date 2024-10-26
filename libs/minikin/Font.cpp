@@ -375,10 +375,11 @@ const std::shared_ptr<MinikinFont>& Font::ExternalRefs::getAdjustedTypeface(int 
 }
 
 HbFontUniquePtr Font::getAdjustedFont(const VariationSettings& axes) const {
-    return getExternalRefs()->getAdjustedFont(axes);
+    return getExternalRefs()->getAdjustedFont(axes, getFVarTable());
 }
 
-HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(const VariationSettings& axes) const {
+HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(const VariationSettings& axes,
+                                                    const FVarTable& table) const {
     if (axes.empty()) {
         return HbFontUniquePtr(hb_font_reference(mBaseFont.get()));
     }
@@ -393,6 +394,10 @@ HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(const VariationSettings& axe
     std::vector<hb_variation_t> variations;
     variations.reserve(axes.size());
     for (const FontVariation& variation : axes) {
+        auto it = table.find(variation.axisTag);
+        if (it == table.end() || it->second.defValue == variation.value) {
+            continue;
+        }
         variations.push_back({variation.axisTag, variation.value});
     }
     hb_font_set_variations(font.get(), variations.data(), variations.size());
@@ -401,11 +406,11 @@ HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(const VariationSettings& axe
 }
 
 std::shared_ptr<MinikinFont> Font::getAdjustedTypeface(const VariationSettings& axes) const {
-    return getExternalRefs()->getAdjustedTypeface(axes);
+    return getExternalRefs()->getAdjustedTypeface(axes, getFVarTable());
 }
 
-std::shared_ptr<MinikinFont> Font::ExternalRefs::getAdjustedTypeface(
-        const VariationSettings& axes) const {
+std::shared_ptr<MinikinFont> Font::ExternalRefs::getAdjustedTypeface(const VariationSettings& axes,
+                                                                     const FVarTable& table) const {
     if (axes.empty()) {
         return mTypeface;
     }
@@ -419,6 +424,10 @@ std::shared_ptr<MinikinFont> Font::ExternalRefs::getAdjustedTypeface(
     std::vector<FontVariation> variations;
     variations.reserve(axes.size());
     for (const FontVariation& variation : axes) {
+        auto it = table.find(variation.axisTag);
+        if (it == table.end() || it->second.defValue == variation.value) {
+            continue;
+        }
         variations.push_back({variation.axisTag, variation.value});
     }
     std::shared_ptr<MinikinFont> newTypeface =

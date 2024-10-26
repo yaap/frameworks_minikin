@@ -88,8 +88,8 @@ TEST(FontFakeryTest, testMerge) {
     EXPECT_EQ("'ABCD' 100", merge(fvar, "", "'ABCD' 100", REGULAR, REGULAR).variationSettings());
     // Base should be remains
     EXPECT_EQ("'ABCD' 0", merge(fvar, "'ABCD' 0", "", REGULAR, REGULAR).variationSettings());
-    // The default value should be omitted.
-    EXPECT_EQ("", merge(fvar, "", "'ABCD' 50", REGULAR, REGULAR).variationSettings());
+    // The default value from the target VS should be preserved.
+    EXPECT_EQ("'ABCD' 50", merge(fvar, "", "'ABCD' 50", REGULAR, REGULAR).variationSettings());
     // Override should override the base settings.
     EXPECT_EQ("'ABCD' 100",
               merge(fvar, "'ABCD' 0", "'ABCD' 100", REGULAR, REGULAR).variationSettings());
@@ -124,10 +124,10 @@ TEST(FontFakeryTest, testMerge_styleItal) {
 
     // Use weight of FontStyle if no override is specified.
     EXPECT_EQ("'ital' 1", merge(fvar, "", "", REGULAR, ITALIC).variationSettings());
-    EXPECT_EQ("", merge(fvar, "'ital' 1", "", REGULAR, REGULAR).variationSettings());
-    EXPECT_EQ("'ital' 1", merge(fvar, "'ital' 0", "", REGULAR, ITALIC).variationSettings());
+    EXPECT_EQ("'ital' 1", merge(fvar, "'ital' 1", "", REGULAR, REGULAR).variationSettings());
+    EXPECT_EQ("'ital' 0", merge(fvar, "'ital' 0", "", REGULAR, ITALIC).variationSettings());
     // If override is spseicied, it is used instead of FontStyle.
-    EXPECT_EQ("", merge(fvar, "", "'ital' 0", REGULAR, ITALIC).variationSettings());
+    EXPECT_EQ("'ital' 0", merge(fvar, "", "'ital' 0", REGULAR, ITALIC).variationSettings());
 }
 
 TEST(FontFakeryTest, testMerge_styleSlnt) {
@@ -136,7 +136,7 @@ TEST(FontFakeryTest, testMerge_styleSlnt) {
     // Use weight of FontStyle if no override is specified.
     EXPECT_EQ("'slnt' -10", merge(fvar, "", "", REGULAR, ITALIC).variationSettings());
     // If override is spseicied, it is used instead of FontStyle.
-    EXPECT_EQ("", merge(fvar, "", "'slnt' 0", REGULAR, ITALIC).variationSettings());
+    EXPECT_EQ("'slnt' 0", merge(fvar, "", "'slnt' 0", REGULAR, ITALIC).variationSettings());
 }
 
 TEST(FontFakeryTest, testMerge_complex) {

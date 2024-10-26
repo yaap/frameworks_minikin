@@ -145,6 +145,16 @@ public:
         return hash;
     }
 
+#ifdef __APPLE__
+    inline Hasher& update(uintptr_t data) {
+        update(static_cast<uint32_t>(data));
+        if (sizeof(uintptr_t) > sizeof(uint32_t)) {
+            update(static_cast<uint32_t>(data >> 32));
+        }
+        return *this;
+    }
+#endif
+
 private:
     uint32_t mHash;
 };

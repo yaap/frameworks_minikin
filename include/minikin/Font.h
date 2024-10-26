@@ -141,9 +141,10 @@ private:
                 GUARDED_BY(mMutex);
         mutable std::map<uint16_t, HbFontUniquePtr> mVarFontCache GUARDED_BY(mMutex);
 
-        std::shared_ptr<MinikinFont> getAdjustedTypeface(
-                const VariationSettings& varSettings) const;
-        HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings) const;
+        std::shared_ptr<MinikinFont> getAdjustedTypeface(const VariationSettings& varSettings,
+                                                         const FVarTable& fvarTable) const;
+        HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings,
+                                        const FVarTable& fvarTable) const;
         mutable android::LruCache<VariationSettings, std::shared_ptr<MinikinFont>>
                 mVarTypefaceCache2 GUARDED_BY(mMutex);
         mutable android::LruCache<VariationSettings, HbFontUniquePtr*> mVarFontCache2
