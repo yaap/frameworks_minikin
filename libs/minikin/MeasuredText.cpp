@@ -39,8 +39,8 @@ public:
 
     void operator()(const LayoutPiece& layoutPiece, const MinikinPaint& paint,
                     const MinikinRect& bounds) {
-        std::copy(layoutPiece.advances().begin(), layoutPiece.advances().end(),
-                  mOutAdvances->begin() + mRange.getStart());
+        const std::vector<float>& advances = layoutPiece.advances();
+        std::copy(advances.begin(), advances.end(), mOutAdvances->begin() + mRange.getStart());
 
         if (bounds.mLeft < 0 || bounds.mRight > layoutPiece.advance()) {
             for (uint32_t i : mRange) {
