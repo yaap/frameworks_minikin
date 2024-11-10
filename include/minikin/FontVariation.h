@@ -58,7 +58,7 @@ constexpr bool operator>=(const FontVariation& l, const FontVariation& r) {
 }
 
 // Immutable variation settings
-using VariationSettings = SortedPackedVector<FontVariation>;
+using VariationSettings = SortedPackedVector<FontVariation, 2, uint16_t>;
 
 inline std::ostream& operator<<(std::ostream& os, const FontVariation& variation) {
     return os << "'" << static_cast<char>(variation.axisTag >> 24)

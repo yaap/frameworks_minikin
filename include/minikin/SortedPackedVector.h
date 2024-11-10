@@ -25,11 +25,11 @@
 namespace minikin {
 
 // An immutable packed vector that elements are sorted.
-template <typename T, size_t ARRAY_SIZE = 2>
+template <typename T, size_t ARRAY_SIZE = 2, typename SIZE_TYPE = uint32_t>
 class SortedPackedVector {
 public:
     SortedPackedVector() {}
-    SortedPackedVector(const T* ptr, uint16_t count, bool sorted = false) : mPacked(ptr, count) {
+    SortedPackedVector(const T* ptr, SIZE_TYPE count, bool sorted = false) : mPacked(ptr, count) {
         if (!sorted) {
             sort();
         }
@@ -50,15 +50,15 @@ public:
     SortedPackedVector(SortedPackedVector&& o) = default;
     SortedPackedVector& operator=(SortedPackedVector&& o) = default;
 
-    uint16_t size() const { return mPacked.size(); }
+    SIZE_TYPE size() const { return mPacked.size(); }
     bool empty() const { return size() == 0; }
 
-    const T& operator[](uint16_t i) const { return mPacked[i]; }
+    const T& operator[](SIZE_TYPE i) const { return mPacked[i]; }
     const T* data() const { return mPacked.data(); }
 
-    inline bool operator==(const SortedPackedVector<T>& o) const { return mPacked == o.mPacked; }
+    inline bool operator==(const SortedPackedVector& o) const { return mPacked == o.mPacked; }
 
-    inline bool operator!=(const SortedPackedVector<T>& o) const { return !(*this == o); }
+    inline bool operator!=(const SortedPackedVector& o) const { return !(*this == o); }
 
     inline const T* begin() const { return mPacked.begin(); }
     inline const T* end() const { return mPacked.end(); }
@@ -66,7 +66,7 @@ public:
 private:
     void sort() { std::sort(mPacked.begin(), mPacked.end()); }
 
-    PackedVector<T, ARRAY_SIZE> mPacked;
+    PackedVector<T, ARRAY_SIZE, SIZE_TYPE> mPacked;
 };
 
 }  // namespace minikin

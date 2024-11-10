@@ -26,6 +26,7 @@
 #include "minikin/Hasher.h"
 #include "minikin/LayoutCore.h"
 #include "minikin/MinikinPaint.h"
+#include "minikin/PackedVector.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -37,10 +38,10 @@ class LayoutCacheKey {
 public:
     LayoutCacheKey(const U16StringPiece& text, const Range& range, const MinikinPaint& paint,
                    bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen)
-            : mChars(text.data()),
-              mNchars(text.size()),
+            : mChars(text.data(), text.size()),
               mStart(range.getStart()),
               mCount(range.getLength()),
+              mFontFlags(paint.fontFlags),
               mId(paint.font->getId()),
               mStyle(paint.fontStyle),
               mSize(paint.size),
@@ -48,8 +49,8 @@ public:
               mSkewX(paint.skewX),
               mLetterSpacing(paint.letterSpacing),
               mWordSpacing(paint.wordSpacing),
-              mFontFlags(paint.fontFlags),
               mLocaleListId(paint.localeListId),
+              mVerticalText(paint.verticalText),
               mFamilyVariant(paint.familyVariant),
               mStartHyphen(startHyphen),
               mEndHyphen(endHyphen),
@@ -63,33 +64,23 @@ public:
                mSize == o.mSize && mScaleX == o.mScaleX && mSkewX == o.mSkewX &&
                mLetterSpacing == o.mLetterSpacing && mWordSpacing == o.mWordSpacing &&
                mFontFlags == o.mFontFlags && mLocaleListId == o.mLocaleListId &&
-               mFamilyVariant == o.mFamilyVariant && mStartHyphen == o.mStartHyphen &&
-               mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl && mNchars == o.mNchars &&
-               mFontFeatureSettings == o.mFontFeatureSettings &&
-               mVariationSettings == o.mVariationSettings &&
-               !memcmp(mChars, o.mChars, mNchars * sizeof(uint16_t));
+               mVerticalText == o.mVerticalText && mFamilyVariant == o.mFamilyVariant &&
+               mStartHyphen == o.mStartHyphen && mEndHyphen == o.mEndHyphen && mIsRtl == o.mIsRtl &&
+               mFontFeatureSettings == o.mFontFeatureSettings && mChars == o.mChars &&
+               mVariationSettings == o.mVariationSettings;
     }
 
     android::hash_t hash() const { return mHash; }
 
-    void copyText() {
-        uint16_t* charsCopy = new uint16_t[mNchars];
-        memcpy(charsCopy, mChars, mNchars * sizeof(uint16_t));
-        mChars = charsCopy;
+    uint32_t getMemoryUsage() const {
+        return sizeof(LayoutCacheKey) + sizeof(uint16_t) * mChars.size();
     }
-    void freeText() {
-        delete[] mChars;
-        mChars = NULL;
-        mFontFeatureSettings.clear();
-    }
-
-    uint32_t getMemoryUsage() const { return sizeof(LayoutCacheKey) + sizeof(uint16_t) * mNchars; }
 
 private:
-    const uint16_t* mChars;
-    uint32_t mNchars;
-    uint32_t mStart;
-    uint32_t mCount;
+    PackedVector<uint16_t, 12> mChars;
+    uint8_t mStart;
+    uint8_t mCount;
+    uint8_t mFontFlags;
     uint32_t mId;  // for the font collection
     FontStyle mStyle;
     float mSize;
@@ -97,13 +88,13 @@ private:
     float mSkewX;
     float mLetterSpacing;
     float mWordSpacing;
-    int32_t mFontFlags;
     uint32_t mLocaleListId;
+    bool mVerticalText;
     FamilyVariant mFamilyVariant;
     StartHyphenEdit mStartHyphen;
     EndHyphenEdit mEndHyphen;
     bool mIsRtl;
-    std::vector<FontFeature> mFontFeatureSettings;
+    PackedVector<FontFeature> mFontFeatureSettings;
     VariationSettings mVariationSettings;
     // Note: any fields added to MinikinPaint must also be reflected here.
     // TODO: language matching (possibly integrate into style)
@@ -119,14 +110,15 @@ private:
                 .update(mScaleX)
                 .update(mSkewX)
                 .update(mLetterSpacing)
+                .update(mVerticalText)
                 .update(mWordSpacing)
                 .update(mFontFlags)
                 .update(mLocaleListId)
                 .update(static_cast<uint8_t>(mFamilyVariant))
                 .update(packHyphenEdit(mStartHyphen, mEndHyphen))
                 .update(mIsRtl)
-                .updateShorts(mChars, mNchars)
-                .update(mFontFeatureSettings)
+                .updateShorts(mChars.data(), mChars.size())
+                .updatePackedVector(mFontFeatureSettings)
                 .update(mVariationSettings)
                 .hash();
     }
@@ -193,9 +185,6 @@ public:
                 return;
             }
         }
-        // Doing text layout takes long time, so releases the mutex during doing layout.
-        // Don't care even if we do the same layout in other thred.
-        key.copyText();
 
         std::unique_ptr<LayoutSlot> slot;
         if (boundsCalculation) {
@@ -232,10 +221,7 @@ protected:
 
 private:
     // callback for OnEntryRemoved
-    void operator()(LayoutCacheKey& key, LayoutSlot*& value) {
-        key.freeText();
-        delete value;
-    }
+    void operator()(LayoutCacheKey&, LayoutSlot*& value) { delete value; }
 
     android::LruCache<LayoutCacheKey, LayoutSlot*> mCache GUARDED_BY(mMutex);
 

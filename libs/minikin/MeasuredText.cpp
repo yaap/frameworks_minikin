@@ -39,8 +39,8 @@ public:
 
     void operator()(const LayoutPiece& layoutPiece, const MinikinPaint& paint,
                     const MinikinRect& bounds) {
-        const std::vector<float>& advances = layoutPiece.advances();
-        std::copy(advances.begin(), advances.end(), mOutAdvances->begin() + mRange.getStart());
+        std::copy(layoutPiece.advances().begin(), layoutPiece.advances().end(),
+                  mOutAdvances->begin() + mRange.getStart());
 
         if (bounds.mLeft < 0 || bounds.mRight > layoutPiece.advance()) {
             for (uint32_t i : mRange) {
@@ -262,7 +262,11 @@ public:
 
     void operator()(const LayoutPiece& layoutPiece, const MinikinPaint& /* paint */,
                     const MinikinRect& bounds) {
-        mBounds.join(bounds, mAdvance, 0);
+        if (layoutPiece.isVerticalText()) {
+            mBounds.join(bounds, 0, mAdvance);
+        } else {
+            mBounds.join(bounds, mAdvance, 0);
+        }
         mAdvance += layoutPiece.advance();
     }
 
@@ -381,7 +385,16 @@ MinikinRect MeasuredText::getBounds(const U16StringPiece& textBuf, const Range& 
         }
         auto[advance, bounds] =
                 run->getBounds(textBuf, Range::intersection(runRange, range), layoutPieces);
-        rect.join(bounds, totalAdvance, 0);
+        const MinikinPaint* paint = run->getPaint();
+        if (paint != nullptr) {
+            if (paint->verticalText) {
+                rect.join(bounds, 0, totalAdvance);
+            } else {
+                rect.join(bounds, totalAdvance, 0);
+            }
+        } else {
+            rect.join(bounds, totalAdvance, 0);
+        }
         totalAdvance += advance;
     }
     return rect;

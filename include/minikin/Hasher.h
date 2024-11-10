@@ -83,6 +83,15 @@ public:
         return *this;
     }
 
+    template <typename V>
+    inline Hasher& updatePackedVector(const V& vec) {
+        using T = typename V::value_type;
+        for (const T& p : vec) {
+            update(p);
+        }
+        return *this;
+    }
+
     inline Hasher& updateShorts(const uint16_t* data, uint32_t length) {
         update(length);
         uint32_t i;
