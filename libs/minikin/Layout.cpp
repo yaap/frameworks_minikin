@@ -370,7 +370,7 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
 void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvance) {
     float xAdvance = src.isVerticalText() ? 0 : mAdvance;
     float yAdvance = src.isVerticalText() ? mAdvance : 0;
-    if (features::typeface_redesign()) {
+    if (features::typeface_redesign_readonly()) {
         if (src.glyphCount() == 0) {
             return;
         }

@@ -302,7 +302,7 @@ static FontFakery computeFakery(FontStyle wanted, FontStyle actual) {
 }
 
 FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& axes) const {
-    if (features::typeface_redesign()) {
+    if (features::typeface_redesign_readonly()) {
         int bestIndex = 0;
         Font* bestFont = mFonts[bestIndex].get();
         int bestMatch = computeMatch(bestFont->style(), style);

@@ -437,7 +437,7 @@ std::shared_ptr<MinikinFont> Font::ExternalRefs::getAdjustedTypeface(const Varia
 }
 
 HbFontUniquePtr FakedFont::hbFont() const {
-    if (features::typeface_redesign()) {
+    if (features::typeface_redesign_readonly()) {
         return font->getAdjustedFont(fakery.variationSettings());
     } else {
         return font->getAdjustedFont(fakery.wghtAdjustment(), fakery.italAdjustment());
@@ -445,7 +445,7 @@ HbFontUniquePtr FakedFont::hbFont() const {
 }
 
 std::shared_ptr<MinikinFont> FakedFont::typeface() const {
-    if (features::typeface_redesign()) {
+    if (features::typeface_redesign_readonly()) {
         return font->getAdjustedTypeface(fakery.variationSettings());
     } else {
         return font->getAdjustedTypeface(fakery.wghtAdjustment(), fakery.italAdjustment());
