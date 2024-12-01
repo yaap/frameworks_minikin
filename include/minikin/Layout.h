@@ -132,7 +132,7 @@ public:
     size_t nGlyphs() const { return mGlyphs.size(); }
     const Font* getFont(int i) const { return mGlyphs[i].font.font.get(); }
     const std::shared_ptr<Font>& getFontRef(int i) const { return mGlyphs[i].font.font; }
-    FontFakery getFakery(int i) const { return mGlyphs[i].font.fakery; }
+    const FontFakery& getFakery(int i) const { return mGlyphs[i].font.fakery; }
     std::shared_ptr<MinikinFont> typeface(int i) const { return mGlyphs[i].font.typeface(); }
     unsigned int getGlyphId(int i) const { return mGlyphs[i].glyph_id; }
     float getX(int i) const { return mGlyphs[i].x; }

@@ -25,6 +25,10 @@ namespace minikin {
 
 FontFakery merge(const FVarTable& fvar, const VariationSettings& baseVS,
                  const VariationSettings& targetVS, FontStyle baseStyle, FontStyle targetStyle) {
+    if (targetVS.empty() && baseStyle == targetStyle) {
+        // Easy case. No adjustment required.
+        return FontFakery(false, false, VariationSettings());
+    }
     const bool hasItal = fvar.count(TAG_ital);
     const bool hasSlnt = fvar.count(TAG_slnt);
     const bool hasWght = fvar.count(TAG_wght);
