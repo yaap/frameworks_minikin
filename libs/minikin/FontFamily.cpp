@@ -103,7 +103,8 @@ FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
           mIsColorEmoji(parent->mIsColorEmoji),
           mIsCustomFallback(parent->mIsCustomFallback),
           mIsDefaultFallback(parent->mIsDefaultFallback),
-          mVarFamilyType(VariationFamilyType::None) {
+          mVarFamilyType(VariationFamilyType::None),
+          mIsVariationFamily(true) {
     // Filter only the axis supported font.
     std::vector<std::shared_ptr<Font>> overriddenFonts;
     for (uint16_t i = 0; i < mFontsCount; ++i) {
@@ -148,7 +149,8 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                         EmojiStyle::EMOJI),
           mIsCustomFallback(isCustomFallback),
           mIsDefaultFallback(isDefaultFallback),
-          mVarFamilyType(varFamilyType) {
+          mVarFamilyType(varFamilyType),
+          mIsVariationFamily(false) {
     MINIKIN_ASSERT(!fonts.empty(), "FontFamily must contain at least one font.");
     MINIKIN_ASSERT(fonts.size() <= std::numeric_limits<uint32_t>::max(),
                    "Number of fonts must be less than 2^32.");
@@ -184,6 +186,7 @@ FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<F
     mIsCustomFallback = static_cast<bool>(reader->read<uint8_t>());
     mIsDefaultFallback = static_cast<bool>(reader->read<uint8_t>());
     mVarFamilyType = reader->read<VariationFamilyType>();
+    mIsVariationFamily = false;
     mCoverage = SparseBitSet(reader);
     // Read mCmapFmt14Coverage. As it can have null entries, it is stored in the buffer as a sparse
     // array (size, non-null entry count, array of (index, entry)).
@@ -314,6 +317,17 @@ FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& 
                 bestIndex = i;
                 bestMatch = match;
             }
+        }
+
+        if (mIsVariationFamily) {
+            // For backward compatibility reasons, we don't merge the variation settings because it
+            // is developer provided configuration.
+            return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
+        }
+
+        if (axes.empty() && style == bestFont->style()) {
+            // Easy case, no merge is necessary.
+            return FakedFont{mFonts[bestIndex], FontFakery(false, false)};
         }
         FontFakery fakery = merge(bestFont->getFVarTable(), bestFont->baseTypeface()->GetAxes(),
                                   axes, bestFont->style(), style);

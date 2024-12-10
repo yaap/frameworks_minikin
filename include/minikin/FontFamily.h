@@ -142,6 +142,7 @@ private:
     bool mIsDefaultFallback;           // 1 byte
     VariationFamilyType mVarFamilyType;  // 1byte
 
+    bool mIsVariationFamily;
     MINIKIN_PREVENT_COPY_AND_ASSIGN(FontFamily);
 };
 
