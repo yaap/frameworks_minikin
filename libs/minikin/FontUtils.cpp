@@ -31,6 +31,12 @@ static uint32_t readU32(const uint8_t* data, size_t offset) {
            ((uint32_t)data[offset + 2]) << 8 | ((uint32_t)data[offset + 3]);
 }
 
+static float read1616Fixed(const uint8_t* data, size_t offset) {
+    uint32_t bits = readU32(data, offset);
+    int32_t fixed = *reinterpret_cast<int32_t*>(&bits);
+    return fixed / float(0x10000);
+}
+
 bool analyzeStyle(const uint8_t* os2_data, size_t os2_size, int* weight, bool* italic) {
     const size_t kUsWeightClassOffset = 4;
     const size_t kFsSelectionOffset = 62;
@@ -76,6 +82,42 @@ bool analyzeAxes(const uint8_t* fvar_data, size_t fvar_size, std::unordered_set<
         size_t axisRecordOffset = axisOffset + i * axisSize;
         uint32_t tag = readU32(fvar_data, axisRecordOffset);
         axes->insert(tag);
+    }
+    return true;
+}
+
+bool readFVarTable(const uint8_t* fvar_data, size_t fvar_size, FVarTable* out) {
+    const size_t kMajorVersionOffset = 0;
+    const size_t kMinorVersionOffset = 2;
+    const size_t kOffsetToAxesArrayOffset = 4;
+    const size_t kAxisCountOffset = 8;
+    const size_t kAxisSizeOffset = 10;
+
+    out->clear();
+
+    if (fvar_size < kAxisSizeOffset + 2) {
+        return false;
+    }
+    const uint16_t majorVersion = readU16(fvar_data, kMajorVersionOffset);
+    const uint16_t minorVersion = readU16(fvar_data, kMinorVersionOffset);
+    const uint32_t axisOffset = readU16(fvar_data, kOffsetToAxesArrayOffset);
+    const uint32_t axisCount = readU16(fvar_data, kAxisCountOffset);
+    const uint32_t axisSize = readU16(fvar_data, kAxisSizeOffset);
+
+    if (majorVersion != 1 || minorVersion != 0 || axisOffset != 0x10 || axisSize != 0x14) {
+        return false;  // Unsupported version.
+    }
+    if (fvar_size < axisOffset + axisSize * axisCount) {
+        return false;  // Invalid table size.
+    }
+    for (uint32_t i = 0; i < axisCount; ++i) {
+        size_t axisRecordOffset = axisOffset + i * axisSize;
+        uint32_t tag = readU32(fvar_data, axisRecordOffset);
+        float minValue = read1616Fixed(fvar_data, axisRecordOffset + 4);
+        float defValue = read1616Fixed(fvar_data, axisRecordOffset + 8);
+        float maxValue = read1616Fixed(fvar_data, axisRecordOffset + 12);
+        FVarEntry entry = {minValue, maxValue, defValue};
+        out->emplace(tag, entry);
     }
     return true;
 }

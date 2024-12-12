@@ -45,12 +45,26 @@ cc_library_static {
     lto: {
         never: true,
     },
-    shared_libs: [
-        "libicu",
-    ],
-    export_shared_lib_headers: [
-        "libicu",
-    ],
+    target: {
+        android: {
+            shared_libs: [
+                "libicu",
+            ],
+            export_shared_lib_headers: [
+                "libicu",
+            ],
+        },
+        host: {
+            shared_libs: [
+                "libicui18n",
+                "libicuuc",
+            ],
+            export_shared_lib_headers: [
+                "libicui18n",
+                "libicuuc",
+            ],
+        },
+    },
 }
 
 cc_library {
@@ -122,6 +136,7 @@ cc_library {
             shared_libs: [
                 "libicu",
                 "aconfig_text_flags_c_lib",
+                "server_configurable_flags",
             ],
             export_shared_lib_headers: [
                 "libicu",
@@ -132,6 +147,7 @@ cc_library {
             ],
             whole_static_libs: [
                 "libminikin_rust_ffi",
+                "libflags_rust_cpp_bridge",
             ],
         },
         host: {
@@ -148,7 +164,7 @@ cc_library {
                 "libminikin_cxx_bridge_header",
             ],
         },
-        not_windows: {
+        linux: {
             whole_static_libs: [
                 "libminikin_rust_ffi",
             ],

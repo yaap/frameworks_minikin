@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/FontCollection.h"
 
 #include <log/log.h>
@@ -611,7 +609,7 @@ FontCollection::FamilyMatchResult FontCollection::FamilyMatchResult::intersect(
 
 void FontCollection::filterFamilyByLocale(
         const LocaleList& localeList,
-        const std::function<void(const FontFamily& family)>& callback) const {
+        const std::function<bool(const FontFamily& family)>& callback) const {
     if (localeList.empty()) {
         return;
     }
@@ -627,8 +625,12 @@ void FontCollection::filterFamilyByLocale(
         const LocaleList& fontLocaleList = LocaleListCache::getById(fontLocaleId);
         for (uint32_t i = 0; i < fontLocaleList.size(); ++i) {
             if (fontLocaleList[i].isEqualScript(locale)) {
-                callback(*family.get());
-                break;
+                bool cont = callback(*family.get());
+                if (cont) {
+                    break;
+                } else {
+                    return;
+                }
             }
         }
     }
@@ -646,6 +648,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     }
 
     MinikinExtent result(0, 0);
+    // Reserve the custom font's extent.
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
         const auto& family = getFamilyAt(i);
         if (!family->isCustomFallback()) {
@@ -677,7 +680,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
                                                     : family.variant();
 
         if (familyVariant != requestVariant) {
-            return;
+            return true;  // continue other families
         }
 
         MinikinExtent extent(0, 0);
@@ -686,6 +689,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         result.extendBy(extent);
 
         familyFound = true;
+        return false;  // We found it, stop searching.
     });
 
     // If nothing matches, try non-variant match cases since it is used for fallback.
@@ -697,6 +701,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         result.extendBy(extent);
 
         familyFound = true;
+        return false;  // We found it. stop searching.
     });
 
     // If nothing matches, use default font.
@@ -909,9 +914,7 @@ std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
     std::vector<std::shared_ptr<FontFamily>> families;
     for (size_t i = 0; i < getFamilyCount(); ++i) {
         const std::shared_ptr<FontFamily>& family = getFamilyAt(i);
-        std::shared_ptr<FontFamily> newFamily =
-                features::lazy_variation_instance() ? FontFamily::create(family, variations)
-                                                    : family->createFamilyWithVariation(variations);
+        std::shared_ptr<FontFamily> newFamily = FontFamily::create(family, variations);
         if (newFamily) {
             families.push_back(newFamily);
         } else {

@@ -122,7 +122,7 @@ inline bool isInsertion(EndHyphenEdit hyph) {
 }
 
 template <typename T, size_t size>
-constexpr size_t ARRAYSIZE(T const (&)[size]) {
+constexpr size_t ARRAY_SIZE(T const (&)[size]) {
     return size;
 }
 constexpr uint16_t HYPHEN_STR_ZWJ[] = {CHAR_ZWJ};
@@ -132,7 +132,7 @@ constexpr uint16_t HYPHEN_STR_MAQAF[] = {CHAR_MAQAF};
 constexpr uint16_t HYPHEN_STR_UCAS_HYPHEN[] = {CHAR_UCAS_HYPHEN};
 constexpr uint16_t HYPHEN_STR_ZWJ_AND_HYPHEN[] = {CHAR_ZWJ, CHAR_HYPHEN};
 constexpr std::pair<const uint16_t*, size_t> EMPTY_HYPHEN_STR(nullptr, 0);
-#define MAKE_HYPHEN_STR(chars) std::make_pair((chars), ARRAYSIZE(chars))
+#define MAKE_HYPHEN_STR(chars) std::make_pair((chars), ARRAY_SIZE(chars))
 
 inline std::pair<const uint16_t*, size_t> getHyphenString(StartHyphenEdit hyph) {
     if (hyph == StartHyphenEdit::INSERT_ZWJ) {
@@ -217,6 +217,7 @@ protected:
         CATALAN = 1,
         POLISH = 2,
         SLOVENIAN = 3,
+        PORTUGUESE = 4,
     };
 };
 
@@ -262,7 +263,7 @@ private:
 
     // calculate hyphenation from patterns, assuming alphabet lookup has already been done
     void hyphenateFromCodes(const uint16_t* codes, size_t len, HyphenationType hyphenValue,
-                            HyphenationType* out) const;
+                            const U16StringPiece& word, HyphenationType* out) const;
 
     // See also LONGEST_HYPHENATED_WORD in LineBreaker.cpp. Here the constant is used so
     // that temporary buffers can be stack-allocated without waste, which is a slightly

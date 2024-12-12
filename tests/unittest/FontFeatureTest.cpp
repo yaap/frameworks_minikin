@@ -156,20 +156,4 @@ protected:
     virtual void SetUp() override { font = buildFontCollection("Ascii.ttf"); }
 };
 
-TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagEnabled,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
-    auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
-    EXPECT_FALSE(paint.skipCache());
-}
-
-TEST_F_WITH_FLAGS(FontFeatureTest, do_not_skip_cache_if_flagDisabled,
-                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                       letter_spacing_justification))) {
-    auto paint = MinikinPaint(font);
-    paint.fontFeatureSettings = FontFeature::parse("\"palt\" on");
-    EXPECT_TRUE(paint.skipCache());
-}
-
 }  // namespace minikin

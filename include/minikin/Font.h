@@ -27,6 +27,8 @@
 #include <unordered_set>
 
 #include "minikin/Buffer.h"
+#include "minikin/FVarTable.h"
+#include "minikin/FontFakery.h"
 #include "minikin/FontStyle.h"
 #include "minikin/FontVariation.h"
 #include "minikin/HbUtils.h"
@@ -37,70 +39,6 @@
 namespace minikin {
 
 class Font;
-
-// attributes representing transforms (fake bold, fake italic) to match styles
-class FontFakery {
-public:
-    FontFakery() : FontFakery(false, false, -1, -1) {}
-    FontFakery(bool fakeBold, bool fakeItalic) : FontFakery(fakeBold, fakeItalic, -1, -1) {}
-    FontFakery(bool fakeBold, bool fakeItalic, int16_t wghtAdjustment, int8_t italAdjustment)
-            : mBits(pack(fakeBold, fakeItalic, wghtAdjustment, italAdjustment)) {}
-
-    // TODO: want to support graded fake bolding
-    bool isFakeBold() { return (mBits & MASK_FAKE_BOLD) != 0; }
-    bool isFakeItalic() { return (mBits & MASK_FAKE_ITALIC) != 0; }
-    bool hasAdjustment() const { return hasWghtAdjustment() || hasItalAdjustment(); }
-    bool hasWghtAdjustment() const { return (mBits & MASK_HAS_WGHT_ADJUSTMENT) != 0; }
-    bool hasItalAdjustment() const { return (mBits & MASK_HAS_ITAL_ADJUSTMENT) != 0; }
-    int16_t wghtAdjustment() const {
-        if (hasWghtAdjustment()) {
-            return (mBits & MASK_WGHT_ADJUSTMENT) >> WGHT_ADJUSTMENT_SHIFT;
-        } else {
-            return -1;
-        }
-    }
-
-    int8_t italAdjustment() const {
-        if (hasItalAdjustment()) {
-            return (mBits & MASK_ITAL_ADJUSTMENT) != 0 ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    uint16_t bits() const { return mBits; }
-
-    inline bool operator==(const FontFakery& o) const { return mBits == o.mBits; }
-    inline bool operator!=(const FontFakery& o) const { return !(*this == o); }
-
-private:
-    static constexpr uint16_t MASK_FAKE_BOLD = 1u;
-    static constexpr uint16_t MASK_FAKE_ITALIC = 1u << 1;
-    static constexpr uint16_t MASK_HAS_WGHT_ADJUSTMENT = 1u << 2;
-    static constexpr uint16_t MASK_HAS_ITAL_ADJUSTMENT = 1u << 3;
-    static constexpr uint16_t MASK_ITAL_ADJUSTMENT = 1u << 4;
-    static constexpr uint16_t MASK_WGHT_ADJUSTMENT = 0b1111111111u << 5;
-    static constexpr uint16_t WGHT_ADJUSTMENT_SHIFT = 5;
-
-    uint16_t pack(bool isFakeBold, bool isFakeItalic, int16_t wghtAdjustment,
-                  int8_t italAdjustment) {
-        uint16_t bits = 0u;
-        bits |= isFakeBold ? MASK_FAKE_BOLD : 0;
-        bits |= isFakeItalic ? MASK_FAKE_ITALIC : 0;
-        if (wghtAdjustment != -1) {
-            bits |= MASK_HAS_WGHT_ADJUSTMENT;
-            bits |= (static_cast<uint16_t>(wghtAdjustment) << WGHT_ADJUSTMENT_SHIFT) &
-                    MASK_WGHT_ADJUSTMENT;
-        }
-        if (italAdjustment != -1) {
-            bits |= MASK_HAS_ITAL_ADJUSTMENT;
-            bits |= (italAdjustment == 1) ? MASK_ITAL_ADJUSTMENT : 0;
-        }
-        return bits;
-    }
-
-    const uint16_t mBits;
-};
 
 // Represents a single font file.
 class Font {
@@ -175,6 +113,8 @@ public:
     const AxisTag* getSupportedAxes() const { return mSupportedAxes.get(); }
     bool isAxisSupported(uint32_t tag) const;
 
+    const FVarTable& getFVarTable() const;
+
 private:
     // ExternalRefs holds references to objects provided by external libraries.
     // Because creating these external objects is costly,
@@ -223,6 +163,8 @@ private:
     uint16_t mSupportedAxesCount;
 
     void calculateSupportedAxes();
+
+    mutable std::atomic<FVarTable*> mFVarTableHolder;
 
     // Non-null if created by readFrom().
     BufferReader mTypefaceMetadataReader;

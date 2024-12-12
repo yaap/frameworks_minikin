@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#include "WordBreaker.h"
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
+#include <gtest/gtest.h>
 
 #include <cstdio>
 
-#include <gtest/gtest.h>
-
 #include "UnicodeUtils.h"
+#include "WordBreaker.h"
 
 #ifndef NELEM
 #define NELEM(x) ((sizeof(x) / sizeof((x)[0])))
@@ -725,6 +726,46 @@ TEST(WordBreakerTest, LineBreakerPool_exceeds_pool_size) {
         pool.release(std::move(slots[i]));
         EXPECT_EQ(MAX_POOL_SIZE, pool.getPoolSize());
     }
+}
+
+TEST(WordBreakerTest, noBreak_urlNoHyphenBreak) {
+    uint16_t buf[] = {'h', 't', 't', 'p', ':', '/', '/', 'a', '-', '/', 'b'};
+    auto lbStyle = LineBreakStyle::NoBreak;
+    auto lbWordStyle = LineBreakWordStyle::None;
+    WordBreaker breaker;
+    breaker.setText(buf, NELEM(buf));
+    EXPECT_EQ(0, breaker.current());
+    EXPECT_EQ(11, breaker.followingWithLocale(Locale("en-US"), lbStyle, lbWordStyle, 0));
+    EXPECT_EQ(0, breaker.wordStart());
+    EXPECT_EQ(11, breaker.current());
+    EXPECT_EQ(11, breaker.next());
+}
+
+TEST(WordBreakerTest, noBreak_urlEndsWithSlash) {
+    uint16_t buf[] = {'h', 't', 't', 'p', ':', '/', '/', 'a', '/'};
+    auto lbStyle = LineBreakStyle::NoBreak;
+    auto lbWordStyle = LineBreakWordStyle::None;
+    WordBreaker breaker;
+    breaker.setText(buf, NELEM(buf));
+    EXPECT_EQ(0, breaker.current());
+    EXPECT_EQ(9, breaker.followingWithLocale(Locale("en-US"), lbStyle, lbWordStyle, 0));
+    EXPECT_EQ(0, breaker.wordStart());
+    EXPECT_EQ(9, breaker.next());
+}
+
+TEST(WordBreakerTest, noBreak_setLocaleInsideUrl) {
+    std::vector<uint16_t> buf = utf8ToUtf16("Hello http://abc/d.html World");
+    auto lbStyle = LineBreakStyle::NoBreak;
+    auto lbWordStyle = LineBreakWordStyle::None;
+    WordBreaker breaker;
+    breaker.setText(buf.data(), buf.size());
+    EXPECT_EQ(0, breaker.current());
+    EXPECT_EQ(29, breaker.followingWithLocale(Locale("en-US"), lbStyle, lbWordStyle, 0));
+    EXPECT_EQ(0, breaker.wordStart());
+    EXPECT_EQ(29, breaker.wordEnd());
+
+    EXPECT_EQ(29, breaker.current());
+    EXPECT_EQ(29, breaker.next());
 }
 
 }  // namespace minikin

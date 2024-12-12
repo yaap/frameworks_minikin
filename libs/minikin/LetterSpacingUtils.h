@@ -17,8 +17,6 @@
 #ifndef MINIKIN_LETTER_SPACING_UTILS_H
 #define MINIKIN_LETTER_SPACING_UTILS_H
 
-#define LOG_TAG "Minikin"
-
 #include <hb.h>
 
 namespace minikin {

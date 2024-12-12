@@ -17,8 +17,6 @@
 #ifndef MINIKIN_SCRIPT_UTILS_H
 #define MINIKIN_SCRIPT_UTILS_H
 
-#define LOG_TAG "Minikin"
-
 #include <unicode/ubidi.h>
 
 #include <memory>

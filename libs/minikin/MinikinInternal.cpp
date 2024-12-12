@@ -15,8 +15,6 @@
  */
 // Definitions internal to Minikin
 
-#define LOG_TAG "Minikin"
-
 #include "MinikinInternal.h"
 
 #include <log/log.h>
@@ -46,14 +44,6 @@ uint16_t getVsIndex(uint32_t codePoint) {
 
 bool isVariationSelector(uint32_t codePoint) {
     return isBMPVariationSelector(codePoint) || isVariationSelectorSupplement(codePoint);
-}
-
-bool MinikinPaint::skipCache() const {
-    if (features::letter_spacing_justification()) {
-        return false;  // if the flag is on, do not skip the cache.
-    } else {
-        return !fontFeatureSettings.empty();
-    }
 }
 
 }  // namespace minikin

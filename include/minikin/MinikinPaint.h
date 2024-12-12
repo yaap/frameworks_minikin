@@ -60,8 +60,6 @@ struct MinikinPaint {
               fontFeatureSettings(),
               font(font) {}
 
-    bool skipCache() const;
-
     float size;
     float scaleX;
     float skewX;
@@ -73,6 +71,7 @@ struct MinikinPaint {
     FamilyVariant familyVariant;
     std::vector<FontFeature> fontFeatureSettings;
     std::shared_ptr<FontCollection> font;
+    VariationSettings fontVariationSettings;
 
     void copyFrom(const MinikinPaint& paint) { *this = paint; }
 
@@ -89,7 +88,8 @@ struct MinikinPaint {
                letterSpacing == paint.letterSpacing && wordSpacing == paint.wordSpacing &&
                fontFlags == paint.fontFlags && localeListId == paint.localeListId &&
                fontStyle == paint.fontStyle && familyVariant == paint.familyVariant &&
-               fontFeatureSettings == paint.fontFeatureSettings && font.get() == paint.font.get();
+               fontFeatureSettings == paint.fontFeatureSettings && font.get() == paint.font.get() &&
+               fontVariationSettings == paint.fontVariationSettings;
     }
 
     uint32_t hash() const {
@@ -105,6 +105,7 @@ struct MinikinPaint {
                 .update(static_cast<uint8_t>(familyVariant))
                 .update(fontFeatureSettings)
                 .update(font->getId())
+                .update(fontVariationSettings)
                 .hash();
     }
 };

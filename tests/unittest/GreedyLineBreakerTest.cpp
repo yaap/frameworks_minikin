@@ -1920,9 +1920,7 @@ TEST_F(GreedyLineBreakerTest, testBreakWithHyphenation_NoHyphenationSpan) {
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakNone) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2034,9 +2032,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakNone,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakPhrase) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2150,9 +2146,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakPhrase,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreakAuto) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2265,9 +2259,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreakAuto,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      word_style_auto))) {
+TEST_F(GreedyLineBreakerTest, testPhraseBreak_Korean) {
     // For short hand of writing expectation for lines.
     auto line = [](std::string t, float w) -> LineBreakExpectation {
         return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
@@ -2327,9 +2319,7 @@ TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testPhraseBreak_Korean,
     }
 }
 
-TEST_F_WITH_FLAGS(GreedyLineBreakerTest, testBreakWithLetterSpacing,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      letter_spacing_justification))) {
+TEST_F(GreedyLineBreakerTest, testBreakWithLetterSpacing) {
     const std::vector<uint16_t> textBuf = utf8ToUtf16("This is an example text.");
 
     constexpr StartHyphenEdit NO_START_HYPHEN = StartHyphenEdit::NO_EDIT;

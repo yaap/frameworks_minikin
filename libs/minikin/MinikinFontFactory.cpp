@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Minikin"
-
 #include "minikin/MinikinFontFactory.h"
 
 #include <log/log.h>
