@@ -207,9 +207,6 @@ std::vector<DesperateBreak> populateDesperatePoints(const U16StringPiece& textBu
         if (calculateFallback && i == (uint32_t)next) {
             out.emplace_back(i, width, SCORE_FALLBACK);
             next = wb.next();
-            if (!range.contains(next)) {
-                break;
-            }
         } else {
             out.emplace_back(i, width, SCORE_DESPERATE);
         }
