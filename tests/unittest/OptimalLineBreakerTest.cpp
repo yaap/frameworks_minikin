@@ -96,7 +96,8 @@ protected:
                                            float lineWidth) {
         MeasuredTextBuilder builder;
         auto family1 = buildFontFamily("Japanese.ttf");
-        std::vector<std::shared_ptr<FontFamily>> families = {family1};
+        auto family2 = buildFontFamily("Ascii.ttf");
+        std::vector<std::shared_ptr<FontFamily>> families = {family1, family2};
         auto fc = FontCollection::create(families);
         MinikinPaint paint(fc);
         paint.size = 10.0f;  // Make 1em=10px
@@ -2488,6 +2489,33 @@ TEST_F(OptimalLineBreakerTest, testPhraseBreakAuto) {
 
         const auto actual =
                 doLineBreakForJapanese(textBuf, LineBreakWordStyle::Auto, "ja-JP", LINE_WIDTH);
+        EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
+                                                   << " vs " << std::endl
+                                                   << toString(textBuf, actual);
+    }
+}
+
+TEST_F(OptimalLineBreakerTest, testPhraseBreakAuto_Fallback) {
+    // For short hand of writing expectation for lines.
+    auto line = [](std::string t, float w) -> LineBreakExpectation {
+        return {t, w, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, ASCENT, DESCENT};
+    };
+
+    // Note that disable clang-format everywhere since aligned expectation is more readable.
+    {
+        const std::vector<uint16_t> textBuf = utf8ToUtf16("\u672C\u65E5_A_B_C_D");
+        constexpr float LINE_WIDTH = 30;
+        // clang-format off
+        std::vector<LineBreakExpectation> expect = {
+                line("\u672C\u65E5", 20),
+                line("_A_", 30),
+                line("B_C", 30),
+                line("_D", 20),
+        };
+        // clang-format on
+
+        const auto actual =
+                doLineBreakForJapanese(textBuf, LineBreakWordStyle::Phrase, "ja-JP", LINE_WIDTH);
         EXPECT_TRUE(sameLineBreak(expect, actual)) << toString(expect) << std::endl
                                                    << " vs " << std::endl
                                                    << toString(textBuf, actual);
