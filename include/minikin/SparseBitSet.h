@@ -18,6 +18,7 @@
 #define MINIKIN_SPARSE_BIT_SET_H
 
 #include <minikin/Buffer.h>
+#include <stdlib.h>
 #include <sys/types.h>
 
 #include <cstdint>
