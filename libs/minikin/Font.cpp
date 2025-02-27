@@ -24,6 +24,7 @@
 
 #include "FeatureFlags.h"
 #include "FontUtils.h"
+#include "Locale.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/Constants.h"
@@ -31,6 +32,7 @@
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"
 #include "minikin/MinikinFontFactory.h"
+#include "minikin/MinikinPaint.h"
 
 namespace minikin {
 

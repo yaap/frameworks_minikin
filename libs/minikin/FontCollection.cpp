@@ -16,6 +16,7 @@
 
 #include "minikin/FontCollection.h"
 
+#include <hb-ot.h>
 #include <log/log.h>
 #include <unicode/unorm2.h>
 
@@ -119,6 +120,51 @@ uint32_t getGlyphScore(U16StringPiece text, uint32_t start, uint32_t end,
     }
 
     return numGlyphs;
+}
+
+void extentFontMetrics(const HbFontUniquePtr& hbFont, const MinikinFont& font,
+                       const MinikinPaint& paint, const FontFakery& fakery, MinikinExtent* out) {
+    MinikinExtent tmp = {};
+    font.GetFontExtent(&tmp, paint, fakery);
+    out->extendBy(tmp);
+
+    if (!features::language_specific_extent()) {
+        return;
+    }
+
+    const LocaleList& localeList = LocaleListCache::getById(paint.localeListId);
+    if (localeList.empty()) {
+        return;
+    }
+
+    float fontSize = paint.size;
+    float scaleX = paint.scaleX;
+
+    hb_font_set_ppem(hbFont.get(), fontSize * scaleX, fontSize);
+    hb_font_set_scale(hbFont.get(), HBFloatToFixed(fontSize * scaleX), HBFloatToFixed(fontSize));
+
+    // In the extent table, only horizontal/vertical direction needs to be considered.
+    hb_direction_t direction = paint.verticalText ? HB_DIRECTION_TTB : HB_DIRECTION_LTR;
+
+    float ascent = 0;
+    float descent = 0;
+    hb_font_extents_t hbextent = {};
+
+    for (size_t i = 0; i < localeList.size(); ++i) {
+        const Locale& locale = localeList[i];
+        if (!locale.hasLanguage() || !locale.hasScript()) {
+            continue;
+        }
+        hb_language_t language = localeList.getHbLanguage(i);
+        hb_script_t script = locale.getHbScript();
+
+        if (hb_ot_layout_get_font_extents2(hbFont.get(), direction, script, language, &hbextent)) {
+            ascent = std::min(-HBFixedToFloat(hbextent.ascender), ascent);
+            descent = std::max(-HBFixedToFloat(hbextent.descender), descent);
+        }
+    }
+
+    out->extendBy(ascent, descent);
 }
 
 }  // namespace
@@ -647,6 +693,9 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         return e;
     }
 
+    float fontSize = paint.size;
+    float scaleX = paint.scaleX;
+
     MinikinExtent result(0, 0);
     // Reserve the custom font's extent.
     for (uint8_t i = 0; i < mFamilyCount; ++i) {
@@ -656,11 +705,9 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         }
 
         // Use this family
-        MinikinExtent extent(0, 0);
         FakedFont font =
                 getFamilyAt(i)->getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
-        font.typeface()->GetFontExtent(&extent, paint, font.fakery);
-        result.extendBy(extent);
+        extentFontMetrics(font.hbFont(), *font.typeface(), paint, font.fakery, &result);
     }
 
     if (localeId == LocaleListCache::kInvalidListId) {
@@ -684,10 +731,8 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
             return true;  // continue other families
         }
 
-        MinikinExtent extent(0, 0);
         FakedFont font = family.getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
-        font.typeface()->GetFontExtent(&extent, paint, font.fakery);
-        result.extendBy(extent);
+        extentFontMetrics(font.hbFont(), *font.typeface(), paint, font.fakery, &result);
 
         familyFound = true;
         return false;  // We found it, stop searching.
@@ -696,10 +741,8 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     // If nothing matches, try non-variant match cases since it is used for fallback.
     filterFamilyByLocale(requestedLocaleList, [&](const FontFamily& family) {
         // Use this family
-        MinikinExtent extent(0, 0);
         FakedFont font = family.getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
-        font.typeface()->GetFontExtent(&extent, paint, font.fakery);
-        result.extendBy(extent);
+        extentFontMetrics(font.hbFont(), *font.typeface(), paint, font.fakery, &result);
 
         familyFound = true;
         return false;  // We found it. stop searching.
@@ -709,7 +752,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     if (!familyFound) {
         FakedFont font =
                 getFamilyAt(0)->getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
-        font.typeface()->GetFontExtent(&result, paint, font.fakery);
+        extentFontMetrics(font.hbFont(), *font.typeface(), paint, font.fakery, &result);
     }
 
     mExtentCacheForLocale.put(key, result);

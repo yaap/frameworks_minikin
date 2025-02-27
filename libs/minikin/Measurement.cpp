@@ -20,6 +20,7 @@
 #include <cmath>
 
 #include "BidiUtils.h"
+#include "LayoutContext.h"
 #include "LayoutSplitter.h"
 #include "minikin/GraphemeBreak.h"
 #include "minikin/LayoutCache.h"
@@ -213,6 +214,7 @@ void getBounds(const U16StringPiece& str, const Range& range, Bidi bidiFlag,
                const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
                MinikinRect* out) {
     BoundsComposer bc;
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(str, range, bidiFlag)) {
         for (const auto [context, piece] : LayoutSplitter(str, info.range, info.isRtl)) {
             const StartHyphenEdit pieceStartHyphen =
@@ -221,7 +223,7 @@ void getBounds(const U16StringPiece& str, const Range& range, Bidi bidiFlag,
                     (piece.getEnd() == range.getEnd()) ? endHyphen : EndHyphenEdit::NO_EDIT;
             LayoutCache::getInstance().getOrCreate(
                     str.substr(context), piece - context.getStart(), paint, info.isRtl,
-                    pieceStartHyphen, pieceEndHyphen, true /* bounds calculation */, bc);
+                    pieceStartHyphen, pieceEndHyphen, true /* bounds calculation */, &ctx, bc);
             // Increment word spacing for spacer
             if (piece.getLength() == 1 && isWordSpace(str[piece.getStart()])) {
                 bc.mAdvance += paint.wordSpacing;
@@ -244,12 +246,13 @@ struct ExtentComposer {
 MinikinExtent getFontExtent(const U16StringPiece& textBuf, const Range& range, Bidi bidiFlag,
                             const MinikinPaint& paint) {
     ExtentComposer composer;
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto [context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             LayoutCache::getInstance().getOrCreate(textBuf.substr(context),
                                                    piece - context.getStart(), paint, info.isRtl,
                                                    StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
-                                                   false /* bounds calculation */, composer);
+                                                   false /* bounds calculation */, &ctx, composer);
         }
     }
     return composer.extent;
