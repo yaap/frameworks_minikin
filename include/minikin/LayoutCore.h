@@ -27,6 +27,7 @@
 #include "minikin/MinikinExtent.h"
 #include "minikin/MinikinFont.h"
 #include "minikin/MinikinRect.h"
+#include "minikin/PackedVector.h"
 #include "minikin/Point.h"
 #include "minikin/Range.h"
 #include "minikin/U16StringPiece.h"
@@ -34,6 +35,12 @@
 namespace minikin {
 
 struct MinikinPaint;
+
+using FontIndexVector = PackedVector<uint8_t, 12>;
+using GlyphIdVector = PackedVector<uint16_t, 12>;
+using PointVector = PackedVector<Point>;
+using ClusterVector = PackedVector<uint8_t, 12>;
+using AdvanceVector = PackedVector<float>;
 
 // Immutable, recycle-able layout result.
 class LayoutPiece {
@@ -43,10 +50,8 @@ public:
     ~LayoutPiece();
 
     // Low level accessors.
-    const std::vector<uint8_t>& fontIndices() const { return mFontIndices; }
-    const std::vector<uint32_t>& glyphIds() const { return mGlyphIds; }
-    const std::vector<Point>& points() const { return mPoints; }
-    const std::vector<float>& advances() const { return mAdvances; }
+    const PointVector& points() const { return mPoints; }
+    const AdvanceVector& advances() const { return mAdvances; }
     float advance() const { return mAdvance; }
     const MinikinExtent& extent() const { return mExtent; }
     const std::vector<FakedFont>& fonts() const { return mFonts; }
@@ -58,6 +63,7 @@ public:
     uint32_t glyphIdAt(int glyphPos) const { return mGlyphIds[glyphPos]; }
     const Point& pointAt(int glyphPos) const { return mPoints[glyphPos]; }
     uint16_t clusterAt(int glyphPos) const { return mClusters[glyphPos]; }
+    bool isVerticalText() const { return mVerticalText; }
 
     uint32_t getMemoryUsage() const {
         return sizeof(uint8_t) * mFontIndices.size() + sizeof(uint32_t) * mGlyphIds.size() +
@@ -70,16 +76,17 @@ public:
 private:
     FRIEND_TEST(LayoutTest, doLayoutWithPrecomputedPiecesTest);
 
-    std::vector<uint8_t> mFontIndices;      // per glyph
-    std::vector<uint32_t> mGlyphIds;        // per glyph
-    std::vector<Point> mPoints;             // per glyph
-    std::vector<uint8_t> mClusters;         // per glyph
+    FontIndexVector mFontIndices;  // per glyph
+    GlyphIdVector mGlyphIds;       // per glyph
+    PointVector mPoints;           // per glyph
+    ClusterVector mClusters;       // per glyph
 
-    std::vector<float> mAdvances;  // per code units
+    AdvanceVector mAdvances;  // per code units
 
     float mAdvance;
     MinikinExtent mExtent;
     uint32_t mClusterCount;
+    bool mVerticalText;
 
     std::vector<FakedFont> mFonts;
 };

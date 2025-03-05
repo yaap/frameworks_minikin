@@ -18,6 +18,7 @@
 #define MINIKIN_FONT_H
 
 #include <gtest/gtest_prod.h>
+#include <utils/LruCache.h>
 
 #include <atomic>
 #include <functional>
@@ -37,8 +38,6 @@
 #include "minikin/MinikinFont.h"
 
 namespace minikin {
-
-class Font;
 
 // Represents a single font file.
 class Font {
@@ -89,7 +88,7 @@ public:
     void writeTo(BufferWriter* writer) const;
 
     // Create font instance with axes override.
-    Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes);
+    Font(const std::shared_ptr<Font>& parent, const VariationSettings& axes);
 
     Font(Font&& o) noexcept;
     Font& operator=(Font&& o) noexcept;
@@ -105,7 +104,10 @@ public:
     // Returns an adjusted hb_font_t instance and MinikinFont instance.
     // Passing -1 each means do not override the current variation settings.
     HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
-    const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
+    std::shared_ptr<MinikinFont> getAdjustedTypeface(int wght, int ital) const;
+
+    HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings) const;
+    std::shared_ptr<MinikinFont> getAdjustedTypeface(const VariationSettings& varSettings) const;
 
     BufferReader typefaceMetadataReader() const { return mTypefaceMetadataReader; }
 
@@ -122,17 +124,31 @@ private:
     class ExternalRefs {
     public:
         ExternalRefs(std::shared_ptr<MinikinFont>&& typeface, HbFontUniquePtr&& baseFont)
-                : mTypeface(std::move(typeface)), mBaseFont(std::move(baseFont)) {}
+                : mTypeface(std::move(typeface)),
+                  mBaseFont(std::move(baseFont)),
+                  mVarTypefaceCache2(16),
+                  mVarFontCache2(16) {}
 
         std::shared_ptr<MinikinFont> mTypeface;
         HbFontUniquePtr mBaseFont;
 
+        // TODO: remove wght/ital only adjusted typeface pool once redesign typeface flag
+        //       is removed.
         const std::shared_ptr<MinikinFont>& getAdjustedTypeface(int wght, int ital) const;
         HbFontUniquePtr getAdjustedFont(int wght, int ital) const;
         mutable std::mutex mMutex;
         mutable std::map<uint16_t, std::shared_ptr<MinikinFont>> mVarTypefaceCache
                 GUARDED_BY(mMutex);
         mutable std::map<uint16_t, HbFontUniquePtr> mVarFontCache GUARDED_BY(mMutex);
+
+        std::shared_ptr<MinikinFont> getAdjustedTypeface(const VariationSettings& varSettings,
+                                                         const FVarTable& fvarTable) const;
+        HbFontUniquePtr getAdjustedFont(const VariationSettings& varSettings,
+                                        const FVarTable& fvarTable) const;
+        mutable android::LruCache<VariationSettings, std::shared_ptr<MinikinFont>>
+                mVarTypefaceCache2 GUARDED_BY(mMutex);
+        mutable android::LruCache<VariationSettings, HbFontUniquePtr*> mVarFontCache2
+                GUARDED_BY(mMutex);
     };
 
     // Use Builder instead.
@@ -183,13 +199,8 @@ struct FakedFont {
     }
     inline bool operator!=(const FakedFont& o) const { return !(*this == o); }
 
-    HbFontUniquePtr hbFont() const {
-        return font->getAdjustedFont(fakery.wghtAdjustment(), fakery.italAdjustment());
-    }
-
-    const std::shared_ptr<MinikinFont>& typeface() const {
-        return font->getAdjustedTypeface(fakery.wghtAdjustment(), fakery.italAdjustment());
-    }
+    HbFontUniquePtr hbFont() const;
+    std::shared_ptr<MinikinFont> typeface() const;
 
     // ownership is the enclosing FontCollection
     // FakedFont will be stored in the LayoutCache. It is not a good idea too keep font instance

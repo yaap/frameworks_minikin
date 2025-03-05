@@ -34,11 +34,11 @@ namespace minikin {
 class FreeTypeMinikinFontForTest : public MinikinFont {
 public:
     FreeTypeMinikinFontForTest(const std::string& font_path, int index,
-                               const std::vector<FontVariation>& axes);
+                               const VariationSettings& axes);
     FreeTypeMinikinFontForTest(const std::string& font_path, int index)
-            : FreeTypeMinikinFontForTest(font_path, index, std::vector<FontVariation>()) {}
+            : FreeTypeMinikinFontForTest(font_path, index, VariationSettings()) {}
     FreeTypeMinikinFontForTest(const std::string& font_path)
-            : FreeTypeMinikinFontForTest(font_path, 0, std::vector<FontVariation>()) {}
+            : FreeTypeMinikinFontForTest(font_path, 0, VariationSettings()) {}
     virtual ~FreeTypeMinikinFontForTest();
 
     // MinikinFont overrides.
@@ -53,15 +53,15 @@ public:
     const void* GetFontData() const { return mFontData; }
     size_t GetFontSize() const { return mFontSize; }
     int GetFontIndex() const { return mFontIndex; }
-    const std::vector<minikin::FontVariation>& GetAxes() const { return mAxes; }
-    std::shared_ptr<MinikinFont> createFontWithVariation(const std::vector<FontVariation>&) const;
+    const VariationSettings& GetAxes() const { return mAxes; }
+    std::shared_ptr<MinikinFont> createFontWithVariation(const VariationSettings&) const;
 
 private:
     const std::string mFontPath;
     const int mFontIndex;
     void* mFontData;
     size_t mFontSize;
-    std::vector<minikin::FontVariation> mAxes;
+    VariationSettings mAxes;
 
     FT_Library mFtLibrary;
     FT_Face mFtFace;

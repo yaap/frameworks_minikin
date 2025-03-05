@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include "minikin/FontVariation.h"
+
 namespace minikin {
 
 struct Point;
@@ -27,6 +29,7 @@ struct MinikinRect;
 struct MinikinExtent;
 struct MinikinPaint;
 struct FontFeature;
+class FontStyle;
 class Range;
 class U16StringPiece;
 class LayoutPiece;
@@ -44,6 +47,8 @@ std::string toString(const LayoutPiece& layout);
 std::string toString(const MinikinPaint& paint);
 std::string toString(const FontFeature& feature);
 std::string toString(const std::vector<FontFeature>& features);
+std::string toString(const FontStyle& style);
+std::string toString(const VariationSettings& varSettings);
 
 }  // namespace debug
 

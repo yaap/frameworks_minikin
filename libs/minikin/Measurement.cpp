@@ -197,7 +197,11 @@ struct BoundsComposer {
 
     void operator()(const LayoutPiece& layoutPiece, const MinikinPaint& /* paint */,
                     const MinikinRect& bounds) {
-        mBounds.join(bounds, mAdvance, 0);
+        if (layoutPiece.isVerticalText()) {
+            mBounds.join(bounds, 0, mAdvance);
+        } else {
+            mBounds.join(bounds, mAdvance, 0);
+        }
         mAdvance += layoutPiece.advance();
     }
 

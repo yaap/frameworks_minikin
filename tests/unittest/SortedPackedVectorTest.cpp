@@ -23,7 +23,7 @@ namespace minikin {
 TEST(SortedPackedVector, construct) {
     {
         auto sorted = SortedPackedVector({1, 2, 3, 4, 5});
-        EXPECT_EQ(5, sorted.size());
+        EXPECT_EQ(5u, sorted.size());
         EXPECT_EQ(1, sorted[0]);
         EXPECT_EQ(2, sorted[1]);
         EXPECT_EQ(3, sorted[2]);
@@ -32,7 +32,7 @@ TEST(SortedPackedVector, construct) {
     }
     {
         auto sorted = SortedPackedVector({1, 2, 3, 4, 5}, true);
-        EXPECT_EQ(5, sorted.size());
+        EXPECT_EQ(5u, sorted.size());
         EXPECT_EQ(1, sorted[0]);
         EXPECT_EQ(2, sorted[1]);
         EXPECT_EQ(3, sorted[2]);
@@ -41,7 +41,7 @@ TEST(SortedPackedVector, construct) {
     }
     {
         auto sorted = SortedPackedVector({2, 1, 4, 3, 5});
-        EXPECT_EQ(5, sorted.size());
+        EXPECT_EQ(5u, sorted.size());
         EXPECT_EQ(1, sorted[0]);
         EXPECT_EQ(2, sorted[1]);
         EXPECT_EQ(3, sorted[2]);
@@ -51,7 +51,7 @@ TEST(SortedPackedVector, construct) {
     {
         std::vector<int> vec = {2, 1, 4, 3, 5};
         auto sorted = SortedPackedVector(vec);
-        EXPECT_EQ(5, sorted.size());
+        EXPECT_EQ(5u, sorted.size());
         EXPECT_EQ(1, sorted[0]);
         EXPECT_EQ(2, sorted[1]);
         EXPECT_EQ(3, sorted[2]);
@@ -61,7 +61,7 @@ TEST(SortedPackedVector, construct) {
     {
         auto sorted = SortedPackedVector({1, 2, 3, 4, 5});
         auto copied = SortedPackedVector(sorted);
-        EXPECT_EQ(5, copied.size());
+        EXPECT_EQ(5u, copied.size());
         EXPECT_EQ(1, copied[0]);
         EXPECT_EQ(2, copied[1]);
         EXPECT_EQ(3, copied[2]);
@@ -71,7 +71,7 @@ TEST(SortedPackedVector, construct) {
     {
         auto sorted = SortedPackedVector({1, 2, 3, 4, 5});
         auto moved = SortedPackedVector(std::move(sorted));
-        EXPECT_EQ(5, moved.size());
+        EXPECT_EQ(5u, moved.size());
         EXPECT_EQ(1, moved[0]);
         EXPECT_EQ(2, moved[1]);
         EXPECT_EQ(3, moved[2]);

@@ -118,6 +118,18 @@ std::string toString(const MinikinPaint& paint) {
     return ss.str();
 }
 
+std::string toString(const FontStyle& style) {
+    std::stringstream ss;
+    ss << "{ weight=" << style.weight() << ", italic=" << style.isItalic() << "}";
+    return ss.str();
+}
+
+std::string toString(const VariationSettings& varSettings) {
+    std::stringstream ss;
+    ss << varSettings;
+    return ss.str();
+}
+
 }  // namespace debug
 
 }  // namespace minikin

@@ -22,10 +22,12 @@
 
 #include <vector>
 
+#include "FeatureFlags.h"
 #include "FontUtils.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 #include "minikin/Constants.h"
+#include "minikin/Hasher.h"
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"
 #include "minikin/MinikinFontFactory.h"
@@ -53,6 +55,10 @@ inline uint16_t packKey(int wght, int ital) {
 }
 
 }  // namespace
+
+inline android::hash_t hash_type(const VariationSettings& vars) {
+    return Hasher().update(vars).hash();
+}
 
 std::shared_ptr<Font> Font::Builder::build() {
     if (mIsWeightSet && mIsSlantSet) {
@@ -93,7 +99,7 @@ Font::Font(BufferReader* reader)
     MinikinFontFactory::getInstance().skip(reader);
 }
 
-Font::Font(const std::shared_ptr<Font>& parent, const std::vector<FontVariation>& axes)
+Font::Font(const std::shared_ptr<Font>& parent, const VariationSettings& axes)
         : mExternalRefsHolder(nullptr), mTypefaceMetadataReader(nullptr) {
     mStyle = parent->style();
     mLocaleListId = parent->getLocaleListId();
@@ -324,7 +330,7 @@ HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(int wght, int ital) const {
     return font;
 }
 
-const std::shared_ptr<MinikinFont>& Font::getAdjustedTypeface(int wght, int ital) const {
+std::shared_ptr<MinikinFont> Font::getAdjustedTypeface(int wght, int ital) const {
     return getExternalRefs()->getAdjustedTypeface(wght, ital);
 }
 
@@ -366,6 +372,84 @@ const std::shared_ptr<MinikinFont>& Font::ExternalRefs::getAdjustedTypeface(int 
             mVarTypefaceCache.insert(std::make_pair(key, std::move(newTypeface)));
 
     return result_iterator->second;
+}
+
+HbFontUniquePtr Font::getAdjustedFont(const VariationSettings& axes) const {
+    return getExternalRefs()->getAdjustedFont(axes, getFVarTable());
+}
+
+HbFontUniquePtr Font::ExternalRefs::getAdjustedFont(const VariationSettings& axes,
+                                                    const FVarTable& table) const {
+    if (axes.empty()) {
+        return HbFontUniquePtr(hb_font_reference(mBaseFont.get()));
+    }
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    HbFontUniquePtr* cached = mVarFontCache2.get(axes);
+    if (cached != nullptr) {
+        return HbFontUniquePtr(hb_font_reference(cached->get()));
+    }
+
+    HbFontUniquePtr font(hb_font_create_sub_font(mBaseFont.get()));
+    std::vector<hb_variation_t> variations;
+    variations.reserve(axes.size());
+    for (const FontVariation& variation : axes) {
+        auto it = table.find(variation.axisTag);
+        if (it == table.end() || it->second.defValue == variation.value) {
+            continue;
+        }
+        variations.push_back({variation.axisTag, variation.value});
+    }
+    hb_font_set_variations(font.get(), variations.data(), variations.size());
+    mVarFontCache2.put(axes, new HbFontUniquePtr(hb_font_reference(font.get())));
+    return font;
+}
+
+std::shared_ptr<MinikinFont> Font::getAdjustedTypeface(const VariationSettings& axes) const {
+    return getExternalRefs()->getAdjustedTypeface(axes, getFVarTable());
+}
+
+std::shared_ptr<MinikinFont> Font::ExternalRefs::getAdjustedTypeface(const VariationSettings& axes,
+                                                                     const FVarTable& table) const {
+    if (axes.empty()) {
+        return mTypeface;
+    }
+
+    std::lock_guard<std::mutex> lock(mMutex);
+    const std::shared_ptr<MinikinFont>& cached = mVarTypefaceCache2.get(axes);
+    if (cached != nullptr) {
+        return cached;
+    }
+
+    std::vector<FontVariation> variations;
+    variations.reserve(axes.size());
+    for (const FontVariation& variation : axes) {
+        auto it = table.find(variation.axisTag);
+        if (it == table.end() || it->second.defValue == variation.value) {
+            continue;
+        }
+        variations.push_back({variation.axisTag, variation.value});
+    }
+    std::shared_ptr<MinikinFont> newTypeface =
+            mTypeface->createFontWithVariation(VariationSettings(variations, false));
+    mVarTypefaceCache2.put(axes, newTypeface);
+    return mVarTypefaceCache2.get(axes);
+}
+
+HbFontUniquePtr FakedFont::hbFont() const {
+    if (features::typeface_redesign_readonly()) {
+        return font->getAdjustedFont(fakery.variationSettings());
+    } else {
+        return font->getAdjustedFont(fakery.wghtAdjustment(), fakery.italAdjustment());
+    }
+}
+
+std::shared_ptr<MinikinFont> FakedFont::typeface() const {
+    if (features::typeface_redesign_readonly()) {
+        return font->getAdjustedTypeface(fakery.variationSettings());
+    } else {
+        return font->getAdjustedTypeface(fakery.wghtAdjustment(), fakery.italAdjustment());
+    }
 }
 
 }  // namespace minikin

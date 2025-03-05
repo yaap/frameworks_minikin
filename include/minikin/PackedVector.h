@@ -26,7 +26,7 @@ namespace minikin {
 
 // PackedVector optimize short term allocations for small size objects.
 // The public interfaces are following the std::vector.
-template <typename T, size_t ARRAY_SIZE = 2>
+template <typename T, size_t ARRAY_SIZE = 2, typename SIZE_TYPE = uint32_t>
 class PackedVector {
 private:
     // At least two elements of pointer array is reserved.
@@ -42,9 +42,9 @@ public:
 
     // Constructors
     PackedVector() : mSize(0), mCapacity(ARRAY_CAPACITY) {}
-    PackedVector(const T* ptr, uint16_t size) : PackedVector() { copy(ptr, size); }
+    PackedVector(const T* ptr, SIZE_TYPE size) : PackedVector() { copy(ptr, size); }
     PackedVector(const std::vector<T>& src) : PackedVector() {
-        LOG_ALWAYS_FATAL_IF(src.size() >= std::numeric_limits<uint16_t>::max());
+        LOG_ALWAYS_FATAL_IF(src.size() >= std::numeric_limits<SIZE_TYPE>::max());
         copy(src.data(), src.size());
     }
     PackedVector(std::initializer_list<T> init) : PackedVector() {
@@ -76,12 +76,12 @@ public:
     const T* data() const { return getPtr(); }
     T* data() { return getPtr(); }
 
-    const T& operator[](uint16_t i) const { return getPtr()[i]; }
-    T& operator[](uint16_t i) { return getPtr()[i]; }
+    const T& operator[](SIZE_TYPE i) const { return getPtr()[i]; }
+    T& operator[](SIZE_TYPE i) { return getPtr()[i]; }
 
-    void reserve(uint16_t capacity) { ensureCapacity(capacity); }
+    void reserve(SIZE_TYPE capacity) { ensureCapacity(capacity); }
 
-    void resize(uint16_t size, T value = T()) {
+    void resize(SIZE_TYPE size, T value = T()) {
         if (mSize == size) {
             return;
         } else if (mSize > size) {  // reduce size
@@ -106,7 +106,7 @@ public:
         } else {  // mSize < size  // increase size
             ensureCapacity(size);
             T* ptr = getPtr();
-            for (uint16_t i = mSize; i < size; ++i) {
+            for (SIZE_TYPE i = mSize; i < size; ++i) {
                 ptr[i] = value;
             }
             mSize = size;
@@ -116,7 +116,7 @@ public:
     void push_back(const T& x) {
         if (mSize >= mCapacity) [[unlikely]] {
             // exponential backoff
-            constexpr uint16_t kMaxIncrease = static_cast<uint16_t>(4096 / sizeof(T));
+            constexpr SIZE_TYPE kMaxIncrease = static_cast<SIZE_TYPE>(4096 / sizeof(T));
             ensureCapacity(mCapacity + std::min(mCapacity, kMaxIncrease));
         }
         *(getPtr() + mSize) = x;
@@ -153,15 +153,15 @@ public:
 
     bool empty() const { return mSize == 0; }
 
-    uint16_t size() const { return mSize; }
-    uint16_t capacity() const { return mCapacity; }
+    SIZE_TYPE size() const { return mSize; }
+    SIZE_TYPE capacity() const { return mCapacity; }
 
 private:
     uintptr_t mArray[PTR_ARRAY_SIZE];
-    uint16_t mSize;
-    uint16_t mCapacity;
+    SIZE_TYPE mSize;
+    SIZE_TYPE mCapacity;
 
-    void copy(const T* src, uint16_t count) {
+    void copy(const T* src, SIZE_TYPE count) {
         clear();
         ensureCapacity(count);
         mSize = count;
@@ -181,7 +181,7 @@ private:
 
     inline bool isArrayUsed() const { return mCapacity <= ARRAY_CAPACITY; }
 
-    void ensureCapacity(uint16_t capacity) {
+    void ensureCapacity(SIZE_TYPE capacity) {
         if (capacity <= mCapacity) {
             return;
         }

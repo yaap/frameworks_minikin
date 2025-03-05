@@ -301,10 +301,11 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     double size = paint.size;
     double scaleX = paint.scaleX;
 
-    std::unordered_map<const MinikinFont*, uint32_t> fontMap;
+    std::unordered_map<std::shared_ptr<MinikinFont>, uint32_t> fontMap;
 
     float x = 0;
     float y = 0;
+    float* dir = paint.verticalText ? &y : &x;
 
     constexpr uint32_t MAX_LENGTH_FOR_BITSET = 256;  // std::bit_ceil(CHAR_LIMIT_FOR_CACHE);
     std::bitset<MAX_LENGTH_FOR_BITSET> clusterSet;
@@ -315,22 +316,23 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
          isRtl ? run_ix >= 0 : run_ix < static_cast<int>(items.size());
          isRtl ? --run_ix : ++run_ix) {
         FontCollection::Run& run = items[run_ix];
-        FakedFont fakedFont = paint.font->getBestFont(substr, run, paint.fontStyle);
-        const std::shared_ptr<MinikinFont>& typeface = fakedFont.typeface();
-        auto it = fontMap.find(typeface.get());
+        FakedFont fakedFont =
+                paint.font->getBestFont(substr, run, paint.fontStyle, paint.fontVariationSettings);
+        std::shared_ptr<MinikinFont> typeface = fakedFont.typeface();
+        auto it = fontMap.find(typeface);
         uint8_t font_ix;
         if (it == fontMap.end()) {
             // First time to see this font.
             font_ix = mFonts.size();
             mFonts.push_back(fakedFont);
-            fontMap.insert(std::make_pair(typeface.get(), font_ix));
+            fontMap.insert(std::make_pair(typeface, font_ix));
 
             // We override some functions which are not thread safe.
             HbFontUniquePtr font(hb_font_create_sub_font(fakedFont.hbFont().get()));
-            hb_font_set_funcs(
-                    font.get(), isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
-                    new SkiaArguments({fakedFont.typeface().get(), &paint, fakedFont.fakery}),
-                    [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
+            hb_font_set_funcs(font.get(),
+                              isColorBitmapFont(font) ? getFontFuncsForEmoji() : getFontFuncs(),
+                              new SkiaArguments({typeface.get(), &paint, fakedFont.fakery}),
+                              [](void* data) { delete reinterpret_cast<SkiaArguments*>(data); });
             hbFonts.push_back(std::move(font));
         } else {
             font_ix = it->second;
@@ -380,7 +382,11 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
             hb_buffer_clear_contents(buffer.get());
             hb_buffer_set_script(buffer.get(), script);
-            hb_buffer_set_direction(buffer.get(), isRtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+            if (paint.verticalText) {
+                hb_buffer_set_direction(buffer.get(), HB_DIRECTION_TTB);
+            } else {
+                hb_buffer_set_direction(buffer.get(), isRtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+            }
             const LocaleList& localeList = LocaleListCache::getById(paint.localeListId);
             if (localeList.size() != 0) {
                 hb_language_t hbLanguage = localeList.getHbLanguage(0);
@@ -416,7 +422,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 const uint32_t cp = textBuf.codePointAt(advIndex + start);
                 if (!u_iscntrl(cp)) {
                     mAdvances[advIndex] += letterSpaceHalf;
-                    x += letterSpaceHalf;
+                    *dir += letterSpaceHalf;
                 }
             }
             for (unsigned int i = 0; i < numGlyphs; i++) {
@@ -439,9 +445,9 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                     // To avoid rounding error, add full letter spacing when the both prev and
                     // current code point are non-control characters.
                     if (!isCtrl && !isPrevCtrl) {
-                        x += letterSpace;
+                        *dir += letterSpace;
                     } else if (!isCtrl || !isPrevCtrl) {
-                        x += letterSpaceHalf;
+                        *dir += letterSpaceHalf;
                     }
                 }
 
@@ -451,8 +457,9 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 xoff += yoff * paint.skewX;
                 mFontIndices.push_back(font_ix);
                 mGlyphIds.push_back(glyph_ix);
-                mPoints.emplace_back(x + xoff, y + yoff);
-                float xAdvance = HBFixedToFloat(positions[i].x_advance);
+                mPoints.push_back({x + xoff, y + yoff});
+                float advance = paint.verticalText ? -HBFixedToFloat(positions[i].y_advance)
+                                                   : HBFixedToFloat(positions[i].x_advance);
                 mClusters.push_back(clusterBaseIndex);
                 if (useLargeSet) {
                     clusterSetForLarge.insert(clusterBaseIndex);
@@ -461,19 +468,19 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 }
 
                 if (clusterBaseIndex < count) {
-                    mAdvances[clusterBaseIndex] += xAdvance;
+                    mAdvances[clusterBaseIndex] += advance;
                 } else {
                     ALOGE("cluster %zu (start %zu) out of bounds of count %zu", clusterBaseIndex,
                           start, count);
                 }
-                x += xAdvance;
+                *dir += advance;
             }
             if (numGlyphs && letterSpace != 0) {
                 const uint32_t lastAdvIndex = info[numGlyphs - 1].cluster - clusterOffset;
                 const uint32_t lastCp = textBuf.codePointAt(lastAdvIndex + start);
                 if (!u_iscntrl(lastCp)) {
                     mAdvances[lastAdvIndex] += letterSpaceHalf;
-                    x += letterSpaceHalf;
+                    *dir += letterSpaceHalf;
                 }
             }
         }
@@ -482,12 +489,13 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mGlyphIds.shrink_to_fit();
     mPoints.shrink_to_fit();
     mClusters.shrink_to_fit();
-    mAdvance = x;
+    mAdvance = *dir;
     if (useLargeSet) {
         mClusterCount = clusterSetForLarge.size();
     } else {
         mClusterCount = clusterSet.count();
     }
+    mVerticalText = paint.verticalText;
 }
 
 // static

@@ -22,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "FeatureFlags.h"
 #include "FontUtils.h"
 #include "Locale.h"
 #include "LocaleListCache.h"
@@ -64,7 +65,7 @@ std::shared_ptr<FontFamily> FontFamily::create(uint32_t localeListId, FamilyVari
 }
 
 std::shared_ptr<FontFamily> FontFamily::create(const std::shared_ptr<FontFamily>& parent,
-                                               const std::vector<FontVariation>& axes) {
+                                               const VariationSettings& axes) {
     if (axes.empty() || parent->getSupportedAxesCount() == 0) {
         return nullptr;
     }
@@ -87,7 +88,7 @@ std::shared_ptr<FontFamily> FontFamily::create(const std::shared_ptr<FontFamily>
 }
 
 FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
-                       const std::vector<FontVariation>& axesOverride)
+                       const VariationSettings& axesOverride)
         : mFonts(),
           mSupportedAxes(std::make_unique<AxisTag[]>(parent->getSupportedAxesCount())),
           mCoverage(),
@@ -102,7 +103,8 @@ FontFamily::FontFamily(const std::shared_ptr<FontFamily>& parent,
           mIsColorEmoji(parent->mIsColorEmoji),
           mIsCustomFallback(parent->mIsCustomFallback),
           mIsDefaultFallback(parent->mIsDefaultFallback),
-          mVarFamilyType(VariationFamilyType::None) {
+          mVarFamilyType(VariationFamilyType::None),
+          mIsVariationFamily(true) {
     // Filter only the axis supported font.
     std::vector<std::shared_ptr<Font>> overriddenFonts;
     for (uint16_t i = 0; i < mFontsCount; ++i) {
@@ -147,7 +149,8 @@ FontFamily::FontFamily(uint32_t localeListId, FamilyVariant variant,
                         EmojiStyle::EMOJI),
           mIsCustomFallback(isCustomFallback),
           mIsDefaultFallback(isDefaultFallback),
-          mVarFamilyType(varFamilyType) {
+          mVarFamilyType(varFamilyType),
+          mIsVariationFamily(false) {
     MINIKIN_ASSERT(!fonts.empty(), "FontFamily must contain at least one font.");
     MINIKIN_ASSERT(fonts.size() <= std::numeric_limits<uint32_t>::max(),
                    "Number of fonts must be less than 2^32.");
@@ -183,6 +186,7 @@ FontFamily::FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<F
     mIsCustomFallback = static_cast<bool>(reader->read<uint8_t>());
     mIsDefaultFallback = static_cast<bool>(reader->read<uint8_t>());
     mVarFamilyType = reader->read<VariationFamilyType>();
+    mIsVariationFamily = false;
     mCoverage = SparseBitSet(reader);
     // Read mCmapFmt14Coverage. As it can have null entries, it is stored in the buffer as a sparse
     // array (size, non-null entry count, array of (index, entry)).
@@ -300,7 +304,36 @@ static FontFakery computeFakery(FontStyle wanted, FontStyle actual) {
     return FontFakery(isFakeBold, isFakeItalic);
 }
 
-FakedFont FontFamily::getClosestMatch(FontStyle style) const {
+FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& axes) const {
+    if (features::typeface_redesign_readonly()) {
+        int bestIndex = 0;
+        Font* bestFont = mFonts[bestIndex].get();
+        int bestMatch = computeMatch(bestFont->style(), style);
+        for (size_t i = 1; i < mFontsCount; i++) {
+            Font* font = mFonts[i].get();
+            int match = computeMatch(font->style(), style);
+            if (i == 0 || match < bestMatch) {
+                bestFont = font;
+                bestIndex = i;
+                bestMatch = match;
+            }
+        }
+
+        if (mIsVariationFamily) {
+            // For backward compatibility reasons, we don't merge the variation settings because it
+            // is developer provided configuration.
+            return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
+        }
+
+        if (axes.empty() && style == bestFont->style()) {
+            // Easy case, no merge is necessary.
+            return FakedFont{mFonts[bestIndex], FontFakery(false, false)};
+        }
+        FontFakery fakery = merge(bestFont->getFVarTable(), bestFont->baseTypeface()->GetAxes(),
+                                  axes, bestFont->style(), style);
+        return FakedFont(mFonts[bestIndex], fakery);
+    }
+
     if (mVarFamilyType != VariationFamilyType::None) {
         return getVariationFamilyAdjustment(style);
     }
@@ -334,7 +367,7 @@ FakedFont FontFamily::getVariationFamilyAdjustment(FontStyle style) const {
 }
 
 void FontFamily::computeCoverage() {
-    const std::shared_ptr<Font>& font = getClosestMatch(FontStyle()).font;
+    const std::shared_ptr<Font>& font = getClosestMatch(FontStyle(), VariationSettings()).font;
     HbBlob cmapTable(font->baseFont(), MakeTag('c', 'm', 'a', 'p'));
     if (cmapTable.get() == nullptr) {
         ALOGE("Could not get cmap table size!\n");
@@ -398,7 +431,7 @@ bool FontFamily::hasGlyph(uint32_t codepoint, uint32_t variationSelector) const 
 }
 
 std::shared_ptr<FontFamily> FontFamily::createFamilyWithVariation(
-        const std::vector<FontVariation>& variations) const {
+        const VariationSettings& variations) const {
     if (variations.empty() || mSupportedAxesCount == 0) {
         return nullptr;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef MINIKIN_POINT_H
-#define MINIKIN_POINT_H
+#ifndef MINIKIN_FONT_VARIATION_TEST_UTILS_H
+#define MINIKIN_FONT_VARIATION_TEST_UTILS_H
 
-#include <ostream>
+#include "minikin/FontVariation.h"
 
 namespace minikin {
 
-struct Point {
-    float x, y;
-};
-
-// For gtest
-inline std::ostream& operator<<(std::ostream& os, const Point& p) {
-    return os << "(" << p.x << ", " << p.y << ")";
-}
-
-inline bool operator==(const Point& l, const Point& r) {
-    return l.x == r.x && l.y == r.y;
-}
-
-inline bool operator!=(const Point& l, const Point& r) {
-    return !(l == r);
-}
+VariationSettings parseVariationSettings(const std::string& varSettings);
 
 }  // namespace minikin
-
-#endif  // MINIKIN_POINT_H
+#endif  // MINIKIN_FONT_VARIATION_TEST_UTILS_H

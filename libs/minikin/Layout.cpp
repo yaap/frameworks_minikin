@@ -68,7 +68,11 @@ void adjustGlyphLetterSpacingEdge(const U16StringPiece& textBuf, const MinikinPa
             if (!isLetterSpacingCapableCodePoint(cp)) {
                 break;
             }
-            glyphs->at(i).x -= letterSpacingHalf;
+            if (paint.verticalText) {
+                glyphs->at(i).y -= letterSpacingHalf;
+            } else {
+                glyphs->at(i).x -= letterSpacingHalf;
+            }
         }
     }
 
@@ -87,7 +91,11 @@ void adjustGlyphLetterSpacingEdge(const U16StringPiece& textBuf, const MinikinPa
 
         if (i < glyphCount) {
             for (uint32_t j = glyphCount - i; j < glyphCount; ++j) {
-                glyphs->at(j).x -= letterSpacingHalf;
+                if (paint.verticalText) {
+                    glyphs->at(j).y -= letterSpacingHalf;
+                } else {
+                    glyphs->at(j).x -= letterSpacingHalf;
+                }
             }
         }
     }
@@ -180,12 +188,21 @@ void adjustBoundsLetterSpacingEdge(const MinikinPaint& paint, RunFlag runFlag,
         return;
     }
     if (runFlag & RunFlag::LEFT_EDGE) {
-        bounds->mLeft -= letterSpacingHalf;
-        bounds->mRight -= letterSpacingHalf;
+        if (paint.verticalText) {
+            bounds->mTop -= letterSpacingHalf;
+            bounds->mBottom -= letterSpacingHalf;
+        } else {
+            bounds->mLeft -= letterSpacingHalf;
+            bounds->mRight -= letterSpacingHalf;
+        }
     }
 
     if (runFlag & RunFlag::RIGHT_EDGE) {
-        bounds->mRight -= letterSpacingHalf;
+        if (paint.verticalText) {
+            bounds->mBottom -= letterSpacingHalf;
+        } else {
+            bounds->mRight -= letterSpacingHalf;
+        }
     }
 }
 
@@ -232,7 +249,11 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
                                               startHyphen, endHyphen, nullptr, advancesForRun,
                                               bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
-            bounds->join(tmpBounds, advance, 0);
+            if (paint.verticalText) {
+                bounds->join(tmpBounds, 0, advance);
+            } else {
+                bounds->join(tmpBounds, advance, 0);
+            }
         }
         advance += run_advance;
     }
@@ -266,7 +287,11 @@ float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& rang
                 pieceStartHyphen, pieceEndHyphen, layout, advancesForRun,
                 bounds ? &tmpBounds : nullptr, clusterCount);
         if (bounds) {
-            bounds->join(tmpBounds, advance, 0);
+            if (paint.verticalText) {
+                bounds->join(tmpBounds, 0, advance);
+            } else {
+                bounds->join(tmpBounds, advance, 0);
+            }
         }
         advance += word_advance;
     }
@@ -289,11 +314,14 @@ public:
             mLayout->appendLayout(layoutPiece, mOutOffset, mWordSpacing);
         }
         if (mAdvances) {
-            const std::vector<float>& advances = layoutPiece.advances();
-            std::copy(advances.begin(), advances.end(), mAdvances);
+            std::copy(layoutPiece.advances().begin(), layoutPiece.advances().end(), mAdvances);
         }
         if (mBounds) {
-            mBounds->join(bounds, mTotalAdvance, 0);
+            if (layoutPiece.isVerticalText()) {
+                mBounds->join(bounds, 0, mTotalAdvance);
+            } else {
+                mBounds->join(bounds, mTotalAdvance, 0);
+            }
         }
         mTotalAdvance += layoutPiece.advance();
         mClusterCount += layoutPiece.clusterCount();
@@ -340,7 +368,9 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
 }
 
 void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvance) {
-    if (features::typeface_redesign()) {
+    float xAdvance = src.isVerticalText() ? 0 : mAdvance;
+    float yAdvance = src.isVerticalText() ? mAdvance : 0;
+    if (features::typeface_redesign_readonly()) {
         if (src.glyphCount() == 0) {
             return;
         }
@@ -363,15 +393,15 @@ void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvan
             }
 
             mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
-                                 mAdvance + src.pointAt(i).x, src.pointAt(i).y);
+                                 xAdvance + src.pointAt(i).x, yAdvance + src.pointAt(i).y);
         }
     } else {
         for (size_t i = 0; i < src.glyphCount(); i++) {
             mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), src.clusterAt(i) + start,
-                                 mAdvance + src.pointAt(i).x, src.pointAt(i).y);
+                                 xAdvance + src.pointAt(i).x, yAdvance + src.pointAt(i).y);
         }
     }
-    const std::vector<float>& advances = src.advances();
+    const AdvanceVector& advances = src.advances();
     for (size_t i = 0; i < advances.size(); i++) {
         mAdvances[i + start] = advances[i];
         if (i == 0) {

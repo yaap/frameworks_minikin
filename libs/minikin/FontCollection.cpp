@@ -151,7 +151,7 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
     std::unordered_set<AxisTag> supportedAxesSet;
     for (size_t i = 0; i < nTypefaces; i++) {
         const std::shared_ptr<FontFamily>& family = typefaces[i];
-        if (family->getClosestMatch(defaultStyle).font == nullptr) {
+        if (family->getNumFonts() == 0) {
             continue;
         }
         const SparseBitSet& coverage = family->getCoverage();
@@ -657,7 +657,8 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
 
         // Use this family
         MinikinExtent extent(0, 0);
-        FakedFont font = getFamilyAt(i)->getClosestMatch(paint.fontStyle);
+        FakedFont font =
+                getFamilyAt(i)->getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
         font.typeface()->GetFontExtent(&extent, paint, font.fakery);
         result.extendBy(extent);
     }
@@ -684,7 +685,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
         }
 
         MinikinExtent extent(0, 0);
-        FakedFont font = family.getClosestMatch(paint.fontStyle);
+        FakedFont font = family.getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
         font.typeface()->GetFontExtent(&extent, paint, font.fakery);
         result.extendBy(extent);
 
@@ -696,7 +697,7 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     filterFamilyByLocale(requestedLocaleList, [&](const FontFamily& family) {
         // Use this family
         MinikinExtent extent(0, 0);
-        FakedFont font = family.getClosestMatch(paint.fontStyle);
+        FakedFont font = family.getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
         font.typeface()->GetFontExtent(&extent, paint, font.fakery);
         result.extendBy(extent);
 
@@ -706,7 +707,8 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
 
     // If nothing matches, use default font.
     if (!familyFound) {
-        FakedFont font = getFamilyAt(0)->getClosestMatch(paint.fontStyle);
+        FakedFont font =
+                getFamilyAt(0)->getClosestMatch(paint.fontStyle, paint.fontVariationSettings);
         font.typeface()->GetFontExtent(&result, paint, font.fakery);
     }
 
@@ -866,7 +868,8 @@ std::vector<FontCollection::Run> FontCollection::itemize(U16StringPiece text, Fo
     return result;
 }
 
-FakedFont FontCollection::getBestFont(U16StringPiece text, const Run& run, FontStyle style) {
+FakedFont FontCollection::getBestFont(U16StringPiece text, const Run& run, FontStyle style,
+                                      const VariationSettings& variationSettings) {
     uint8_t bestIndex = 0;
     uint32_t bestScore = 0xFFFFFFFF;
 
@@ -885,7 +888,7 @@ FakedFont FontCollection::getBestFont(U16StringPiece text, const Run& run, FontS
     } else {
         bestIndex = run.familyMatch[0];
     }
-    return getFamilyAt(bestIndex)->getClosestMatch(style);
+    return getFamilyAt(bestIndex)->getClosestMatch(style, variationSettings);
 }
 
 FakedFont FontCollection::baseFontFaked(FontStyle style) {
@@ -893,7 +896,7 @@ FakedFont FontCollection::baseFontFaked(FontStyle style) {
 }
 
 std::shared_ptr<FontCollection> FontCollection::createCollectionWithVariation(
-        const std::vector<FontVariation>& variations) {
+        const VariationSettings& variations) {
     if (variations.empty() || mSupportedAxesCount == 0) {
         return nullptr;
     }

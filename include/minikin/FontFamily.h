@@ -49,7 +49,7 @@ public:
 
     // Create FontFamily with axes override.
     static std::shared_ptr<FontFamily> create(const std::shared_ptr<FontFamily>& parent,
-                                              const std::vector<FontVariation>& axesOverride);
+                                              const VariationSettings& axesOverride);
 
     FontFamily(FontFamily&&) = default;
     FontFamily& operator=(FontFamily&&) = default;
@@ -58,7 +58,10 @@ public:
     static void writeVector(BufferWriter* writer,
                             const std::vector<std::shared_ptr<FontFamily>>& families);
 
-    FakedFont getClosestMatch(FontStyle style) const;
+    FakedFont getClosestMatch(FontStyle style, const VariationSettings& axes) const;
+    FakedFont getClosestMatch(FontStyle style) const {
+        return getClosestMatch(style, VariationSettings());
+    }
     FakedFont getVariationFamilyAdjustment(FontStyle style) const;
 
     uint32_t localeListId() const { return mLocaleListId; }
@@ -104,14 +107,13 @@ public:
     // Creates new FontFamily based on this family while applying font variations. Returns nullptr
     // if none of variations apply to this family.
     std::shared_ptr<FontFamily> createFamilyWithVariation(
-            const std::vector<FontVariation>& variations) const;
+            const VariationSettings& variations) const;
 
 private:
     FontFamily(uint32_t localeListId, FamilyVariant variant,
                std::vector<std::shared_ptr<Font>>&& fonts, bool isCustomFallback,
                bool isDefaultFallback, VariationFamilyType varFamilyType);
-    FontFamily(const std::shared_ptr<FontFamily>& parent,
-               const std::vector<FontVariation>& axesOverride);
+    FontFamily(const std::shared_ptr<FontFamily>& parent, const VariationSettings& axesOverride);
     explicit FontFamily(BufferReader* reader, const std::shared_ptr<std::vector<Font>>& fonts);
 
     void writeTo(BufferWriter* writer, uint32_t* fontIndex) const;
@@ -127,7 +129,7 @@ private:
     // This field is empty if mParent is set. Use mParent's coverage instead.
     std::unique_ptr<SparseBitSet[]> mCmapFmt14Coverage;
     std::shared_ptr<FontFamily> mParent;
-    std::vector<FontVariation> mVarOverride;
+    VariationSettings mVarOverride;
     uint32_t mLocaleListId;  // 4 bytes
     uint32_t mFontsCount;    // 4 bytes
     // OpenType supports up to 2^16-1 (uint16) axes.
@@ -140,6 +142,7 @@ private:
     bool mIsDefaultFallback;           // 1 byte
     VariationFamilyType mVarFamilyType;  // 1byte
 
+    bool mIsVariationFamily;
     MINIKIN_PREVENT_COPY_AND_ASSIGN(FontFamily);
 };
 

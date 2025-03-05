@@ -57,6 +57,7 @@ struct MinikinPaint {
               fontFlags(0),
               localeListId(0),
               familyVariant(FamilyVariant::DEFAULT),
+              verticalText(false),
               fontFeatureSettings(),
               font(font) {}
 
@@ -69,6 +70,7 @@ struct MinikinPaint {
     uint32_t localeListId;
     FontStyle fontStyle;
     FamilyVariant familyVariant;
+    bool verticalText;
     std::vector<FontFeature> fontFeatureSettings;
     std::shared_ptr<FontCollection> font;
     VariationSettings fontVariationSettings;
@@ -89,7 +91,8 @@ struct MinikinPaint {
                fontFlags == paint.fontFlags && localeListId == paint.localeListId &&
                fontStyle == paint.fontStyle && familyVariant == paint.familyVariant &&
                fontFeatureSettings == paint.fontFeatureSettings && font.get() == paint.font.get() &&
-               fontVariationSettings == paint.fontVariationSettings;
+               fontVariationSettings == paint.fontVariationSettings &&
+               verticalText == paint.verticalText;
     }
 
     uint32_t hash() const {
@@ -104,6 +107,7 @@ struct MinikinPaint {
                 .update(fontStyle.identifier())
                 .update(static_cast<uint8_t>(familyVariant))
                 .update(fontFeatureSettings)
+                .update(verticalText)
                 .update(font->getId())
                 .update(fontVariationSettings)
                 .hash();

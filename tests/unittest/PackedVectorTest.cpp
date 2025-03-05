@@ -27,14 +27,14 @@ struct Data {
 TEST(PackedVector, construct) {
     {
         PackedVector<int> packed;
-        EXPECT_EQ(0, packed.size());
+        EXPECT_EQ(0u, packed.size());
         EXPECT_TRUE(packed.empty());
     }
     {
         int data[] = {1, 2, 3, 4, 5};
 
         PackedVector<int> packed(data, 5);
-        EXPECT_EQ(5, packed.size());
+        EXPECT_EQ(5u, packed.size());
         EXPECT_EQ(1, packed[0]);
         EXPECT_EQ(2, packed[1]);
         EXPECT_EQ(3, packed[2]);
@@ -45,7 +45,7 @@ TEST(PackedVector, construct) {
         int data[] = {1, 2, 3, 4, 5};
 
         PackedVector<int> packed(data + 2, 2);
-        EXPECT_EQ(2, packed.size());
+        EXPECT_EQ(2u, packed.size());
         EXPECT_EQ(3, packed[0]);
         EXPECT_EQ(4, packed[1]);
     }
@@ -53,7 +53,7 @@ TEST(PackedVector, construct) {
         std::vector<int> data = {1, 2, 3, 4, 5};
 
         PackedVector<int> packed(data);
-        EXPECT_EQ(5, packed.size());
+        EXPECT_EQ(5u, packed.size());
         EXPECT_EQ(1, packed[0]);
         EXPECT_EQ(2, packed[1]);
         EXPECT_EQ(3, packed[2]);
@@ -66,14 +66,14 @@ TEST(PackedVector, push_back) {
     PackedVector<int> packed;
 
     packed.push_back(0);
-    EXPECT_EQ(1, packed.size());
+    EXPECT_EQ(1u, packed.size());
     EXPECT_FALSE(packed.empty());
     EXPECT_EQ(0, packed[0]);
     EXPECT_EQ(0, packed.data()[0]);
     EXPECT_EQ(0, *packed.back());
 
     packed.push_back(10);
-    EXPECT_EQ(2, packed.size());
+    EXPECT_EQ(2u, packed.size());
     EXPECT_FALSE(packed.empty());
     EXPECT_EQ(10, packed[1]);
     EXPECT_EQ(10, packed.data()[1]);
@@ -122,13 +122,13 @@ TEST(PackedVector, reserve) {
     {
         PackedVector<int> packed;
         packed.reserve(100);
-        EXPECT_EQ(0, packed.size());
-        EXPECT_EQ(100, packed.capacity());
+        EXPECT_EQ(0u, packed.size());
+        EXPECT_EQ(100u, packed.capacity());
         packed.shrink_to_fit();
-        EXPECT_EQ(0, packed.size());
+        EXPECT_EQ(0u, packed.size());
         // The PackedVector has minimum capacity for the space of pointers. So cannot expect it
         // becomes 0.
-        EXPECT_NE(100, packed.capacity());
+        EXPECT_NE(100u, packed.capacity());
     }
     {
         PackedVector<int> packed;
@@ -136,11 +136,11 @@ TEST(PackedVector, reserve) {
         for (int i = 0; i < 50; ++i) {
             packed.push_back(i);
         }
-        EXPECT_EQ(50, packed.size());
-        EXPECT_EQ(100, packed.capacity());
+        EXPECT_EQ(50u, packed.size());
+        EXPECT_EQ(100u, packed.capacity());
         packed.shrink_to_fit();
-        EXPECT_EQ(50, packed.size());
-        EXPECT_EQ(50, packed.capacity());
+        EXPECT_EQ(50u, packed.size());
+        EXPECT_EQ(50u, packed.capacity());
     }
 }
 
@@ -157,91 +157,91 @@ TEST(PackedVector, resize) {
         // Reduction
         PackedVector<int> packed = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
         packed.resize(10);
-        EXPECT_EQ(10, packed.size());
-        EXPECT_EQ(10, packed.capacity());
+        EXPECT_EQ(10u, packed.size());
+        EXPECT_EQ(10u, packed.capacity());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}), packed);
 
         packed.resize(9);
-        EXPECT_EQ(9, packed.size());
+        EXPECT_EQ(9u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9}), packed);
 
         packed.resize(8);
-        EXPECT_EQ(8, packed.size());
+        EXPECT_EQ(8u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8}), packed);
 
         packed.resize(7);
-        EXPECT_EQ(7, packed.size());
+        EXPECT_EQ(7u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7}), packed);
 
         packed.resize(6);
-        EXPECT_EQ(6, packed.size());
+        EXPECT_EQ(6u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6}), packed);
 
         packed.resize(5);
-        EXPECT_EQ(5, packed.size());
+        EXPECT_EQ(5u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5}), packed);
 
         packed.resize(4);
-        EXPECT_EQ(4, packed.size());
+        EXPECT_EQ(4u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4}), packed);
 
         packed.resize(3);
-        EXPECT_EQ(3, packed.size());
+        EXPECT_EQ(3u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3}), packed);
 
         packed.resize(2);
-        EXPECT_EQ(2, packed.size());
+        EXPECT_EQ(2u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2}), packed);
 
         packed.resize(1);
-        EXPECT_EQ(1, packed.size());
+        EXPECT_EQ(1u, packed.size());
         EXPECT_EQ(PackedVector<int>({1}), packed);
 
         packed.resize(0);
-        EXPECT_EQ(0, packed.size());
+        EXPECT_EQ(0u, packed.size());
         EXPECT_EQ(PackedVector<int>({}), packed);
     }
     {
         // Expansion
         PackedVector<int> packed = {};
         packed.resize(1, 1);
-        EXPECT_EQ(1, packed.size());
+        EXPECT_EQ(1u, packed.size());
         EXPECT_EQ(PackedVector<int>({1}), packed);
 
         packed.resize(2, 2);
-        EXPECT_EQ(2, packed.size());
+        EXPECT_EQ(2u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2}), packed);
 
         packed.resize(3, 3);
-        EXPECT_EQ(3, packed.size());
+        EXPECT_EQ(3u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3}), packed);
 
         packed.resize(4, 4);
-        EXPECT_EQ(4, packed.size());
+        EXPECT_EQ(4u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4}), packed);
 
         packed.resize(5, 5);
-        EXPECT_EQ(5, packed.size());
+        EXPECT_EQ(5u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5}), packed);
 
         packed.resize(6, 6);
-        EXPECT_EQ(6, packed.size());
+        EXPECT_EQ(6u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6}), packed);
 
         packed.resize(7, 7);
-        EXPECT_EQ(7, packed.size());
+        EXPECT_EQ(7u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7}), packed);
 
         packed.resize(8, 8);
-        EXPECT_EQ(8, packed.size());
+        EXPECT_EQ(8u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8}), packed);
 
         packed.resize(9, 9);
-        EXPECT_EQ(9, packed.size());
+        EXPECT_EQ(9u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9}), packed);
 
         packed.resize(10, 10);
-        EXPECT_EQ(10, packed.size());
+        EXPECT_EQ(10u, packed.size());
         EXPECT_EQ(PackedVector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}), packed);
     }
 }

@@ -155,7 +155,11 @@ public:
         int end;
     };
 
-    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style);
+    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style,
+                          const VariationSettings& variationSettings);
+    FakedFont getBestFont(U16StringPiece textBuf, const Run& run, FontStyle style) {
+        return getBestFont(textBuf, run, style, VariationSettings());
+    }
 
     // Perform the itemization until given max runs.
     std::vector<Run> itemize(U16StringPiece text, FontStyle style, uint32_t localeListId,
@@ -180,7 +184,7 @@ public:
     // Creates new FontCollection based on this collection while applying font variations. Returns
     // nullptr if none of variations apply to this collection.
     std::shared_ptr<FontCollection> createCollectionWithVariation(
-            const std::vector<FontVariation>& variations);
+            const VariationSettings& variations);
     // Creates new FontCollection that uses the specified families as top families and
     // families from this FontCollection as fallback.
     std::shared_ptr<FontCollection> createCollectionWithFamilies(
