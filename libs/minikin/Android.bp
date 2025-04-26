@@ -25,7 +25,6 @@ cc_library_headers {
 
 cc_library_static {
     name: "libminikin_from_rust_to_cpp",
-    cpp_std: "c++20",
     host_supported: true,
     cflags: [
         "-Wall",
