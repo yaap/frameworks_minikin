@@ -38,6 +38,9 @@ rust_defaults {
                 "libandroid_text_flags_rust",
             ],
         },
+        windows: {
+            enabled: true,
+        },
     },
 }
 
