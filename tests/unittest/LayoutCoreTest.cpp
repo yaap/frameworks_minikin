@@ -14,30 +14,33 @@
  * limitations under the License.
  */
 
-#include "minikin/LayoutCore.h"
-
+#include <com_android_text_flags.h>
+#include <flag_macros.h>
 #include <gtest/gtest.h>
 
-#include "minikin/FontCollection.h"
-#include "minikin/LayoutPieces.h"
-
 #include "FontTestUtils.h"
+#include "LayoutContext.h"
 #include "UnicodeUtils.h"
+#include "minikin/FontCollection.h"
+#include "minikin/LayoutCore.h"
+#include "minikin/LayoutPieces.h"
 
 namespace minikin {
 namespace {
 
 static LayoutPiece buildLayout(const std::string& text, const MinikinPaint& paint) {
     auto utf16 = utf8ToUtf16(text);
+    LayoutContext ctx;
     return LayoutPiece(utf16, Range(0, utf16.size()), false /* rtl */, paint,
-                       StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
+                       StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, &ctx);
 }
 
 static LayoutPiece buildLayout(const std::string& text, const Range& range,
                                const MinikinPaint& paint) {
     auto utf16 = utf8ToUtf16(text);
+    LayoutContext ctx;
     return LayoutPiece(utf16, range, false /* rtl */, paint, StartHyphenEdit::NO_EDIT,
-                       EndHyphenEdit::NO_EDIT);
+                       EndHyphenEdit::NO_EDIT, &ctx);
 }
 
 static LayoutPiece buildLayout(const std::string& text, std::shared_ptr<FontCollection> fc) {
@@ -51,8 +54,9 @@ static std::pair<LayoutPiece, MinikinRect> buildLayoutAndBounds(
     MinikinPaint paint(fc);
     paint.size = 10.0f;  // make 1em = 10px
     auto utf16 = utf8ToUtf16(text);
+    LayoutContext ctx;
     LayoutPiece lp = LayoutPiece(utf16, Range(0, utf16.size()), false /* rtl */, paint,
-                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT);
+                                 StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, &ctx);
     MinikinRect rect = LayoutPiece::calculateBounds(lp, paint);
     return std::make_pair(lp, rect);
 }
@@ -401,6 +405,30 @@ TEST(LayoutPieceTest, doLayoutLongTextTest) {
     auto layout = buildLayout(text, fc);
     EXPECT_EQ(1024u, layout.glyphCount());
     EXPECT_EQ(1024u, layout.clusterCount());
+}
+
+TEST_WITH_FLAGS(LayoutExtentTest, VerticalLayoutBaseTable,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    language_specific_extent))) {
+    auto fc = makeFontCollection({"BaseTableFont.ttf"});
+    MinikinPaint paint(fc);
+    paint.size = 100.0f;  // make 1em = 10px
+
+    // Vertical metrics from hhea table for Latin script
+    {
+        paint.localeListId = registerLocaleList("en-US");
+        auto layout = buildLayout("a", paint);
+        EXPECT_EQ(-80, layout.extent().ascent);
+        EXPECT_EQ(20, layout.extent().descent);
+    }
+
+    // Vertical metrics from BASE table for Vietnamese script
+    {
+        paint.localeListId = registerLocaleList("vi-VI");
+        auto layout = buildLayout("a", paint);
+        EXPECT_EQ(-100, layout.extent().ascent);
+        EXPECT_EQ(40, layout.extent().descent);
+    }
 }
 
 }  // namespace

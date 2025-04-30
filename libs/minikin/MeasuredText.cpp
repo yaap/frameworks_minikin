@@ -17,6 +17,7 @@
 #include "minikin/MeasuredText.h"
 
 #include "BidiUtils.h"
+#include "LayoutContext.h"
 #include "LayoutSplitter.h"
 #include "LayoutUtils.h"
 #include "LineBreakerUtil.h"
@@ -68,18 +69,19 @@ void StyleRun::getMetrics(const U16StringPiece& textBuf, std::vector<float>* adv
     const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     const uint32_t paintId =
             (precomputed == nullptr) ? LayoutPieces::kNoPaintId : precomputed->findPaintId(mPaint);
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, mRange, bidiFlag)) {
         for (const auto[context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             compositor.setNextRange(piece, info.isRtl);
             if (paintId == LayoutPieces::kNoPaintId) {
                 LayoutCache::getInstance().getOrCreate(
                         textBuf.substr(context), piece - context.getStart(), mPaint, info.isRtl,
-                        StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, boundsCalculation,
+                        StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, boundsCalculation, &ctx,
                         compositor);
             } else {
                 precomputed->getOrCreate(textBuf, piece, context, mPaint, info.isRtl,
                                          StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, paintId,
-                                         boundsCalculation, compositor);
+                                         boundsCalculation, &ctx, compositor);
             }
         }
     }
@@ -106,11 +108,12 @@ float StyleRun::measureText(const U16StringPiece& textBuf) const {
     TotalAdvancesCompositor compositor;
     const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     LayoutCache& layoutCache = LayoutCache::getInstance();
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, Range(0, textBuf.length()), bidiFlag)) {
         for (const auto [context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             layoutCache.getOrCreate(textBuf.substr(context), piece - context.getStart(), mPaint,
                                     info.isRtl, StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT,
-                                    false /* bounds calculation */, compositor);
+                                    false /* bounds calculation */, &ctx, compositor);
         }
     }
     return compositor.getTotalAdvance();
@@ -147,7 +150,7 @@ private:
 
 float StyleRun::measureHyphenPiece(const U16StringPiece& textBuf, const Range& range,
                                    StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                                   LayoutPieces* pieces) const {
+                                   LayoutPieces* pieces, LayoutContext* ctx) const {
     TotalAdvanceCompositor compositor(pieces);
     const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
@@ -160,7 +163,7 @@ float StyleRun::measureHyphenPiece(const U16StringPiece& textBuf, const Range& r
             compositor.setNextContext(piece, packHyphenEdit(startEdit, endEdit), info.isRtl);
             LayoutCache::getInstance().getOrCreate(
                     textBuf.substr(context), piece - context.getStart(), mPaint, info.isRtl,
-                    startEdit, endEdit, false /* bounds calculation */, compositor);
+                    startEdit, endEdit, false /* bounds calculation */, ctx, compositor);
         }
     }
     return compositor.advance();
@@ -185,6 +188,7 @@ void MeasuredText::measure(const U16StringPiece& textBuf, bool computeHyphenatio
         }
 
         proc.updateLocaleIfNecessary(*run, false /* forceWordStyleAutoToPhrase */);
+        LayoutContext ctx;
         for (uint32_t i = range.getStart(); i < range.getEnd(); ++i) {
             // Even if the run is not a candidate of line break, treat the end of run as the line
             // break candidate.
@@ -198,7 +202,7 @@ void MeasuredText::measure(const U16StringPiece& textBuf, bool computeHyphenatio
 
             populateHyphenationPoints(textBuf, *run, *proc.hyphenator, proc.contextRange(),
                                       proc.wordRange(), widths, ignoreHyphenKerning, &hyphenBreaks,
-                                      piecesOut);
+                                      &ctx, piecesOut);
         }
     }
 }
@@ -235,6 +239,7 @@ void StyleRun::appendLayout(const U16StringPiece& textBuf, const Range& range,
     LayoutCompositor compositor(outLayout, wordSpacing);
     const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     const uint32_t paintId = pieces.findPaintId(mPaint);
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto[context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             compositor.setOutOffset(piece.getStart() - outOrigin);
@@ -245,11 +250,11 @@ void StyleRun::appendLayout(const U16StringPiece& textBuf, const Range& range,
 
             if (canUsePrecomputedResult) {
                 pieces.getOrCreate(textBuf, piece, context, mPaint, info.isRtl, startEdit, endEdit,
-                                   paintId, boundsCalculation, compositor);
+                                   paintId, boundsCalculation, &ctx, compositor);
             } else {
                 LayoutCache::getInstance().getOrCreate(
                         textBuf.substr(context), piece - context.getStart(), paint, info.isRtl,
-                        startEdit, endEdit, boundsCalculation, compositor);
+                        startEdit, endEdit, boundsCalculation, &ctx, compositor);
             }
         }
     }
@@ -283,11 +288,12 @@ std::pair<float, MinikinRect> StyleRun::getBounds(const U16StringPiece& textBuf,
     BoundsCompositor compositor;
     const Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     const uint32_t paintId = pieces.findPaintId(mPaint);
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto[context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             pieces.getOrCreate(textBuf, piece, context, mPaint, info.isRtl,
                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, paintId,
-                               true /* bounds calculation */, compositor);
+                               true /* bounds calculation */, &ctx, compositor);
         }
     }
     return std::make_pair(compositor.advance(), compositor.bounds());
@@ -314,11 +320,12 @@ MinikinExtent StyleRun::getExtent(const U16StringPiece& textBuf, const Range& ra
     ExtentCompositor compositor;
     Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     const uint32_t paintId = pieces.findPaintId(mPaint);
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto[context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             pieces.getOrCreate(textBuf, piece, context, mPaint, info.isRtl,
                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, paintId,
-                               false /* bounds calculation */, compositor);
+                               false /* bounds calculation */, &ctx, compositor);
         }
     }
     return compositor.extent();
@@ -344,11 +351,12 @@ LineMetrics StyleRun::getLineMetrics(const U16StringPiece& textBuf, const Range&
     LineMetricsCompositor compositor;
     Bidi bidiFlag = mIsRtl ? Bidi::FORCE_RTL : Bidi::FORCE_LTR;
     const uint32_t paintId = pieces.findPaintId(mPaint);
+    LayoutContext ctx;
     for (const BidiText::RunInfo info : BidiText(textBuf, range, bidiFlag)) {
         for (const auto [context, piece] : LayoutSplitter(textBuf, info.range, info.isRtl)) {
             pieces.getOrCreate(textBuf, piece, context, mPaint, info.isRtl,
                                StartHyphenEdit::NO_EDIT, EndHyphenEdit::NO_EDIT, paintId,
-                               true /* bounds calculation */, compositor);
+                               true /* bounds calculation */, &ctx, compositor);
         }
     }
     return compositor.metrics();
