@@ -38,6 +38,7 @@ namespace features {
 
 DEFINE_FEATURE_FLAG_ACCESSOROR(rust_hyphenator);
 DEFINE_FEATURE_FLAG_ACCESSOROR(typeface_redesign_readonly);
+DEFINE_FEATURE_FLAG_ACCESSOROR(language_specific_extent);
 
 }  // namespace features
 

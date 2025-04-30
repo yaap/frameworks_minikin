@@ -26,9 +26,11 @@ struct MinikinExtent {
     MinikinExtent() : ascent(0), descent(0) {}
     MinikinExtent(float ascent, float descent) : ascent(ascent), descent(descent) {}
 
-    void extendBy(const MinikinExtent& e) {
-        ascent = std::min(ascent, e.ascent);
-        descent = std::max(descent, e.descent);
+    void extendBy(const MinikinExtent& e) { extendBy(e.ascent, e.descent); }
+
+    void extendBy(float newAscent, float newDescent) {
+        ascent = std::min(ascent, newAscent);
+        descent = std::max(descent, newDescent);
     }
 
     float ascent;   // negative

@@ -511,6 +511,10 @@ int Locale::calcScoreFor(const LocaleList& supported) const {
     return 0;
 }
 
+hb_script_t Locale::getHbScript() const {
+    return hb_script_from_iso15924_tag(unpackScript(mScript));
+}
+
 static hb_language_t buildHbLanguage(const Locale& locale) {
     return locale.isSupported() ? hb_language_from_string(locale.getString().c_str(), -1)
                                 : HB_LANGUAGE_INVALID;

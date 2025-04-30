@@ -42,11 +42,14 @@ using PointVector = PackedVector<Point>;
 using ClusterVector = PackedVector<uint8_t, 12>;
 using AdvanceVector = PackedVector<float>;
 
+struct LayoutContext;
+
 // Immutable, recycle-able layout result.
 class LayoutPiece {
 public:
     LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool isRtl,
-                const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen);
+                const MinikinPaint& paint, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
+                LayoutContext* context);
     ~LayoutPiece();
 
     // Low level accessors.

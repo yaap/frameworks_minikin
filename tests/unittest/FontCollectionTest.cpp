@@ -24,6 +24,7 @@
 #include "MinikinInternal.h"
 #include "minikin/Constants.h"
 #include "minikin/FontCollection.h"
+#include "minikin/MinikinPaint.h"
 
 namespace minikin {
 
@@ -373,6 +374,35 @@ TEST_WITH_FLAGS(FontCollectionTest, getBestFont,
     EXPECT_EQ(parseVariationSettings("'ital' 1, 'wght' 500"),
               getBestFont(FontStyle(FontStyle::Slant::ITALIC), parseVariationSettings("'wght' 500"))
                       .fakery.variationSettings());
+}
+
+TEST_WITH_FLAGS(FontCollectionTest, getReferenceExtentForLocale_withBASETable,
+                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
+                                                    language_specific_extent))) {
+    auto minikinFont =
+            std::make_shared<FreeTypeMinikinFontForTest>(getTestFontPath("BaseTableFont.ttf"));
+    auto font = Font::Builder(minikinFont).build();
+    auto family = FontFamily::create({font});
+    auto fc = FontCollection::create({family});
+
+    MinikinPaint paint(fc);
+    paint.size = 100;  // make 1em = 100px
+
+    // Vertical metrics from hhea table for Latin script
+    {
+        paint.localeListId = registerLocaleList("en-US");
+        auto extent = fc->getReferenceExtentForLocale(paint);
+        EXPECT_EQ(-80, extent.ascent);
+        EXPECT_EQ(20, extent.descent);
+    }
+
+    // Vertical metrics from BASE table for Vietnamese script
+    {
+        paint.localeListId = registerLocaleList("vi-VI");
+        auto extent = fc->getReferenceExtentForLocale(paint);
+        EXPECT_EQ(-100, extent.ascent);
+        EXPECT_EQ(40, extent.descent);
+    }
 }
 
 }  // namespace minikin
