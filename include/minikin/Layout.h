@@ -195,13 +195,14 @@ private:
                                    const MinikinPaint& paint, size_t dstStart,
                                    StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
                                    Layout* layout, float* advances, MinikinRect* bounds,
-                                   uint32_t* clusterCount);
+                                   uint32_t* clusterCount, LayoutContext* layoutContext);
 
     // Lay out a single word
     static float doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                               bool isRtl, const MinikinPaint& paint, size_t bufStart,
                               StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                              float* advances, MinikinRect* bounds, uint32_t* clusterCount);
+                              float* advances, MinikinRect* bounds, uint32_t* clusterCount,
+                              LayoutContext* layoutContext);
 
     // Lay out a single bidi run
     void doLayoutRun(const uint16_t* buf, size_t start, size_t count, size_t bufSize, bool isRtl,

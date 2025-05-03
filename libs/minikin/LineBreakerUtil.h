@@ -81,7 +81,8 @@ inline void populateHyphenationPoints(
         const std::vector<float>& charWidths,  // Char width used for hyphen piece estimation.
         bool ignoreKerning,                    // True use full shaping for hyphenation piece.
         std::vector<HyphenBreak>* out,         // An output to be appended.
-        LayoutPieces* pieces) {                // An output of layout pieces. Maybe null.
+        LayoutContext* ctx,
+        LayoutPieces* pieces) {  // An output of layout pieces. Maybe null.
     if (!run.getRange().contains(contextRange) || !contextRange.contains(hyphenationTargetRange)) {
         return;
     }
@@ -98,14 +99,14 @@ inline void populateHyphenationPoints(
             auto hyphenPart = contextRange.split(i);
             U16StringPiece firstText = textBuf.substr(hyphenPart.first);
             U16StringPiece secondText = textBuf.substr(hyphenPart.second);
-            const float first =
-                    run.measureHyphenPiece(firstText, Range(0, firstText.size()),
-                                           StartHyphenEdit::NO_EDIT /* start hyphen edit */,
-                                           editForThisLine(hyph) /* end hyphen edit */, pieces);
-            const float second =
-                    run.measureHyphenPiece(secondText, Range(0, secondText.size()),
-                                           editForNextLine(hyph) /* start hyphen edit */,
-                                           EndHyphenEdit::NO_EDIT /* end hyphen edit */, pieces);
+            const float first = run.measureHyphenPiece(
+                    firstText, Range(0, firstText.size()),
+                    StartHyphenEdit::NO_EDIT /* start hyphen edit */,
+                    editForThisLine(hyph) /* end hyphen edit */, pieces, ctx);
+            const float second = run.measureHyphenPiece(
+                    secondText, Range(0, secondText.size()),
+                    editForNextLine(hyph) /* start hyphen edit */,
+                    EndHyphenEdit::NO_EDIT /* end hyphen edit */, pieces, ctx);
 
             out->emplace_back(i, hyph, first, second);
         } else {

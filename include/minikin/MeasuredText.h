@@ -107,8 +107,8 @@ public:
     virtual float measureHyphenPiece(const U16StringPiece& /* text */,
                                      const Range& /* hyphenPieceRange */,
                                      StartHyphenEdit /* startHyphen */,
-                                     EndHyphenEdit /* endHyphen */,
-                                     LayoutPieces* /* pieces */) const {
+                                     EndHyphenEdit /* endHyphen */, LayoutPieces* /* pieces */,
+                                     LayoutContext* /* layoutContext */) const {
         return 0.0;
     }
 
@@ -171,7 +171,7 @@ public:
 
     float measureHyphenPiece(const U16StringPiece& text, const Range& range,
                              StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                             LayoutPieces* pieces) const override;
+                             LayoutPieces* pieces, LayoutContext* ctx) const override;
     float measureText(const U16StringPiece& text) const;
 
 private:

@@ -125,6 +125,8 @@ public:
     bool supportsScript(uint32_t script) const;
     bool supportsScript(char c1, char c2, char c3, char c4) const;
 
+    hb_script_t getHbScript() const;
+
     std::string getString() const;
 
     std::string getStringWithLineBreakOption(LineBreakStyle lbStyle,

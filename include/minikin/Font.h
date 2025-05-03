@@ -39,6 +39,12 @@
 
 namespace minikin {
 
+// Material Typescale defines 15 Typescales.
+// {Display, Headline, Title, Body, Label} x {Large, Medium, Small}
+// And emphasized variants are defined. Therefore, at least 30 size should be reserved for holding
+// all typescale.
+constexpr uint32_t VARIATION_LRU_CACHE_SIZE = 32;
+
 // Represents a single font file.
 class Font {
 public:
@@ -126,8 +132,8 @@ private:
         ExternalRefs(std::shared_ptr<MinikinFont>&& typeface, HbFontUniquePtr&& baseFont)
                 : mTypeface(std::move(typeface)),
                   mBaseFont(std::move(baseFont)),
-                  mVarTypefaceCache2(16),
-                  mVarFontCache2(16) {}
+                  mVarTypefaceCache2(VARIATION_LRU_CACHE_SIZE),
+                  mVarFontCache2(VARIATION_LRU_CACHE_SIZE) {}
 
         std::shared_ptr<MinikinFont> mTypeface;
         HbFontUniquePtr mBaseFont;

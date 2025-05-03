@@ -83,8 +83,8 @@ public:
     virtual const MinikinPaint* getPaint() const { return &mPaint; }
 
     virtual float measureHyphenPiece(const U16StringPiece&, const Range& range,
-                                     StartHyphenEdit start, EndHyphenEdit end,
-                                     LayoutPieces*) const {
+                                     StartHyphenEdit start, EndHyphenEdit end, LayoutPieces*,
+                                     LayoutContext*) const {
         uint32_t extraCharForHyphen = 0;
         if (isInsertion(start)) {
             extraCharForHyphen++;
