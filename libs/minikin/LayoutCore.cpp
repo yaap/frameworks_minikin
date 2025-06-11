@@ -361,7 +361,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
         // Note: scriptRunStart and scriptRunEnd, as well as run.start and run.end, run between 0
         // and count.
-        for (const auto [range, script] : ScriptText(textBuf, run.start, run.end)) {
+        for (const auto [range, script] : ScriptText(substr, run.start, run.end)) {
             ssize_t scriptRunStart = range.getStart();
             ssize_t scriptRunEnd = range.getEnd();
 

@@ -313,11 +313,11 @@ impl<'a> Header<'a> {
     pub fn alphabet_table(&self) -> Option<Box<dyn AlphabetLookup + 'a>> {
         let offset = self.data.read_u32(8);
         let version = self.data.read_u32(offset);
-        return match version {
+        match version {
             0 => Some(Box::new(AlphabetTable0::new(self.read_offset_and_slice(8)))),
             1 => Some(Box::new(AlphabetTable1::new(self.read_offset_and_slice(8)))),
             _ => None,
-        };
+        }
     }
 
     /// Returns the reader of the trie struct.
@@ -375,7 +375,7 @@ impl<'a> AlphabetTable0<'a> {
     }
 }
 
-impl<'a> AlphabetLookup for AlphabetTable0<'a> {
+impl AlphabetLookup for AlphabetTable0<'_> {
     /// Returns an entry of the specified offset.
     fn get_at(&self, offset: u32) -> Option<u16> {
         if offset < self.min_codepoint || offset >= self.max_codepoint {
@@ -420,7 +420,7 @@ impl<'a> AlphabetTable1<'a> {
     }
 }
 
-impl<'a> AlphabetLookup for AlphabetTable1<'a> {
+impl AlphabetLookup for AlphabetTable1<'_> {
     fn get_at(&self, c: u32) -> Option<u16> {
         if let Some(r) = self.lower_bounds(c << 11) {
             let entry = AlphabetTable1Entry::new(self.data.read_u32(8 + r * 4));
