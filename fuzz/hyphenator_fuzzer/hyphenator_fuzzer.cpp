@@ -19,6 +19,7 @@
 #include <fuzzer/FuzzedDataProvider.h>
 #include <minikin/Hyphenator.h>
 
+#include <functional>
 #include <iostream>
 #include <string>
 
