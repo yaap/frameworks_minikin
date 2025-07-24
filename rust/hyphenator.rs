@@ -749,7 +749,7 @@ impl Hyphenator {
                     let pat_shift = pat_entry.shift();
                     let offset = j + 1 - (pat_len + pat_shift);
                     // offset is the index within buffer that lines up with the start of pat_buf
-                    let start = if self.min_prefix < offset { 0 } else { self.min_prefix - offset };
+                    let start = self.min_prefix.saturating_sub(offset);
                     if offset > max_offset {
                         continue;
                     }
