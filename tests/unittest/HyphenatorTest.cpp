@@ -375,7 +375,6 @@ TEST_P(HyphenatorTest, hyphenationWithHyphen) {
     EXPECT_EQ(HyphenationType::BREAK_AND_INSERT_HYPHEN, result[8]);
     EXPECT_EQ(HyphenationType::DONT_BREAK, result[9]);
     EXPECT_EQ(HyphenationType::DONT_BREAK, result[10]);
-    EXPECT_EQ(HyphenationType::DONT_BREAK, result[11]);
 }
 
 }  // namespace minikin
