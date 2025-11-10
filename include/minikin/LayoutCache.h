@@ -78,9 +78,9 @@ public:
 
 private:
     PackedVector<uint16_t, 12> mChars;
-    uint8_t mStart;
-    uint8_t mCount;
-    uint8_t mFontFlags;
+    uint32_t mStart;
+    uint32_t mCount;
+    uint32_t mFontFlags;
     uint32_t mId;  // for the font collection
     FontStyle mStyle;
     float mSize;
