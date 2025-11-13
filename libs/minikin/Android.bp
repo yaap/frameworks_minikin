@@ -25,7 +25,6 @@ cc_library_headers {
 
 cc_library_static {
     name: "libminikin_from_rust_to_cpp",
-    cpp_std: "c++20",
     host_supported: true,
     cflags: [
         "-Wall",
@@ -63,6 +62,9 @@ cc_library_static {
                 "libicui18n",
                 "libicuuc",
             ],
+        },
+        windows: {
+            enabled: true,
         },
     },
 }
@@ -131,6 +133,10 @@ cc_library {
         "libutils_headers",
     ],
     export_header_lib_headers: ["libminikin_headers"],
+    generated_headers: [
+        "cxx-bridge-header",
+        "libminikin_cxx_bridge_header",
+    ],
 
     target: {
         android: {
@@ -141,10 +147,6 @@ cc_library {
             ],
             export_shared_lib_headers: [
                 "libicu",
-            ],
-            generated_headers: [
-                "cxx-bridge-header",
-                "libminikin_cxx_bridge_header",
             ],
             whole_static_libs: [
                 "libminikin_rust_ffi",
@@ -160,12 +162,8 @@ cc_library {
                 "libicui18n",
                 "libicuuc",
             ],
-            generated_headers: [
-                "cxx-bridge-header",
-                "libminikin_cxx_bridge_header",
-            ],
         },
-        linux: {
+        not_windows: {
             whole_static_libs: [
                 "libminikin_rust_ffi",
             ],
@@ -175,6 +173,9 @@ cc_library {
             cppflags: [
                 "-Wno-ignored-attributes",
                 "-Wno-thread-safety",
+            ],
+            static_libs: [
+                "libminikin_rust_ffi",
             ],
         },
     },

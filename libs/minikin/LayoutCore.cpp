@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "BidiUtils.h"
+#include "FeatureFlags.h"
+#include "LayoutContext.h"
 #include "LayoutUtils.h"
 #include "LetterSpacingUtils.h"
 #include "LocaleListCache.h"
@@ -272,11 +274,37 @@ static inline uint32_t addToHbBuffer(const HbBufferUniquePtr& buffer, const uint
     return cpInfo[0].cluster;
 }
 
+void extentByBASETable(const HbFontUniquePtr& hbFont, const MinikinPaint& paint, hb_script_t script,
+                       hb_direction_t direction, MinikinExtent* out) {
+    const LocaleList& localeList = LocaleListCache::getById(paint.localeListId);
+    if (localeList.empty()) {
+        return;
+    }
+
+    float ascent = 0;
+    float descent = 0;
+    hb_font_extents_t hbextent = {};
+
+    for (size_t i = 0; i < localeList.size(); ++i) {
+        const Locale& locale = localeList[i];
+        if (!locale.hasLanguage() || !locale.hasScript()) {
+            continue;
+        }
+        hb_language_t language = localeList.getHbLanguage(i);
+
+        if (hb_ot_layout_get_font_extents2(hbFont.get(), direction, script, language, &hbextent)) {
+            ascent = std::min(-HBFixedToFloat(hbextent.ascender), ascent);
+            descent = std::max(-HBFixedToFloat(hbextent.descender), descent);
+        }
+    }
+    out->extendBy(ascent, descent);
+}
+
 }  // namespace
 
 LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool isRtl,
                          const MinikinPaint& paint, StartHyphenEdit startHyphen,
-                         EndHyphenEdit endHyphen) {
+                         EndHyphenEdit endHyphen, LayoutContext* ctx) {
     const uint16_t* buf = textBuf.data();
     const size_t start = range.getStart();
     const size_t count = range.getLength();
@@ -347,10 +375,23 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
             }
         }
         if (needExtent) {
-            MinikinExtent verticalExtent;
-            typeface->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
-            mExtent.extendBy(verticalExtent);
+            if (features::language_specific_extent()) {
+                auto it = ctx->extentCache.find(typeface.get());
+                if (it != ctx->extentCache.end()) {
+                    mExtent.extendBy(it->second);
+                } else {
+                    MinikinExtent verticalExtent;
+                    typeface->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
+                    mExtent.extendBy(verticalExtent);
+                    ctx->extentCache[typeface.get()] = verticalExtent;
+                }
+            } else {
+                MinikinExtent verticalExtent;
+                typeface->GetFontExtent(&verticalExtent, paint, fakedFont.fakery);
+                mExtent.extendBy(verticalExtent);
+            }
         }
+        ScriptExtentCache& scriptExtentCache = ctx->scriptExtentCache[typeface.get()];
 
         hb_font_set_ppem(hbFont.get(), size * scaleX, size);
         hb_font_set_scale(hbFont.get(), HBFloatToFixed(size * scaleX), HBFloatToFixed(size));
@@ -382,11 +423,14 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
 
             hb_buffer_clear_contents(buffer.get());
             hb_buffer_set_script(buffer.get(), script);
+            hb_direction_t direction;
             if (paint.verticalText) {
-                hb_buffer_set_direction(buffer.get(), HB_DIRECTION_TTB);
+                direction = HB_DIRECTION_TTB;
             } else {
-                hb_buffer_set_direction(buffer.get(), isRtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+                direction = isRtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR;
             }
+            hb_buffer_set_direction(buffer.get(), direction);
+
             const LocaleList& localeList = LocaleListCache::getById(paint.localeListId);
             if (localeList.size() != 0) {
                 hb_language_t hbLanguage = localeList.getHbLanguage(0);
@@ -397,6 +441,19 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                     }
                 }
                 hb_buffer_set_language(buffer.get(), hbLanguage);
+            }
+
+            if (features::language_specific_extent() && needExtent && localeList.size() != 0) {
+                auto it = scriptExtentCache.find(script);
+
+                if (it == scriptExtentCache.end()) {
+                    MinikinExtent extent = {};
+                    extentByBASETable(hbFont, paint, script, direction, &extent);
+                    mExtent.extendBy(extent);
+                    scriptExtentCache[script] = extent;
+                } else {
+                    mExtent.extendBy(it->second);
+                }
             }
 
             const uint32_t clusterStart =

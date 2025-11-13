@@ -92,7 +92,8 @@ struct LayoutPieces {
     template <typename F>
     void getOrCreate(const U16StringPiece& textBuf, const Range& range, const Range& context,
                      const MinikinPaint& paint, bool dir, StartHyphenEdit startEdit,
-                     EndHyphenEdit endEdit, uint32_t paintId, bool boundsCalculation, F& f) const {
+                     EndHyphenEdit endEdit, uint32_t paintId, bool boundsCalculation,
+                     LayoutContext* ctx, F& f) const {
         const HyphenEdit edit = packHyphenEdit(startEdit, endEdit);
         auto it = offsetMap.find(Key(range, edit, dir, paintId));
         if (it != offsetMap.end()) {
@@ -108,7 +109,7 @@ struct LayoutPieces {
 
         LayoutCache::getInstance().getOrCreate(textBuf.substr(context), range - context.getStart(),
                                                paint, dir, startEdit, endEdit, boundsCalculation,
-                                               f);
+                                               ctx, f);
     }
 
     uint32_t findPaintId(const MinikinPaint& paint) const {

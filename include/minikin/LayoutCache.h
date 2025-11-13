@@ -156,10 +156,10 @@ public:
     template <typename F>
     void getOrCreate(const U16StringPiece& text, const Range& range, const MinikinPaint& paint,
                      bool dir, StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
-                     bool boundsCalculation, F& f) {
+                     bool boundsCalculation, LayoutContext* ctx, F& f) {
         LayoutCacheKey key(text, range, paint, dir, startHyphen, endHyphen);
         if (range.getLength() >= CHAR_LIMIT_FOR_CACHE) {
-            LayoutPiece piece(text, range, dir, paint, startHyphen, endHyphen);
+            LayoutPiece piece(text, range, dir, paint, startHyphen, endHyphen, ctx);
             if (boundsCalculation) {
                 f(piece, paint, LayoutPiece::calculateBounds(piece, paint));
             } else {
@@ -188,13 +188,13 @@ public:
 
         std::unique_ptr<LayoutSlot> slot;
         if (boundsCalculation) {
-            LayoutPiece lp = LayoutPiece(text, range, dir, paint, startHyphen, endHyphen);
+            LayoutPiece lp = LayoutPiece(text, range, dir, paint, startHyphen, endHyphen, ctx);
             MinikinRect rect = LayoutPiece::calculateBounds(lp, paint);
 
             slot = std::make_unique<LayoutSlot>(std::move(lp), std::move(rect));
         } else {
             slot = std::make_unique<LayoutSlot>(
-                    LayoutPiece(text, range, dir, paint, startHyphen, endHyphen));
+                    LayoutPiece(text, range, dir, paint, startHyphen, endHyphen, ctx));
         }
 
         f(slot->mLayout, paint, slot->mBounds);

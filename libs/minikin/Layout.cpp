@@ -31,6 +31,7 @@
 
 #include "BidiUtils.h"
 #include "FeatureFlags.h"
+#include "LayoutContext.h"
 #include "LayoutSplitter.h"
 #include "LayoutUtils.h"
 #include "LetterSpacingUtils.h"
@@ -212,10 +213,11 @@ void Layout::doLayout(const U16StringPiece& textBuf, const Range& range, Bidi bi
     const uint32_t count = range.getLength();
     mAdvances.resize(count, 0);
     mGlyphs.reserve(count);
+    LayoutContext layoutContext;
     const BidiText bidiText(textBuf, range, bidiFlags);
     for (const BidiText::RunInfo& runInfo : bidiText) {
         doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, range.getStart(),
-                          startHyphen, endHyphen, this, nullptr, nullptr, nullptr);
+                          startHyphen, endHyphen, this, nullptr, nullptr, nullptr, &layoutContext);
     }
     U16StringPiece substr = textBuf.substr(range);
     adjustGlyphLetterSpacingEdge(substr, paint, runFlag, &mGlyphs);
@@ -241,13 +243,14 @@ float Layout::measureText(const U16StringPiece& textBuf, const Range& range, Bid
 
     MinikinRect tmpBounds;
     const BidiText bidiText(textBuf, range, bidiFlags);
+    LayoutContext layoutContext;
     for (const BidiText::RunInfo& runInfo : bidiText) {
         const size_t offset = range.toRangeOffset(runInfo.range.getStart());
         float* advancesForRun = advances ? advances + offset : nullptr;
         tmpBounds.setEmpty();
-        float run_advance = doLayoutRunCached(textBuf, runInfo.range, runInfo.isRtl, paint, 0,
-                                              startHyphen, endHyphen, nullptr, advancesForRun,
-                                              bounds ? &tmpBounds : nullptr, clusterCount);
+        float run_advance = doLayoutRunCached(
+                textBuf, runInfo.range, runInfo.isRtl, paint, 0, startHyphen, endHyphen, nullptr,
+                advancesForRun, bounds ? &tmpBounds : nullptr, clusterCount, &layoutContext);
         if (bounds) {
             if (paint.verticalText) {
                 bounds->join(tmpBounds, 0, advance);
@@ -266,7 +269,7 @@ float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& rang
                                 const MinikinPaint& paint, size_t dstStart,
                                 StartHyphenEdit startHyphen, EndHyphenEdit endHyphen,
                                 Layout* layout, float* advances, MinikinRect* bounds,
-                                uint32_t* clusterCount) {
+                                uint32_t* clusterCount, LayoutContext* layoutContext) {
     if (!range.isValid()) {
         return 0.0f;  // ICU failed to retrieve the bidi run?
     }
@@ -285,7 +288,7 @@ float Layout::doLayoutRunCached(const U16StringPiece& textBuf, const Range& rang
                 textBuf.data() + context.getStart(), piece.getStart() - context.getStart(),
                 piece.getLength(), context.getLength(), isRtl, paint, piece.getStart() - dstStart,
                 pieceStartHyphen, pieceEndHyphen, layout, advancesForRun,
-                bounds ? &tmpBounds : nullptr, clusterCount);
+                bounds ? &tmpBounds : nullptr, clusterCount, layoutContext);
         if (bounds) {
             if (paint.verticalText) {
                 bounds->join(tmpBounds, 0, advance);
@@ -343,7 +346,8 @@ private:
 float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size_t bufSize,
                            bool isRtl, const MinikinPaint& paint, size_t bufStart,
                            StartHyphenEdit startHyphen, EndHyphenEdit endHyphen, Layout* layout,
-                           float* advances, MinikinRect* bounds, uint32_t* clusterCount) {
+                           float* advances, MinikinRect* bounds, uint32_t* clusterCount,
+                           LayoutContext* layoutContext) {
     float wordSpacing = count == 1 && isWordSpace(buf[start]) ? paint.wordSpacing : 0;
     float totalAdvance = 0;
     const bool boundsCalculation = bounds != nullptr;
@@ -352,7 +356,7 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
     const Range range(start, start + count);
     LayoutAppendFunctor f(layout, advances, bufStart, wordSpacing, bounds);
     LayoutCache::getInstance().getOrCreate(textBuf, range, paint, isRtl, startHyphen, endHyphen,
-                                           boundsCalculation, f);
+                                           boundsCalculation, layoutContext, f);
     totalAdvance = f.getTotalAdvance();
     if (clusterCount) {
         *clusterCount += f.getClusterCount();
