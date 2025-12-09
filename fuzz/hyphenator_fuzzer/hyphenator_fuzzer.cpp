@@ -18,7 +18,9 @@
  */
 #include <fuzzer/FuzzedDataProvider.h>
 #include <minikin/Hyphenator.h>
+#include <unicode/utf.h>
 
+#include <functional>
 #include <iostream>
 #include <string>
 
@@ -84,12 +86,19 @@ U16StringPiece generateStringPiece(FuzzedDataProvider* fdp) {
     return U16StringPiece(v);
 }
 
+std::string truncateIfIncompleteUtf8(const std::string& input) {
+    uint32_t length = input.size();
+
+    U8_TRUNCATE_IF_INCOMPLETE(input, 0, length);
+    return input.substr(0, length);
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     FuzzedDataProvider fdp(data, size);
 
     uint8_t minPrefix = fdp.ConsumeIntegral<size_t>();
     uint8_t minSuffix = fdp.ConsumeIntegral<size_t>();
-    std::string locale = fdp.ConsumeRandomLengthString(MAX_STR_LEN);
+    std::string locale = truncateIfIncompleteUtf8(fdp.ConsumeRandomLengthString(MAX_STR_LEN));
     std::vector<uint8_t> patternData(fdp.ConsumeIntegralInRange<uint32_t>(0, 256));
 
     Hyphenator* hyphenator = Hyphenator::loadBinary(&patternData[0], patternData.size(), minPrefix,
@@ -100,8 +109,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         auto func = fdp.PickValueInArray<const std::function<void()>>({
                 [&]() { addHyphenator(locale, hyphenator); },
                 [&]() {
-                    auto fromLocaleString = fdp.ConsumeRandomLengthString(MAX_STR_LEN);
-                    auto toLocaleString = fdp.ConsumeRandomLengthString(MAX_STR_LEN);
+                    auto fromLocaleString =
+                            truncateIfIncompleteUtf8(fdp.ConsumeRandomLengthString(MAX_STR_LEN));
+                    auto toLocaleString =
+                            truncateIfIncompleteUtf8(fdp.ConsumeRandomLengthString(MAX_STR_LEN));
                     addHyphenatorAlias(fromLocaleString, toLocaleString);
                 },
                 [&]() {
@@ -116,7 +127,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                 },
                 // Get the list of locales and invoke the API for each one of them
                 [&]() {
-                    uint32_t id = registerLocaleList(fdp.ConsumeRandomLengthString(MAX_STR_LEN));
+                    uint32_t id = registerLocaleList(
+                            truncateIfIncompleteUtf8(fdp.ConsumeRandomLengthString(MAX_STR_LEN)));
                     const LocaleList& locales = LocaleListCache::getById(id);
                     for (size_t i = 0; i < locales.size(); ++i) {
                         HyphenatorMap::lookup(locales[i]);

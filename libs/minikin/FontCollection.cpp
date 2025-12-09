@@ -192,7 +192,6 @@ void FontCollection::init(const vector<std::shared_ptr<FontFamily>>& typefaces) 
     mId = gNextCollectionId++;
     vector<uint32_t> lastChar;
     size_t nTypefaces = typefaces.size();
-    const FontStyle defaultStyle;
     auto families = std::make_shared<vector<std::shared_ptr<FontFamily>>>();
     std::unordered_set<AxisTag> supportedAxesSet;
     for (size_t i = 0; i < nTypefaces; i++) {
@@ -692,9 +691,6 @@ MinikinExtent FontCollection::getReferenceExtentForLocale(const MinikinPaint& pa
     if (e.ascent != 0 || e.descent != 0) {
         return e;
     }
-
-    float fontSize = paint.size;
-    float scaleX = paint.scaleX;
 
     MinikinExtent result(0, 0);
     // Reserve the custom font's extent.
