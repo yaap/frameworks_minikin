@@ -106,12 +106,19 @@ public:
             : mHyphenator(rust::load_hyphenator(::rust::cxxbridge1::Slice(patternData, dataSize),
                                                 minPrefix, minSuffix, locale)) {}
 
+    HyphenatorRust(const std::string& path, size_t minPrefix, size_t minSuffix,
+                   const std::string& locale)
+            : mHyphenator(rust::load_hyphenator_from_path(path.c_str(), minPrefix, minSuffix,
+                                                          locale)) {}
+
     virtual void hyphenate(const U16StringPiece& word, HyphenationType* out) const override {
         static_assert(sizeof(HyphenationType) == sizeof(uint8_t),
                       "HyphnationType must be uint8_t.");
         rust::hyphenate(*mHyphenator, ::rust::cxxbridge1::Slice(word.data(), word.size()),
                         ::rust::cxxbridge1::Slice(reinterpret_cast<uint8_t*>(out), word.size()));
     }
+
+    bool ensure_initialized() const override { return rust::ensure_initialized(*mHyphenator); }
 
 private:
     ::rust::Box<rust::Hyphenator> mHyphenator;
@@ -130,6 +137,11 @@ Hyphenator* Hyphenator::loadBinaryForRust(const uint8_t* patternData, size_t dat
                                           size_t minPrefix, size_t minSuffix,
                                           const std::string& locale) {
     return new HyphenatorRust(patternData, dataSize, minPrefix, minSuffix, locale);
+}
+
+Hyphenator* Hyphenator::loadBinaryFromPath(const std::string& path, size_t minPrefix,
+                                           size_t minSuffix, const std::string& locale) {
+    return new HyphenatorRust(path, minPrefix, minSuffix, locale);
 }
 
 // static
