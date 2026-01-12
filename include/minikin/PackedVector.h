@@ -35,7 +35,8 @@ private:
                      (ARRAY_SIZE * sizeof(T) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t));
     // Number of elements can be stored into array.
     static constexpr size_t ARRAY_CAPACITY = PTR_ARRAY_SIZE * sizeof(uintptr_t) / sizeof(T);
-    static_assert(std::is_pod<T>::value, "only POD can be stored in PackedVector.");
+    static_assert(std::is_trivially_copyable<T>::value);
+    static_assert(std::is_trivially_default_constructible<T>::value);
 
 public:
     typedef T value_type;
