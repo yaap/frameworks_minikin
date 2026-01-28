@@ -15,6 +15,10 @@
  */
 
 use std::cmp;
+#[cfg(unix)]
+use std::path::PathBuf;
+
+use crate::hyphenator_data::HyphenatorData;
 
 /// An implementation of hyphenation for Android.
 ///
@@ -543,15 +547,26 @@ impl<'a> PatternEntry<'a> {
 
 /// Performs hyphenation
 pub struct Hyphenator {
-    data: &'static [u8],
+    data: HyphenatorData,
     min_prefix: u32,
     min_suffix: u32,
     locale: HyphenationLocale,
 }
 
 impl Hyphenator {
-    /// Create a new hyphenator instance
+    /// Create a new hyphenator instance from a fd of .hyb file.
+    #[cfg(unix)]
+    pub fn new_from_path(path: &str, min_prefix: u32, min_suffix: u32, locale: &str) -> Self {
+        let path = PathBuf::from(path);
+        Self::new_inner(HyphenatorData::new_from_path(path), min_prefix, min_suffix, locale)
+    }
+
+    /// Create a new hyphenator instance from mmapped .hyb file.
     pub fn new(data: &'static [u8], min_prefix: u32, min_suffix: u32, locale: &str) -> Self {
+        Self::new_inner(HyphenatorData::new_from_ptr(data), min_prefix, min_suffix, locale)
+    }
+
+    fn new_inner(data: HyphenatorData, min_prefix: u32, min_suffix: u32, locale: &str) -> Self {
         logger::init(
             logger::Config::default()
                 .with_tag_on_device("Minikin")
@@ -575,15 +590,20 @@ impl Hyphenator {
         }
     }
 
+    /// Initializes self if necessary, and returns true if successful or already initialized
+    pub fn ensure_initialized(&self) -> bool {
+        self.data.ensure_initialized()
+    }
+
     /// Performs a hyphenation
     pub fn hyphenate(&self, word: &[u16], out: &mut [u8]) {
         let len: u32 = word.len().try_into().unwrap();
         let padded_len = len + 2;
-        if !self.data.is_empty()
+        if !self.data.get().is_empty()
             && len >= self.min_prefix + self.min_suffix
             && padded_len <= MAX_HYPHEN_SIZE
         {
-            let header = Header::new(self.data);
+            let header = Header::new(self.data.get());
             let mut alpha_codes: [u16; MAX_HYPHEN_SIZE as usize] = [0; MAX_HYPHEN_SIZE as usize];
             let hyphen_value = if let Some(alphabet) = header.alphabet_table() {
                 alphabet.lookup(&mut alpha_codes, word)
@@ -720,7 +740,7 @@ impl Hyphenator {
         word: &[u16],
         out: &mut [u8],
     ) {
-        let header = Header::new(self.data);
+        let header = Header::new(self.data.get());
         let trie = header.trie_table();
         let pattern = header.pattern_table();
         let char_mask = trie.char_mask();

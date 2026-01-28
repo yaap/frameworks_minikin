@@ -19,6 +19,7 @@ rust_defaults {
     host_supported: true,
     rustlibs: [
         "libcxx",
+        "liblibc",
         "liblogger",
         "liblog_rust",
         "libflags_rust",

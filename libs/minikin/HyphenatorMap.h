@@ -71,8 +71,8 @@ private:
 
     void clearInternal();
 
-    const Hyphenator* lookupByIdentifier(uint64_t id) const EXCLUSIVE_LOCKS_REQUIRED(mMutex);
-    const Hyphenator* lookupBySubtag(const Locale& locale, SubtagBits bits) const
+    const Hyphenator* lookupByIdentifier(uint64_t id) EXCLUSIVE_LOCKS_REQUIRED(mMutex);
+    const Hyphenator* lookupBySubtag(const Locale& locale, SubtagBits bits)
             EXCLUSIVE_LOCKS_REQUIRED(mMutex);
 
     const Hyphenator* mSoftHyphenOnlyHyphenator;

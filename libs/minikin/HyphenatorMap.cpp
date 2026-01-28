@@ -112,12 +112,19 @@ insert_result_and_return:
     return result;
 }
 
-const Hyphenator* HyphenatorMap::lookupByIdentifier(uint64_t id) const {
+const Hyphenator* HyphenatorMap::lookupByIdentifier(uint64_t id) {
     auto it = mMap.find(id);
-    return it == mMap.end() ? nullptr : it->second;
+    if (it == mMap.end()) {
+        return nullptr;
+    }
+    if (!it->second->ensure_initialized()) {
+        mMap.erase(it);
+        return nullptr;
+    }
+    return it->second;
 }
 
-const Hyphenator* HyphenatorMap::lookupBySubtag(const Locale& locale, SubtagBits bits) const {
+const Hyphenator* HyphenatorMap::lookupBySubtag(const Locale& locale, SubtagBits bits) {
     const Locale partialLocale = locale.getPartialLocale(bits);
     if (!partialLocale.isSupported() || partialLocale == locale) {
         return nullptr;  // Skip the partial locale result in the same locale or not supported.
