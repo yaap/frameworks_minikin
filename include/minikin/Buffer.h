@@ -77,7 +77,7 @@ public:
 
     template <typename T, size_t align = sizeof(T)>
     const T* map(uint32_t size) {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         mCurrent = BufferReader::align<T, align>(mCurrent);
         const T* data = reinterpret_cast<const T*>(mCurrent);
         mCurrent += size;
@@ -86,7 +86,7 @@ public:
 
     template <typename T, size_t align = sizeof(T)>
     void skip() {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         mCurrent = BufferReader::align<T, align>(mCurrent);
         mCurrent += sizeof(T);
     }
@@ -94,7 +94,7 @@ public:
     // Return a pointer to an array and its number of elements.
     template <typename T, size_t align = sizeof(T)>
     std::pair<const T*, uint32_t> readArray() {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         static_assert(sizeof(T) % align == 0);
         uint32_t size = read<uint32_t>();
         mCurrent = BufferReader::align<T, align>(mCurrent);
@@ -105,7 +105,7 @@ public:
 
     template <typename T, size_t align = sizeof(T)>
     void skipArray() {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         uint32_t size = read<uint32_t>();
         mCurrent = BufferReader::align<T, align>(mCurrent);
         mCurrent += size * sizeof(T);
@@ -164,7 +164,7 @@ public:
     // The reserved region is not initialized.
     template <typename T, size_t align = sizeof(T)>
     T* reserve(uint32_t size) {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         mPos = BufferWriter::align<T, align>(mPos);
         uint32_t pos = mPos;
         mPos += size;
@@ -177,7 +177,7 @@ public:
     // TODO: use std::type_identity_t when C++20 is available.
     template <typename T, size_t align = sizeof(T)>
     void writeArray(const std::common_type_t<T>* data, uint32_t size) {
-        static_assert(std::is_pod<T>::value, "T must be a POD");
+        static_assert(std::is_trivially_copyable<T>::value);
         static_assert(sizeof(T) % align == 0);
         write<uint32_t>(size);
         mPos = BufferWriter::align<T, align>(mPos);
