@@ -17,8 +17,11 @@
 //! The rust component of libminikin
 
 mod hyphenator;
+mod hyphenator_data;
 
 pub use hyphenator::Hyphenator;
+
+use cxx::CxxString;
 
 #[allow(clippy::needless_maybe_sized)]
 #[cxx::bridge(namespace = "minikin::rust")]
@@ -38,8 +41,36 @@ mod ffi {
             min_suffix: u32,
             locale: String,
         ) -> Box<Hyphenator>;
+        fn load_hyphenator_from_path(
+            path: &CxxString,
+            min_prefix: u32,
+            min_suffix: u32,
+            locale: String,
+        ) -> Box<Hyphenator>;
         fn hyphenate(hyphenator: &Hyphenator, word: &[u16], out: &mut [u8]);
+        fn ensure_initialized(hyphenator: &Hyphenator) -> bool;
     }
+}
+
+#[cfg(unix)]
+fn load_hyphenator_from_path(
+    path: &CxxString,
+    min_prefix: u32,
+    min_suffix: u32,
+    locale: String,
+) -> Box<Hyphenator> {
+    let path = path.to_str().expect("Path was not valid UTF-8");
+    Box::new(Hyphenator::new_from_path(path, min_prefix, min_suffix, &locale))
+}
+
+#[cfg(not(unix))]
+fn load_hyphenator_from_path(
+    _path: &CxxString,
+    _min_prefix: u32,
+    _min_suffix: u32,
+    _locale: String,
+) -> Box<Hyphenator> {
+    panic!("Not supported")
 }
 
 fn load_hyphenator(
@@ -53,4 +84,8 @@ fn load_hyphenator(
 
 fn hyphenate(hyphenator: &Hyphenator, word: &[u16], out: &mut [u8]) {
     hyphenator.hyphenate(word, out);
+}
+
+fn ensure_initialized(hyphenator: &Hyphenator) -> bool {
+    hyphenator.ensure_initialized()
 }
