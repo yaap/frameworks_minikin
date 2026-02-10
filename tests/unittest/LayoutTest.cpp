@@ -488,9 +488,7 @@ TEST_F(LayoutTest, measuredTextTest) {
     }
 }
 
-TEST_F_WITH_FLAGS(LayoutTest, testFontRun,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                      typeface_redesign_readonly))) {
+TEST_F(LayoutTest, testFontRun) {
     auto latinFamily = buildFontFamily("Ascii.ttf");
     auto jaFamily = buildFontFamily("Hiragana.ttf");
     const std::vector<std::shared_ptr<FontFamily>> families = {latinFamily, jaFamily};
