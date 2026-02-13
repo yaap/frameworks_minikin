@@ -336,9 +336,7 @@ TEST(FontCollectionTest, FamilyMatchResultTest_intersect) {
                                                            Builder().add(1).add(3).add(5).build()));
 }
 
-TEST_WITH_FLAGS(FontCollectionTest, getBestFont,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    typeface_redesign_readonly))) {
+TEST(FontCollectionTest, getBestFont) {
     FreeTypeMinikinFontForTestFactory::init();
 
     const uint32_t localeListId = registerLocaleList("en-US");

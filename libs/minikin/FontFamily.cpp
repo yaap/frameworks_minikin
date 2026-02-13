@@ -305,38 +305,6 @@ static FontFakery computeFakery(FontStyle wanted, FontStyle actual) {
 }
 
 FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& axes) const {
-    if (features::typeface_redesign_readonly()) {
-        int bestIndex = 0;
-        Font* bestFont = mFonts[bestIndex].get();
-        int bestMatch = computeMatch(bestFont->style(), style);
-        for (size_t i = 1; i < mFontsCount; i++) {
-            Font* font = mFonts[i].get();
-            int match = computeMatch(font->style(), style);
-            if (i == 0 || match < bestMatch) {
-                bestFont = font;
-                bestIndex = i;
-                bestMatch = match;
-            }
-        }
-
-        if (mIsVariationFamily) {
-            // For backward compatibility reasons, we don't merge the variation settings because it
-            // is developer provided configuration.
-            return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
-        }
-
-        if (axes.empty() && style == bestFont->style()) {
-            // Easy case, no merge is necessary.
-            return FakedFont{mFonts[bestIndex], FontFakery(false, false)};
-        }
-        FontFakery fakery = merge(bestFont->getFVarTable(), bestFont->baseTypeface()->GetAxes(),
-                                  axes, bestFont->style(), style);
-        return FakedFont(mFonts[bestIndex], fakery);
-    }
-
-    if (mVarFamilyType != VariationFamilyType::None) {
-        return getVariationFamilyAdjustment(style);
-    }
     int bestIndex = 0;
     Font* bestFont = mFonts[bestIndex].get();
     int bestMatch = computeMatch(bestFont->style(), style);
@@ -349,7 +317,20 @@ FakedFont FontFamily::getClosestMatch(FontStyle style, const VariationSettings& 
             bestMatch = match;
         }
     }
-    return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
+
+    if (mIsVariationFamily) {
+        // For backward compatibility reasons, we don't merge the variation settings because it
+        // is developer provided configuration.
+        return FakedFont{mFonts[bestIndex], computeFakery(style, bestFont->style())};
+    }
+
+    if (axes.empty() && style == bestFont->style()) {
+        // Easy case, no merge is necessary.
+        return FakedFont{mFonts[bestIndex], FontFakery(false, false)};
+    }
+    FontFakery fakery = merge(bestFont->getFVarTable(), bestFont->baseTypeface()->GetAxes(), axes,
+                              bestFont->style(), style);
+    return FakedFont(mFonts[bestIndex], fakery);
 }
 
 FakedFont FontFamily::getVariationFamilyAdjustment(FontStyle style) const {
