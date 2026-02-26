@@ -28,10 +28,6 @@
 #include "minikin/MinikinPaint.h"
 #include "minikin/PackedVector.h"
 
-#ifdef _WIN32
-#include <io.h>
-#endif
-
 namespace minikin {
 // Layout cache datatypes
 class LayoutCacheKey {
