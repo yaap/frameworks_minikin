@@ -29,6 +29,7 @@ cc_binary_host {
     // Shared libraries which are dependencies of minikin; these are not automatically
     // pulled in by the build system (and thus sadly must be repeated).
     shared_libs: [
+        "aconfig_text_flags_c_lib",
         "libicu",
         "libicui18n",
         "libicuuc",
