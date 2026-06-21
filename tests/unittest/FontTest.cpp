@@ -344,9 +344,7 @@ FakedFont fakedFont(const std::shared_ptr<Font>& font, const std::string& varSet
     return {font, FontFakery(false, false, parseVariationSettings(varSettings))};
 }
 
-TEST_WITH_FLAGS(FontTest, FakedFont_cached_hbFont,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    typeface_redesign_readonly))) {
+TEST(FontTest, FakedFont_cached_hbFont) {
     FreeTypeMinikinFontForTestFactory::init();
 
     auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(
@@ -362,9 +360,7 @@ TEST_WITH_FLAGS(FontTest, FakedFont_cached_hbFont,
     EXPECT_NE(faked300.hbFont().get(), faked400.hbFont().get());
 }
 
-TEST_WITH_FLAGS(FontTest, FakedFont_cached_typeface,
-                REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(com::android::text::flags,
-                                                    typeface_redesign_readonly))) {
+TEST(FontTest, FakedFont_cached_typeface) {
     FreeTypeMinikinFontForTestFactory::init();
 
     auto minikinFont = std::make_shared<FreeTypeMinikinFontForTest>(

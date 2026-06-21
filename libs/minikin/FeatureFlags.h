@@ -17,27 +17,17 @@
 #ifndef MINIKIN_FEATURE_FLAGS_H
 #define MINIKIN_FEATURE_FLAGS_H
 
-#ifdef __ANDROID__
 #include <com_android_text_flags.h>
-#endif  // __ANDROID__
 
 namespace features {
 
-#ifdef __ANDROID__
 #define DEFINE_FEATURE_FLAG_ACCESSOROR(feature_name)                \
     inline bool feature_name() {                                    \
         static bool flag = com_android_text_flags_##feature_name(); \
         return flag;                                                \
     }
-#else  //  __ANDROID__
-#define DEFINE_FEATURE_FLAG_ACCESSOROR(feature_name) \
-    inline bool feature_name() {                     \
-        return true;                                 \
-    }
-#endif  //  __ANDROID__
 
 DEFINE_FEATURE_FLAG_ACCESSOROR(rust_hyphenator);
-DEFINE_FEATURE_FLAG_ACCESSOROR(typeface_redesign_readonly);
 DEFINE_FEATURE_FLAG_ACCESSOROR(language_specific_extent);
 
 }  // namespace features

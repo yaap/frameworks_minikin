@@ -123,9 +123,15 @@ cc_library {
         },
     },
     shared_libs: [
+        "aconfig_text_flags_c_lib",
         "liblog",
         "libharfbuzz_ng",
         "libcutils",
+        "server_configurable_flags",
+    ],
+    whole_static_libs: [
+        "libminikin_rust_ffi",
+        "libflags_rust_cpp_bridge",
     ],
     header_libs: [
         "libbase_headers",
@@ -142,15 +148,9 @@ cc_library {
         android: {
             shared_libs: [
                 "libicu",
-                "aconfig_text_flags_c_lib",
-                "server_configurable_flags",
             ],
             export_shared_lib_headers: [
                 "libicu",
-            ],
-            whole_static_libs: [
-                "libminikin_rust_ffi",
-                "libflags_rust_cpp_bridge",
             ],
         },
         host: {
@@ -163,20 +163,13 @@ cc_library {
                 "libicuuc",
             ],
         },
-        not_windows: {
-            whole_static_libs: [
-                "libminikin_rust_ffi",
-            ],
-        },
         windows: {
             enabled: true,
             cppflags: [
                 "-Wno-ignored-attributes",
                 "-Wno-thread-safety",
             ],
-            static_libs: [
-                "libminikin_rust_ffi",
-            ],
+            ldflags: ["-Wl,--allow-multiple-definition"],
         },
     },
 

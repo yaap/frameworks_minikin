@@ -190,6 +190,10 @@ public:
         return hyphenate(word, out->data());
     }
 
+    // Initialize the hyphenator if it isn't already initialized. Returns true if the hyphenator
+    // was already initialized or if it was successfully initialized.
+    virtual bool ensure_initialized() const = 0;
+
     // Returns true if the codepoint is like U+2010 HYPHEN in line breaking and usage: a character
     // immediately after which line breaks are allowed, but words containing it should not be
     // automatically hyphenated.
@@ -204,6 +208,9 @@ public:
     // Note: nullptr is valid input, in which case the hyphenator only processes soft hyphens.
     static Hyphenator* loadBinary(const uint8_t* patternData, size_t dataSize, size_t minPrefix,
                                   size_t minSuffix, const std::string& locale);
+
+    static Hyphenator* loadBinaryFromPath(const std::string& path, size_t minPrefix,
+                                          size_t minSuffix, const std::string& locale);
 
     // This is test only function for loading Rust implementation.
     static Hyphenator* loadBinaryForRust(const uint8_t* patternData, size_t dataSize,
@@ -240,6 +247,8 @@ public:
         out->resize(word.size());
         return hyphenate(word, out->data());
     }
+
+    bool ensure_initialized() const override { return true; }
 
     // This class doesn't copy or take ownership of patternData. Caller must keep the data valid
     // until this instance is deleted.

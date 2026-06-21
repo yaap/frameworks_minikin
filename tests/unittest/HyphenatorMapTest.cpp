@@ -14,53 +14,63 @@
  * limitations under the License.
  */
 
-#include "HyphenatorMap.h"
-
 #include <gtest/gtest.h>
 
+#include <cassert>
+
+#include "HyphenatorMap.h"
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 
 namespace minikin {
 namespace {
 
+class FakeHyphenator : public Hyphenator {
+public:
+    void hyphenate(const U16StringPiece&, HyphenationType*) const override {
+        assert("Unimplemented");
+    }
+
+    bool ensure_initialized() const override { return true; }
+};
+
 // Constants used for testing. The address does not need a valid one.
-const Hyphenator* FAKE_ADDRESS = reinterpret_cast<const Hyphenator*>(1);
-const Hyphenator* AS_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* BG_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* BN_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* CU_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* CY_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* DA_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* DE_1901_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* DE_1996_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* DE_CH_1901_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* EN_GB_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* EN_US_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* ES_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* ET_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* EU_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* FR_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* GA_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* GU_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* HI_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* HR_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* HU_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* HY_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* KN_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* ML_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* MN_CYRL_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* MR_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* NB_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* NN_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* OR_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* PA_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* PT_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* SL_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* TA_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* TE_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* TK_HYPHENATOR = FAKE_ADDRESS++;
-const Hyphenator* UND_ETHI_HYPHENATOR = FAKE_ADDRESS++;
+const Hyphenator* FAKE_ADDRESS = new FakeHyphenator();
+const Hyphenator* AS_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* BG_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* BN_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* CU_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* CY_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* DA_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* DE_1901_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* DE_1996_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* DE_CH_1901_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* EN_GB_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* EN_US_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* ES_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* ET_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* EU_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* FR_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* GA_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* GU_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* HI_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* HR_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* HU_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* HY_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* KN_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* ML_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* MN_CYRL_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* MR_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* NB_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* NN_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* OR_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* PA_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* PT_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* SL_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* TA_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* TE_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* TK_HYPHENATOR = new FakeHyphenator();
+const Hyphenator* UND_ETHI_HYPHENATOR = new FakeHyphenator();
 
 class TestableHyphenatorMap : public HyphenatorMap {
 public:
